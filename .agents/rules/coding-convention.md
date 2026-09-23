@@ -2,14 +2,44 @@
 
 Use this file as the default coding pattern for generated code in this repository.
 
-## 0. Module System
+## 0. Language, Module System, and Class Export Rule
 
-- The backend must use JavaScript ES Modules (ESM).
+- The backend must use TypeScript with ES Modules (ESM).
+- Backend source files must use the `.ts` extension. Do not add new `.js` source files.
 - `package.json` must declare `"type": "module"`.
-- Use `import` and `export` syntax in all `.js` source files.
-- Use explicit relative file extensions in imports, for example `./app.js` and `../config/EnvConfig.js`.
+- Use `import` and `export` syntax in all `.ts` source files.
+- Use explicit relative TypeScript file extensions in imports, for example `./app.ts`
+  and `../config/EnvConfig.ts`.
 - Do not use `require`, `module.exports`, or `exports` in backend source code.
-- Configuration, utilities, routes, and modules should expose named exports when multiple exports are useful; use a default export for a single primary value.
+- Every backend source file must export exactly one class, except middleware files and
+  application bootstrap files (`App.ts` and `Server.ts`).
+- The exported class must contain the file's methods and behavior. Do not export free
+  functions, standalone constants, plain object instances, or multiple classes from a
+  source file. Middleware files are the exception: they may export named Express
+  middleware functions such as `validateRequest` or `requireAuthenticatedUser`.
+  `App.ts` and `Server.ts` may export bootstrap functions such as `createApp` and
+  `startServer`.
+- Use `static readonly` class members for constants and shared immutable configuration.
+- Use instance methods for stateful services, repositories, controllers, routes, DTOs,
+  and validation. Middleware may use named function exports when that matches the
+  Express middleware contract.
+
+Example:
+
+```ts
+export class UserService {
+  async getUserById(userId: number) {
+    // business logic
+  }
+}
+```
+
+Not allowed:
+
+```ts
+export async function getUserById(userId: number) {}
+export const USER_STATUS = {};
+```
 
 ## 1. Naming
 
@@ -21,13 +51,24 @@ Use this file as the default coding pattern for generated code in this repositor
 
 Example:
 
-```js
+```ts
 let totalScore;
 let isActive;
 let hasPermission;
 ```
 
-### 1.2 Functions
+### 1.2 TypeScript types
+
+- Every function and class method parameter must have an explicit type.
+- Every public method must declare its return type, including `Promise<T>` for async methods.
+- Use interfaces for request payloads, response payloads, database projections, and
+  service contracts. Use union types for finite values such as roles or statuses.
+- Do not use implicit `any`. Use `unknown` at external boundaries and narrow it before
+  use.
+- Express request extensions such as `request.auth` must be declared in a `.d.ts` file.
+- DTO methods must declare both their input model and returned API shape.
+
+### 1.3 Functions
 
 - Use `camelCase`.
 - Start with a verb.
@@ -35,11 +76,11 @@ let hasPermission;
 
 Example:
 
-```js
+```ts
 async function getUserById(userId) {}
 ```
 
-### 1.3 Classes and Layer Names
+### 1.4 Classes and Layer Names
 
 - `XxxController`
 - `XxxService`
@@ -47,21 +88,23 @@ async function getUserById(userId) {}
 - `XxxModel`
 - `XxxRoute`
 
-### 1.4 Files
+### 1.5 Files
 
-- Backend files follow `PascalCase` with layer suffix.
+- Backend TypeScript source files use `PascalCase` with a layer suffix.
+- This rule also applies to constants and DTOs: use `AuthConstant.ts` and
+  `AuthDTO.ts`, not `auth.constant.ts` or `auth.dto.ts`.
 - File name should match the main responsibility.
-- Constant files follow the module name.
 - Each module should use one constant file only.
 
-Example:
+Examples:
 
-```js
-UserController.js
-booking.constant.js
+```ts
+UserController.ts
+BookingConstant.ts
+BookingDTO.ts
 ```
 
-### 1.5 Constants
+### 1.6 Constants
 
 - Each module must have a single constant file.
 - The constant file name must match the module name.
@@ -70,11 +113,33 @@ booking.constant.js
 
 Examples:
 
-```js
-booking.constant.js
-payment.constant.js
-notification.constant.js
+```ts
+BookingConstant.ts
+PaymentConstant.ts
+NotificationConstant.ts
 ```
+
+### 1.7 Module folders
+
+Each module must separate its layers into dedicated folders. Each folder contains the
+single class file for that layer:
+
+```text
+src/modules/{module}/
+├── model/
+├── dto/
+├── constant/
+├── controller/
+├── middleware/
+├── repository/
+├── route/
+├── service/
+└── validation/
+```
+
+Do not place controller, service, repository, route, middleware, validation, model,
+DTO, or constant files directly in the module root. A module may also contain an
+`index.ts` entry point when needed, but it must also export exactly one class.
 
 ## 2. Function Design
 
@@ -84,9 +149,9 @@ notification.constant.js
 - Prefer at most 3 nesting levels.
 - Use early return to avoid deep nesting.
 - Prefer pure functions for calculation or transformation logic.
-- `app.js` must not contain business logic, inline middleware logic, validation logic, or response-building logic.
-- `app.js` should only create the app and call setup functions such as `registerMiddlewares`, `registerRoutes`, and `registerErrorHandlers`.
-- `server.js` should only start the server by calling a named bootstrap function such as `startServer`.
+- `App.ts` must not contain business logic, inline middleware logic, validation logic, or response-building logic.
+- `App.ts` should only create the app and call setup methods such as `registerMiddlewares`, `registerRoutes`, and `registerErrorHandlers`.
+- `Server.ts` should only start the server by calling a bootstrap method such as `startServer`.
 
 Example:
 
@@ -104,33 +169,35 @@ Before adding or changing a backend module, inspect the current app wiring and f
 
 Minimum files to check first:
 
-- `src/app.js`
-- `src/routes/index.js`
-- one existing route file such as `src/routes/AuthRoute.js`
-- `src/middlewares/ValidateMiddleware.js`
-- `src/middlewares/ErrorMiddleware.js`
+- `src/App.ts`
+- `src/routes/ApiRoute.ts`
+- one existing route file such as `src/modules/auth/route/AuthRoute.ts`
+- `src/middlewares/ValidateMiddleware.ts`
+- `src/middlewares/ErrorMiddleware.ts`
 - one existing module with the same layers you are about to touch
 
 If the repo already has a pattern for route registration, validation, async wrapping, response formatting, or error mapping, reuse that pattern.
 
 ### 3.2 Route Registration Pattern
 
-- `src/app.js` should only compose setup functions such as `registerMiddlewares`, `registerRoutes`, and `registerErrorHandlers`.
-- `src/routes/index.js` is the central route registry for the app.
-- New feature modules must expose a named register function such as `registerUserRoute`.
-- Register new module routes from `src/routes/index.js` unless the repo already uses a different central entry for that route group.
+- `src/App.ts` should only compose setup methods such as `registerMiddlewares`, `registerRoutes`, and `registerErrorHandlers`.
+- `src/routes/ApiRoute.ts` is the central route registry for the app.
+- New feature modules must expose a route class such as `UserRoute` with a `register` method.
+- Register new module routes from `src/routes/ApiRoute.ts` unless the repo already uses a different central entry for that route group.
 
 Example:
 
 ```js
-function createApiRouter() {
-  const router = express.Router();
+class ApiRoute {
+  createRouter() {
+    const router = express.Router();
 
-  registerHealthRoute(router);
-  registerAuthRoute(router);
-  registerUserRoute(router);
+    new HealthRoute().register(router);
+    new AuthRoute().register(router);
+    new UserRoute().register(router);
 
-  return router;
+    return router;
+  }
 }
 ```
 
@@ -166,7 +233,8 @@ router.put(
 - `Service`: business rules, orchestration, ownership checks, conflict checks, error mapping
 - `Repository`: Prisma queries only, with narrow data-access methods
 - `Model`: shared select objects or model-shaping helpers used by the repository
-- `Mapper`: transform database/service output into API payloads
+- `DTO`: transform database/service output into API payloads and define the public
+  data-transfer shape
 - `Validation`: define Zod request schemas
 - `Constant`: user-facing module messages and module-specific constants
 
@@ -196,7 +264,9 @@ async function getOwnProfile(request, response) {
 
 - Services own business decisions and application rules.
 - Services may call multiple repository methods to enforce behavior.
-- Services should throw `AppError` subclasses or structured `AppError` instances when behavior needs a specific HTTP result.
+- Services should throw the shared `AppError` class (with a typed status code) when
+  behavior needs a specific HTTP result. If specialized error classes are introduced,
+  each class must live in its own file and that file must export only that class.
 - Services should not write Express responses directly.
 
 Examples of service concerns:
@@ -235,11 +305,11 @@ When the agent is unsure about module structure, route registration, validation 
 
 Read the existing files that already implement those concerns and copy the established style:
 
-- route registration from `src/routes/index.js`
-- route middleware order from an existing `*Route.js`
-- request validation from `src/middlewares/ValidateMiddleware.js`
-- error wrapping from `src/middlewares/ErrorMiddleware.js`
-- success response formatting from `src/utils/ApiResponse.js`
+- route registration from `src/routes/ApiRoute.ts`
+- route middleware order from an existing `src/modules/*/route/*Route.ts`
+- request validation from `src/middlewares/ValidateMiddleware.ts`
+- error wrapping from `src/middlewares/ErrorMiddleware.ts`
+- success response formatting from `src/utils/ApiResponse.ts`
 
 The default rule for this repository is: follow the existing backend pattern first, then extend it consistently.
 
@@ -299,7 +369,7 @@ Store in `.env` only when:
 **When an agent needs to add new environment variables:**
 
 1. Add the variable to `.env.example` with a placeholder value (e.g., `VARIABLE_NAME=`) and a comment explaining what it is
-2. Update `src/config/EnvConfig.js` to read and normalize the variable
+2. Update `src/config/EnvConfig.ts` to read and normalize the variable
 3. Update this convention document with the new variable details
 4. **Developers manually add values** to their local `.env` file based on `.env.example`
 
@@ -312,6 +382,12 @@ API_KEY=your_api_key_here
 ```
 
 Current mail-related variables in this project:
+
+Current CORS variable:
+
+- `CORS_ORIGINS`: comma-separated browser origins allowed by the API, for example
+  `http://localhost:5173,http://localhost:3000`. `EnvConfig` trims and filters the
+  values before the Express CORS middleware uses them.
 
 - `CLIENT_FRONTEND_BASE_URL`: frontend base URL used by backend when it builds auth redirect URLs
 - `BETTER_AUTH_URL`: backend origin used by Better Auth, without an `/auth` suffix
@@ -329,7 +405,7 @@ Current mail-related variables in this project:
 
 ### 7.3 Reading Environment Variables
 
-- All environment variables must be read and normalized in `src/config/EnvConfig.js`
+- All environment variables must be read and normalized in `src/config/EnvConfig.ts`
 - Do not access `process.env` directly outside `EnvConfig`
 - Other files must import configuration values from `EnvConfig`
 - `EnvConfig` should provide safe defaults when appropriate and keep parsing logic in one place
@@ -351,9 +427,9 @@ export default envConfig;
 ```
 
 ```js
-import envConfig from '../config/EnvConfig.js';
+import EnvConfig from '../config/EnvConfig.ts';
 
-app.listen(envConfig.port);
+app.listen(EnvConfig.port);
 ```
 
 ### 7.4 .env.example Management
@@ -372,7 +448,7 @@ app.listen(envConfig.port);
 - Magic numbers without naming or context
 - Broad names that hide intent
 - Direct `process.env` access outside `EnvConfig`
-- Inline setup logic inside `app.js` or `server.js`
+- Inline setup logic inside `App.ts` or `Server.ts`
 - Prisma queries inside controllers
 - Business logic inside route files
 - Manual validation inside controllers when Zod schema is the established pattern

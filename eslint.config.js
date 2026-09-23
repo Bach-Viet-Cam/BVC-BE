@@ -1,18 +1,20 @@
 import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
-export default [
+export default tseslint.config(
   {
-    files: ['**/*.js'],
+    files: ['**/*.ts'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
       globals: globals.node
     },
+    extends: tseslint.configs.recommended,
     rules: {
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_' }]
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }]
     }
   },
   {
     ignores: ['node_modules/**']
   }
-];
+);
