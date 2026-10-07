@@ -1,0 +1,25 @@
+name: bvc-backend
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bvc-backend
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - PORT=8000
+      - NODE_ENV=${NODE_ENV:-production}
+      - APP_ORIGIN=${APP_ORIGIN:-http://localhost:3000}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://bvc_admin:change-this-password@bvc-postgres:5432/bachvietcam_staging}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - bvc-network
+
+networks:
+  bvc-network:
+    name: bvc-network
+    external: true
