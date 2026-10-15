@@ -95,22 +95,29 @@ export default class AuthService {
     throw AppError.unauthorized(AUTH_MESSAGES.GOOGLE_TOKEN_INVALID);
   }
 }
+  static assertUserCanSignIn(user: Backend.UserRecord): Backend.UserRecord {
+    if (user.status === 'LOCKED') throw AppError.unauthorized(AUTH_MESSAGES.ACCOUNT_LOCKED);
+    return user;
+  }
+
   static async findOrCreateUser(googleProfile: Backend.GoogleProfile, requestedRole?: Backend.UserRole): Promise<Backend.UserRecord> {
     const existingIdentity = await authRepository.findIdentityByProvider(
       AUTH_PROVIDERS.GOOGLE,
       googleProfile.providerId
     );
 
-    if (existingIdentity) return existingIdentity.user;
+    if (existingIdentity) return AuthService.assertUserCanSignIn(existingIdentity.user);
 
     const existingUser = await authRepository.findUserByEmail(googleProfile.email);
     if (existingUser) {
+      AuthService.assertUserCanSignIn(existingUser);
       await authRepository.createIdentity({
         userId: existingUser.id,
         provider: AUTH_PROVIDERS.GOOGLE,
         providerId: googleProfile.providerId
       });
-      return existingUser;
+      // GBR-38: an imported Pending student becomes Active on the first Google sign-in with that email.
+      return existingUser.status === 'PENDING' ? authRepository.activatePendingUser(existingUser.id) : existingUser;
     }
 
     return authRepository.createUserWithIdentity({
@@ -183,7 +190,7 @@ export default class AuthService {
   static async getAuthenticatedUser(userId: string): Promise<Backend.UserDTO> {
     const user = await authRepository.findUserById(userId);
     if (!user) throw AppError.unauthorized(AUTH_MESSAGES.JWT_INVALID);
-    return toUserDTO(user);
+    return toUserDTO(AuthService.assertUserCanSignIn(user));
   }
 
   static getRefreshTokenCookieName(): string {

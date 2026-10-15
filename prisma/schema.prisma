@@ -6,15 +6,31 @@ datasource db {
   provider = "postgresql"
 }
 
+// TODO(M06): user management owns the account lifecycle; M03 only adds status + student code
+// so imported students can exist as Pending accounts until their first Google sign-in (GBR-29, GBR-38).
+enum UserStatus {
+  PENDING
+  ACTIVE
+  LOCKED
+}
+
 model User {
-  id          String          @id @default(uuid())
-  email       String          @unique
-  username    String
-  role        Int
-  identities  AuthIdentity[]
-  sessions    AuthSession[]
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
+  id              String             @id @default(uuid())
+  email           String             @unique
+  username        String
+  role            Int
+  status          UserStatus         @default(ACTIVE)
+  studentCode     String?            @unique @map("student_code") @db.VarChar(50)
+  identities      AuthIdentity[]
+  sessions        AuthSession[]
+  lecturedClasses Class[]            @relation("ClassLecturer")
+  memberships     ClassMember[]      @relation("ClassMemberStudent")
+  addedMembers    ClassMember[]      @relation("ClassMemberAddedBy")
+  removedMembers  ClassMember[]      @relation("ClassMemberRemovedBy")
+  importLogs      StudentImportLog[]
+  auditLogs       AuditLog[]
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -43,4 +59,120 @@ model AuthSession {
 
   @@index([userId])
   @@map("auth_sessions")
+}
+
+// TODO(M06): instrument catalogue is owned by M06; this is the minimum M03 needs.
+model Instrument {
+  id        String   @id @default(uuid())
+  name      String   @unique @db.VarChar(100)
+  isActive  Boolean  @default(true) @map("is_active")
+  classes   Class[]
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("instruments")
+}
+
+enum ClassStatus {
+  ACTIVE
+  FINISHED
+}
+
+// Class name is unique per cohort, case-insensitive (DBR-02): enforced by the
+// expression index "classes_cohort_lower_name_key" in the migration SQL.
+model Class {
+  id           String             @id @default(uuid())
+  name         String             @db.VarChar(100)
+  cohort       String             @db.VarChar(50)
+  description  String?            @db.VarChar(500)
+  instrumentId String             @map("instrument_id")
+  instrument   Instrument         @relation(fields: [instrumentId], references: [id])
+  lecturerId   String             @map("lecturer_id")
+  lecturer     User               @relation("ClassLecturer", fields: [lecturerId], references: [id])
+  startDate    DateTime           @map("start_date") @db.Date
+  endDate      DateTime           @map("end_date") @db.Date
+  status       ClassStatus        @default(ACTIVE)
+  endedAt      DateTime?          @map("ended_at")
+  members      ClassMember[]
+  importLogs   StudentImportLog[]
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  @@index([lecturerId, status])
+  @@index([instrumentId])
+  @@map("classes")
+}
+
+enum ClassMemberSource {
+  IMPORT
+  MANUAL
+}
+
+// One active membership per (class, student): enforced by the partial index
+// "class_members_active_key" (WHERE removed_at IS NULL) in the migration SQL.
+// Removal is soft (GBR-39); re-adding creates a new membership row.
+model ClassMember {
+  id          String            @id @default(uuid())
+  classId     String            @map("class_id")
+  class       Class             @relation(fields: [classId], references: [id])
+  studentId   String            @map("student_id")
+  student     User              @relation("ClassMemberStudent", fields: [studentId], references: [id])
+  source      ClassMemberSource
+  importLogId String?           @map("import_log_id")
+  importLog   StudentImportLog? @relation(fields: [importLogId], references: [id])
+  addedById   String            @map("added_by")
+  addedBy     User              @relation("ClassMemberAddedBy", fields: [addedById], references: [id])
+  joinedAt    DateTime          @default(now()) @map("joined_at")
+  removedAt   DateTime?         @map("removed_at")
+  removedById String?           @map("removed_by")
+  removedBy   User?             @relation("ClassMemberRemovedBy", fields: [removedById], references: [id])
+
+  @@index([classId])
+  @@index([studentId])
+  @@index([importLogId])
+  @@index([addedById])
+  @@index([removedById])
+  @@map("class_members")
+}
+
+enum ImportLogStatus {
+  PREVIEW
+  CONFIRMED
+  CANCELLED
+}
+
+model StudentImportLog {
+  id          String          @id @default(uuid())
+  classId     String          @map("class_id")
+  class       Class           @relation(fields: [classId], references: [id])
+  lecturerId  String          @map("lecturer_id")
+  lecturer    User            @relation(fields: [lecturerId], references: [id])
+  fileName    String          @map("file_name") @db.VarChar(255)
+  fileType    String          @map("file_type") @db.VarChar(10)
+  totalRows   Int             @map("total_rows")
+  validRows   Int             @map("valid_rows")
+  errorRows   Int             @map("error_rows")
+  rows        Json
+  status      ImportLogStatus @default(PREVIEW)
+  members     ClassMember[]
+  createdAt   DateTime        @default(now()) @map("created_at")
+  confirmedAt DateTime?       @map("confirmed_at")
+
+  @@index([classId])
+  @@index([lecturerId])
+  @@map("student_import_logs")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String   @map("actor_id")
+  actor      User     @relation(fields: [actorId], references: [id])
+  action     String   @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   String   @map("entity_id")
+  payload    Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
 }
