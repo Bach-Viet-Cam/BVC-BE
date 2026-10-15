@@ -14,4 +14,16 @@ export default class AppError extends Error {
   static badRequest(message: string = 'Dữ liệu yêu cầu không hợp lệ.'): AppError {
     return new AppError(message, 400);
   }
+
+  static forbidden(message: string = 'Bạn không có quyền thực hiện thao tác này.'): AppError {
+    return new AppError(message, 403);
+  }
+
+  static notFound(message: string = 'Không tìm thấy dữ liệu yêu cầu.'): AppError {
+    return new AppError(message, 404);
+  }
+
+  static conflict(message: string = 'Dữ liệu đã tồn tại.'): AppError {
+    return new AppError(message, 409);
+  }
 }

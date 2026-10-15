@@ -8,6 +8,7 @@ import EnvConfig from '../../../config/EnvConfig.ts';
 import AppError from '../../../utils/AppError.ts';
 import AuthConstant from '../constant/AuthConstant.ts';
 import AuthDTO from '../dto/AuthDTO.ts';
+import AuthPolicyService from './AuthPolicyService.ts';
 import AuthRepository from '../repository/AuthRepository.ts';
 
 const envConfig = EnvConfig;
@@ -120,6 +121,19 @@ export default class AuthService {
     });
   }
 
+  static assertNotLocked(user: Backend.UserRecord): void {
+    if (!AuthPolicyService.resolveLogin(user.status).isAllowed) {
+      throw AppError.forbidden(AUTH_MESSAGES.ACCOUNT_LOCKED);
+    }
+  }
+
+  static async activateOnLogin(user: Backend.UserRecord): Promise<Backend.UserRecord> {
+    const { isAllowed, nextStatus } = AuthPolicyService.resolveLogin(user.status);
+    if (!isAllowed) throw AppError.forbidden(AUTH_MESSAGES.ACCOUNT_LOCKED);
+    await authRepository.markLoggedIn(user.id, nextStatus);
+    return { ...user, status: nextStatus };
+  }
+
   static async createSessionForUser(user: Backend.UserRecord): Promise<Backend.AuthTokens> {
     const refreshToken = AuthService.createRefreshToken();
     await authRepository.createSession({
@@ -136,7 +150,8 @@ export default class AuthService {
 
   static async authenticateWithGoogle({ credential, role }: Backend.GoogleAuthRequest): Promise<Backend.AuthResult> {
     const googleProfile = await AuthService.verifyGoogleCredential(credential);
-    const user = await AuthService.findOrCreateUser(googleProfile, role);
+    const foundUser = await AuthService.findOrCreateUser(googleProfile, role);
+    const user = await AuthService.activateOnLogin(foundUser);
     const tokens = await AuthService.createSessionForUser(user);
 
     return { ...tokens, user: toUserDTO(user) };
@@ -147,6 +162,7 @@ export default class AuthService {
 
     const session = await authRepository.findActiveSessionByHash(AuthService.hashToken(refreshToken));
     if (!session) throw AppError.unauthorized(AUTH_MESSAGES.REFRESH_TOKEN_INVALID);
+    AuthService.assertNotLocked(session.user);
 
     const nextRefreshToken = AuthService.createRefreshToken();
     await authRepository.rotateSession({
@@ -183,6 +199,7 @@ export default class AuthService {
   static async getAuthenticatedUser(userId: string): Promise<Backend.UserDTO> {
     const user = await authRepository.findUserById(userId);
     if (!user) throw AppError.unauthorized(AUTH_MESSAGES.JWT_INVALID);
+    AuthService.assertNotLocked(user);
     return toUserDTO(user);
   }
 

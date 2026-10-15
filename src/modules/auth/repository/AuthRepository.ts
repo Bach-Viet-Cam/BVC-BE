@@ -77,4 +77,18 @@ export default class AuthRepository {
       data: { refreshHash, expiresAt }
     });
   }
+
+  static async markLoggedIn(userId: string, status: Backend.UserStatus): Promise<unknown> {
+    return AuthRepository.client.user.update({
+      where: { id: userId },
+      data: { status, lastLoginAt: new Date() }
+    });
+  }
+
+  static async revokeSessionsByUser(userId: string): Promise<unknown> {
+    return AuthRepository.client.authSession.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() }
+    });
+  }
 }
