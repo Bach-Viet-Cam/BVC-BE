@@ -148,6 +148,19 @@ export default class AuthService {
     };
   }
 
+  static async authenticateWithCredentials({ email }: { email: string; password?: string }): Promise<Backend.AuthResult> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await authRepository.findUserByEmail(normalizedEmail);
+    if (!user) {
+      throw AppError.unauthorized('Email hoặc mật khẩu không chính xác.');
+    }
+    AuthService.assertNotLocked(user);
+    const activeUser = await AuthService.activateOnLogin(user);
+    const tokens = await AuthService.createSessionForUser(activeUser);
+
+    return { ...tokens, user: toUserDTO(activeUser) };
+  }
+
   static async authenticateWithGoogle({ credential, role }: Backend.GoogleAuthRequest): Promise<Backend.AuthResult> {
     const googleProfile = await AuthService.verifyGoogleCredential(credential);
     const foundUser = await AuthService.findOrCreateUser(googleProfile, role);
