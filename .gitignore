@@ -22,9 +22,9 @@ logs/
 *.log
 npm-debug.log*
 
-# Prisma
-prisma/migrations/
+# Prisma — migrations are versioned (team switched from db push to prisma migrate in M03)
 
 # Build
 dist/
 build/
+coverage/
