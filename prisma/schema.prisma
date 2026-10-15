@@ -6,15 +6,24 @@ datasource db {
   provider = "postgresql"
 }
 
+enum UserStatus {
+  PENDING
+  ACTIVE
+  LOCKED
+}
+
 model User {
-  id          String          @id @default(uuid())
-  email       String          @unique
-  username    String
-  role        Int
-  identities  AuthIdentity[]
-  sessions    AuthSession[]
-  createdAt   DateTime        @default(now()) @map("created_at")
-  updatedAt   DateTime        @updatedAt @map("updated_at")
+  id               String            @id @default(uuid())
+  email            String            @unique
+  username         String
+  role             Int
+  status           UserStatus        @default(ACTIVE)
+  studentCode      String?           @unique @map("student_code")
+  lastLoginAt      DateTime?         @map("last_login_at")
+  identities       AuthIdentity[]
+  sessions         AuthSession[]
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
 
   @@map("users")
 }
