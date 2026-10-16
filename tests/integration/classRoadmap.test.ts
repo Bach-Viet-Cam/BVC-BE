@@ -34,7 +34,7 @@ describe('Class roadmap (UC-11 pinning + read-only tab)', () => {
   });
 
   async function saveRoadmap(instrumentId: string, exerciseIds: string[] = []): Promise<string> {
-    const response = await request(app).post(`/api/v1/admin/roadmaps/${instrumentId}/versions`).set('Authorization', adminToken).send({ weeks: weeksPayload(exerciseIds) });
+    const response = await request(app).post(`/api/v1/admin/roadmaps/${instrumentId}/versions`).set('Authorization', adminToken).send({ weeks: weeksPayload(exerciseIds), baseVersion: (await TestDatabase.prisma.roadmap.aggregate({ where: { instrumentId }, _max: { version: true } }))._max.version ?? null });
     expect(response.status).toBe(201);
     return response.body.data.id;
   }
@@ -96,9 +96,10 @@ describe('Class roadmap (UC-11 pinning + read-only tab)', () => {
       title: 'Tuần 1',
       startDate,
       endDate: TestDatabase.futureDate(-2),
-      exercises: [{ pieceId: piece.id, title: 'Luyện ngón — Gẩy đơn', isAvailable: true }],
-      assignments: []
+      exercises: [{ pieceId: piece.id, title: 'Luyện ngón — Gẩy đơn', isAvailable: true }]
     });
+    // Assignments are no longer tied to roadmap weeks (user decision 16/10).
+    expect(roadmap.weeks[0]).not.toHaveProperty('assignments');
   });
 
   it('class roadmap marks hidden exercise unavailable', async () => {

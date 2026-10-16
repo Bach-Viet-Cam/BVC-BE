@@ -56,7 +56,6 @@ declare namespace Backend {
     startDate: string;
     endDate: string;
     status: RoadmapWeekStatus;
-    assignments: [];
   }
 
   interface ClassRoadmapDTO {

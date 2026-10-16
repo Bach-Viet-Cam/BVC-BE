@@ -33,8 +33,11 @@ Visible `FINGER_EXERCISE` pieces of that instrument. `q` (≤ 100) filters by ti
 
 ### `POST /admin/roadmaps/:instrumentId/versions` → 201
 ```json
-{ "weeks": [{ "weekNumber": 1, "title": "…", "content": "…", "exerciseIds": ["<piece uuid>", …] }, … 6 weeks] }
+{ "weeks": [{ "weekNumber": 1, "title": "…", "content": "…", "exerciseIds": ["<piece uuid>", …] }, … 6 weeks],
+  "baseVersion": 2 }
 ```
+`baseVersion` is the version the admin edited (`null` when starting from the standard framework).
+If it is not the current latest version, the save is rejected with 409, so a stale copy never replaces newer edits.
 Rules:
 - exactly 6 weeks, numbered 1–6;
 - title 1–100 and content 1–1000 characters after trim;
@@ -51,7 +54,7 @@ Errors (400, all collected at once):
   { "field": "weeks.4.exerciseIds", "code": "MSG-48", "message": "Bài luyện ngón đã chọn không còn khả dụng trong thư viện. Vui lòng chọn mục khác." },
   { "field": "weeks", "message": "Lộ trình phải có đủ 6 tuần." } ] }
 ```
-Two saves at the same time → 409 "Không thể lưu lộ trình vì vừa có phiên bản mới. Vui lòng tải lại."
+A stale `baseVersion`, or two saves at the same time → 409 "Không thể lưu lộ trình vì vừa có phiên bản mới. Vui lòng tải lại."
 
 ## Class roadmap (read-only)
 
@@ -61,9 +64,9 @@ Anyone else gets 404, so the class's existence is not leaked; the admin gets 403
 ```json
 { "roadmap": { "id", "version": 1, "weeks": [
   { "weekNumber": 1, "title", "content", "startDate": "2026-09-01", "endDate": "2026-09-07",
-    "status": "PAST | CURRENT | UPCOMING", "exercises": [{ "pieceId", "title", "isAvailable" }], "assignments": [] } ] } }
+    "status": "PAST | CURRENT | UPCOMING", "exercises": [{ "pieceId", "title", "isAvailable" }] } ] } }
 ```
 - Week k runs from `start + 7(k−1)` to `start + 7k − 1`.
 - The status is computed from today in Asia/Ho_Chi_Minh.
 - Class with no pinned version → `{ "roadmap": null }`.
-- `assignments` is filled by sub-project 3.
+- Assignments are not tied to roadmap weeks (user decision 16/10), so weeks carry no assignment list.

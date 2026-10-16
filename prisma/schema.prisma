@@ -15,24 +15,30 @@ enum UserStatus {
 }
 
 model User {
-  id              String             @id @default(uuid())
-  email           String             @unique
-  username        String
-  role            Int
-  status          UserStatus         @default(ACTIVE)
-  studentCode     String?            @unique @map("student_code") @db.VarChar(50)
-  identities      AuthIdentity[]
-  sessions        AuthSession[]
-  lecturedClasses Class[]            @relation("ClassLecturer")
-  memberships     ClassMember[]      @relation("ClassMemberStudent")
-  addedMembers    ClassMember[]      @relation("ClassMemberAddedBy")
-  removedMembers  ClassMember[]      @relation("ClassMemberRemovedBy")
-  importLogs      StudentImportLog[]
-  auditLogs       AuditLog[]
-  createdPieces   Piece[]
-  roadmaps        Roadmap[]
-  createdAt       DateTime           @default(now()) @map("created_at")
-  updatedAt       DateTime           @updatedAt @map("updated_at")
+  id                 String              @id @default(uuid())
+  email              String              @unique
+  username           String
+  role               Int
+  status             UserStatus          @default(ACTIVE)
+  studentCode        String?             @unique @map("student_code") @db.VarChar(50)
+  identities         AuthIdentity[]
+  sessions           AuthSession[]
+  lecturedClasses    Class[]             @relation("ClassLecturer")
+  memberships        ClassMember[]       @relation("ClassMemberStudent")
+  addedMembers       ClassMember[]       @relation("ClassMemberAddedBy")
+  removedMembers     ClassMember[]       @relation("ClassMemberRemovedBy")
+  importLogs         StudentImportLog[]
+  auditLogs          AuditLog[]
+  createdPieces      Piece[]
+  roadmaps           Roadmap[]
+  createdAssignments AssignmentVersion[] @relation("AssignmentVersionCreatedBy")
+  ownedAssignments   Assignment[]        @relation("AssignmentCreatedBy")
+  submissions        Submission[]
+  submissionComments SubmissionComment[]
+  notifications      Notification[]
+  updatedSettings    SystemSetting[]
+  createdAt          DateTime            @default(now()) @map("created_at")
+  updatedAt          DateTime            @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -99,6 +105,8 @@ model Class {
   roadmapId    String?            @map("roadmap_id")
   roadmap      Roadmap?           @relation(fields: [roadmapId], references: [id])
   members      ClassMember[]
+  assignments  Assignment[]
+  submissions  Submission[]
   importLogs   StudentImportLog[]
   createdAt    DateTime           @default(now()) @map("created_at")
   updatedAt    DateTime           @updatedAt @map("updated_at")
@@ -191,17 +199,18 @@ enum PieceKind {
 
 // TODO(M02): minimal music library — M02 owns pieces, sheet music and the library screens.
 model Piece {
-  id           String                @id @default(uuid())
-  title        String                @db.VarChar(200)
-  instrumentId String                @map("instrument_id")
-  instrument   Instrument            @relation(fields: [instrumentId], references: [id])
-  kind         PieceKind
-  defaultBpm   Int?                  @map("default_bpm")
-  isVisible    Boolean               @default(true) @map("is_visible")
-  createdById  String?               @map("created_by")
-  createdBy    User?                 @relation(fields: [createdById], references: [id])
-  roadmapUses  RoadmapWeekExercise[]
-  createdAt    DateTime              @default(now()) @map("created_at")
+  id                 String                @id @default(uuid())
+  title              String                @db.VarChar(200)
+  instrumentId       String                @map("instrument_id")
+  instrument         Instrument            @relation(fields: [instrumentId], references: [id])
+  kind               PieceKind
+  defaultBpm         Int?                  @map("default_bpm")
+  isVisible          Boolean               @default(true) @map("is_visible")
+  createdById        String?               @map("created_by")
+  createdBy          User?                 @relation(fields: [createdById], references: [id])
+  roadmapUses        RoadmapWeekExercise[]
+  assignmentVersions AssignmentVersion[]
+  createdAt          DateTime              @default(now()) @map("created_at")
 
   @@index([instrumentId, kind, isVisible])
   @@index([createdById])
@@ -251,4 +260,138 @@ model RoadmapWeekExercise {
   @@unique([roadmapWeekId, pieceId])
   @@index([pieceId])
   @@map("roadmap_week_exercises")
+}
+
+// TODO(M06): system configuration is owned by M06; M03 only needs the grading thresholds.
+model SystemSetting {
+  key         String   @id @db.VarChar(100)
+  value       String   @db.VarChar(500)
+  updatedById String?  @map("updated_by")
+  updatedBy   User?    @relation(fields: [updatedById], references: [id])
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([updatedById])
+  @@map("system_settings")
+}
+
+// TODO(M06): notification centre is owned by M06; M03 only creates rows.
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id])
+  title     String    @db.VarChar(200)
+  body      String    @db.VarChar(500)
+  link      String    @db.VarChar(300)
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([userId, readAt])
+  @@map("notifications")
+}
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum AssignmentKind {
+  SOLO
+  ENSEMBLE
+  BONUS
+  OTHER
+}
+
+// Practice post for the whole class (user decision 16/10). Content lives in immutable versions.
+model Assignment {
+  id               String              @id @default(uuid())
+  classId          String              @map("class_id")
+  class            Class               @relation(fields: [classId], references: [id])
+  createdById      String              @map("created_by")
+  createdBy        User                @relation("AssignmentCreatedBy", fields: [createdById], references: [id])
+  status           AssignmentStatus    @default(DRAFT)
+  currentVersionId String?             @unique @map("current_version_id")
+  currentVersion   AssignmentVersion?  @relation("AssignmentCurrentVersion", fields: [currentVersionId], references: [id])
+  versions         AssignmentVersion[] @relation("AssignmentVersions")
+  submissions      Submission[]
+  publishedAt      DateTime?           @map("published_at")
+  closedAt         DateTime?           @map("closed_at")
+  deletedAt        DateTime?           @map("deleted_at")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  @@index([classId, status])
+  @@index([createdById])
+  @@map("assignments")
+}
+
+model AssignmentVersion {
+  id           String         @id @default(uuid())
+  assignmentId String         @map("assignment_id")
+  assignment   Assignment     @relation("AssignmentVersions", fields: [assignmentId], references: [id])
+  currentOf    Assignment?    @relation("AssignmentCurrentVersion")
+  version      Int
+  title        String         @db.VarChar(200)
+  description  String?        @db.VarChar(1000)
+  kind         AssignmentKind
+  pieceId      String?        @map("piece_id")
+  piece        Piece?         @relation(fields: [pieceId], references: [id])
+  requiredBpm  Int?           @map("required_bpm")
+  createdById  String         @map("created_by")
+  createdBy    User           @relation("AssignmentVersionCreatedBy", fields: [createdById], references: [id])
+  submissions  Submission[]
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  @@unique([assignmentId, version])
+  @@index([pieceId])
+  @@index([createdById])
+  @@map("assignment_versions")
+}
+
+enum SubmissionStatus {
+  PROCESSING
+  COMPLETED
+  REJECTED
+  FAILED
+}
+
+// TODO(M01): recording upload + AI analysis are owned by M01, which will write this table.
+model Submission {
+  id                  String             @id @default(uuid())
+  assignmentId        String             @map("assignment_id")
+  assignment          Assignment         @relation(fields: [assignmentId], references: [id])
+  assignmentVersionId String             @map("assignment_version_id")
+  assignmentVersion   AssignmentVersion  @relation(fields: [assignmentVersionId], references: [id])
+  classId             String             @map("class_id")
+  class               Class              @relation(fields: [classId], references: [id])
+  studentId           String             @map("student_id")
+  student             User               @relation(fields: [studentId], references: [id])
+  audioUrl            String             @map("audio_url") @db.VarChar(500)
+  status              SubmissionStatus   @default(PROCESSING)
+  accuracy            Decimal?           @db.Decimal(5, 2)
+  tempoDeviation      Decimal?           @map("tempo_deviation") @db.Decimal(6, 2)
+  submittedAt         DateTime           @default(now()) @map("submitted_at")
+  analyzedAt          DateTime?          @map("analyzed_at")
+  comment             SubmissionComment?
+
+  @@index([assignmentId, studentId])
+  @@index([classId, studentId])
+  @@index([assignmentVersionId])
+  @@index([studentId])
+  @@map("submissions")
+}
+
+// One lecturer comment per submission; editing overwrites it (no history, user decision 16/10).
+model SubmissionComment {
+  id           String     @id @default(uuid())
+  submissionId String     @unique @map("submission_id")
+  submission   Submission @relation(fields: [submissionId], references: [id])
+  lecturerId   String     @map("lecturer_id")
+  lecturer     User       @relation(fields: [lecturerId], references: [id])
+  content      String     @db.VarChar(2000)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@index([lecturerId])
+  @@map("submission_comments")
 }

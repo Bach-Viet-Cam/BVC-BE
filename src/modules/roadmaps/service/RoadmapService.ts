@@ -32,7 +32,12 @@ export default class RoadmapService {
     return RoadmapRepository.findFingerExercises(instrumentId, query);
   }
 
-  static async saveVersion(instrumentId: string, adminId: string, weeks: Backend.RoadmapWeekInput[]): Promise<Backend.RoadmapVersionDTO> {
+  static async saveVersion(
+    instrumentId: string,
+    adminId: string,
+    weeks: Backend.RoadmapWeekInput[],
+    baseVersion: number | null
+  ): Promise<Backend.RoadmapVersionDTO> {
     await RoadmapService.assertActiveInstrument(instrumentId);
     const normalizedWeeks = RoadmapValidator.normalizeWeeks(weeks);
     const pieces = await RoadmapRepository.findPiecesByIds([...new Set(normalizedWeeks.flatMap((week) => week.exerciseIds))]);
@@ -41,7 +46,10 @@ export default class RoadmapService {
 
     try {
       const roadmap = await PrismaClientProvider.instance.$transaction(async (transaction) => {
-        const version = (await RoadmapRepository.findMaxVersion(instrumentId, transaction)) + 1;
+        const latestVersion = await RoadmapRepository.findMaxVersion(instrumentId, transaction);
+        // Lost-update guard: the admin must be editing the current latest version (user decision 16/10).
+        if ((latestVersion || null) !== baseVersion) throw AppError.conflict(messages.VERSION_CONFLICT);
+        const version = latestVersion + 1;
         const created = await RoadmapRepository.createRoadmapVersion({ instrumentId, version, createdById: adminId, weeks: normalizedWeeks }, transaction);
         await RoadmapRepository.backfillActiveClasses(instrumentId, created.id, transaction);
         return RoadmapRepository.findRoadmapById(created.id, transaction);
@@ -64,7 +72,7 @@ export default class RoadmapService {
     const today = DateTimeUtil.todayInVietnam(now);
     const weeks = RoadmapDTO.toWeekDTOs(roadmap).map((week) => {
       const window = RoadmapWeekCalculator.buildWeekWindow(classStartDate, week.weekNumber);
-      return { ...week, ...window, status: RoadmapWeekCalculator.resolveStatus(window, today), assignments: [] as [] };
+      return { ...week, ...window, status: RoadmapWeekCalculator.resolveStatus(window, today) };
     });
     return { roadmap: { id: roadmap.id, version: roadmap.version, weeks } };
   }

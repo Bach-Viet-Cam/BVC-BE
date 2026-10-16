@@ -31,6 +31,18 @@ const WEEK_CONTENTS = [
   'Tổng duyệt và biểu diễn cuối khóa.'
 ];
 
+// Practice assignments for TRD301 (sub-project 3a). Accuracy values spread from 20 % to 95 %.
+const SAMPLE_AUDIO_URL = '/samples/bvc-sample.wav';
+const SEED_ASSIGNMENTS: Array<{ title: string; kind: 'SOLO' | 'ENSEMBLE' | 'BONUS' | 'OTHER'; status: 'DRAFT' | 'PUBLISHED' | 'CLOSED'; deleted?: boolean; description: string }> = [
+  { title: 'Độc tấu — Lý ngựa ô', kind: 'SOLO', status: 'PUBLISHED', description: 'Tập chậm ở 70 BPM rồi tăng dần lên tempo mẫu.' },
+  { title: 'Hòa tấu cùng track mẫu', kind: 'ENSEMBLE', status: 'PUBLISHED', description: 'Thu âm cùng track hòa tấu, chú ý vào nhịp đúng phách.' },
+  { title: 'Bonus — Ngẫu hứng 8 ô nhịp', kind: 'BONUS', status: 'CLOSED', description: 'Tự chọn giai điệu ngắn.' },
+  { title: 'Luyện vê đều tay', kind: 'OTHER', status: 'DRAFT', description: 'Chuẩn bị cho tuần sau.' },
+  { title: 'Bài cũ (đã xóa)', kind: 'OTHER', status: 'PUBLISHED', deleted: true, description: 'Đã thay bằng bài khác.' }
+];
+const SEED_ACCURACIES = [95, 88, 82, 76, 71, 64, 58, 45, 33, 20];
+const SEED_COMMENTS = ['Nhịp ổn, chú ý ngón vê ở ô nhịp 5.', 'Tempo còn nhanh dần, tập lại với metronome.', 'Tốt, giữ cách bấm như lần này.'];
+
 class SeedRunner {
   static assertSafeTarget(): void {
     const databaseUrl = process.env.DATABASE_URL ?? '';
@@ -79,7 +91,49 @@ class SeedRunner {
       content: WEEK_CONTENTS[index],
       exerciseIds: index < 4 ? exerciseIds.slice(0, index % 2 === 0 ? 2 : 1) : []
     }));
-    await RoadmapService.saveVersion(instrumentId, adminId, weeks);
+    await RoadmapService.saveVersion(instrumentId, adminId, weeks, null);
+  }
+
+  static async seedAssignments(classId: string, lecturerId: string, pieceId: string | null): Promise<void> {
+    const members = await prisma.classMember.findMany({ where: { classId, removedAt: null }, orderBy: { joinedAt: 'asc' }, select: { studentId: true } });
+    for (const [index, item] of SEED_ASSIGNMENTS.entries()) {
+      const existing = await prisma.assignment.findFirst({ where: { classId, currentVersion: { title: item.title } } });
+      if (existing) continue;
+      const assignment = await prisma.assignment.create({
+        data: {
+          classId,
+          createdById: lecturerId,
+          status: item.status,
+          publishedAt: item.status === 'DRAFT' ? null : new Date(),
+          closedAt: item.status === 'CLOSED' ? new Date() : null,
+          deletedAt: item.deleted ? new Date() : null
+        }
+      });
+      const version = await prisma.assignmentVersion.create({
+        data: { assignmentId: assignment.id, version: 1, title: item.title, description: item.description, kind: item.kind, pieceId: index === 0 ? pieceId : null, createdById: lecturerId }
+      });
+      await prisma.assignment.update({ where: { id: assignment.id }, data: { currentVersionId: version.id } });
+      if (item.status !== 'DRAFT') await SeedRunner.seedSubmissions(assignment.id, version.id, classId, lecturerId, members.map((member) => member.studentId), index);
+    }
+  }
+
+  static async seedSubmissions(assignmentId: string, versionId: string, classId: string, lecturerId: string, studentIds: string[], offset: number): Promise<void> {
+    for (const [index, studentId] of studentIds.slice(0, 10).entries()) {
+      const accuracy = SEED_ACCURACIES[(index + offset) % SEED_ACCURACIES.length];
+      const submittedAt = new Date(Date.now() - (index + 1) * 3600 * 1000);
+      const submission = await prisma.submission.create({
+        data: { assignmentId, assignmentVersionId: versionId, classId, studentId, audioUrl: SAMPLE_AUDIO_URL, status: 'COMPLETED', accuracy, tempoDeviation: (index % 4) * 2.5, submittedAt, analyzedAt: submittedAt }
+      });
+      if (index === 1) {
+        await prisma.submission.create({ data: { assignmentId, assignmentVersionId: versionId, classId, studentId, audioUrl: SAMPLE_AUDIO_URL, status: 'REJECTED', submittedAt } });
+      }
+      if (index === 2) {
+        await prisma.submission.create({ data: { assignmentId, assignmentVersionId: versionId, classId, studentId, audioUrl: SAMPLE_AUDIO_URL, status: 'FAILED', submittedAt } });
+      }
+      if (offset === 0 && index < SEED_COMMENTS.length) {
+        await prisma.submissionComment.create({ data: { submissionId: submission.id, lecturerId, content: SEED_COMMENTS[index] } });
+      }
+    }
   }
 
   static async enroll(classId: string, studentIds: string[], addedById: string): Promise<void> {
@@ -136,7 +190,10 @@ class SeedRunner {
       }
     }
 
-    console.log(`Seeded: 3 users (admin/lecturers), ${students.length} students, ${instruments.length} instruments, 3 classes, library pieces and roadmaps v1 for ${ROADMAP_INSTRUMENTS.join(', ')}.`);
+    const tranhSong = await prisma.piece.findFirst({ where: { instrumentId: runningClass.instrumentId, kind: 'SONG' } });
+    await SeedRunner.seedAssignments(runningClass.id, lecturer.id, tranhSong?.id ?? null);
+
+    console.log(`Seeded: 3 users (admin/lecturers), ${students.length} students, ${instruments.length} instruments, 3 classes, library pieces, roadmaps v1 for ${ROADMAP_INSTRUMENTS.join(', ')}, TRD301 assignments with submissions.`);
     console.log(`Lecturer #1 login email: ${lecturer.email}`);
   }
 }

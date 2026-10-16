@@ -32,8 +32,11 @@ describe('Admin roadmaps API (UC-11)', () => {
     await TestDatabase.prisma.$disconnect();
   });
 
-  function save(instrumentId: string, weeks: unknown) {
-    return request(app).post(`/api/v1/admin/roadmaps/${instrumentId}/versions`).set('Authorization', adminToken).send({ weeks });
+  // baseVersion defaults to the current latest version, i.e. an admin editing an up-to-date copy.
+  async function save(instrumentId: string, weeks: unknown, baseVersion?: number | null) {
+    const latest = await TestDatabase.prisma.roadmap.aggregate({ where: { instrumentId }, _max: { version: true } });
+    const base = baseVersion === undefined ? latest._max.version ?? null : baseVersion;
+    return request(app).post(`/api/v1/admin/roadmaps/${instrumentId}/versions`).set('Authorization', adminToken).send({ weeks, baseVersion: base });
   }
 
   it('lists active instruments with null or latest version', async () => {
@@ -143,6 +146,31 @@ describe('Admin roadmaps API (UC-11)', () => {
     expect(await TestDatabase.prisma.roadmap.count()).toBe(0);
   });
 
+  it('stale save based on an older version returns 409 and keeps the latest version', async () => {
+    await save(tranh.id, weeksPayload(), null);
+    const editedByA = weeksPayload();
+    editedByA[0].title = 'Bản của A';
+    expect((await save(tranh.id, editedByA, 1)).status).toBe(201);
+
+    const staleFromB = await save(tranh.id, weeksPayload(), 1);
+    expect(staleFromB.status).toBe(409);
+    expect(staleFromB.body.message).toBe('Không thể lưu lộ trình vì vừa có phiên bản mới. Vui lòng tải lại.');
+    const latest = await request(app).get(`/api/v1/admin/roadmaps/${tranh.id}`).set('Authorization', adminToken);
+    expect(latest.body.data).toMatchObject({ version: 2 });
+    expect(latest.body.data.weeks[0].title).toBe('Bản của A');
+  });
+
+  it('saving the standard framework when a version already exists returns 409', async () => {
+    await save(tranh.id, weeksPayload(), null);
+    expect((await save(tranh.id, weeksPayload(), null)).status).toBe(409);
+    expect(await TestDatabase.prisma.roadmap.count()).toBe(1);
+  });
+
+  it('requires baseVersion in the body', async () => {
+    const response = await request(app).post(`/api/v1/admin/roadmaps/${tranh.id}/versions`).set('Authorization', adminToken).send({ weeks: weeksPayload() });
+    expect(response.status).toBe(400);
+  });
+
   it('concurrent save returns 409', async () => {
     const prisma = TestDatabase.prisma;
     const originalTransaction = prisma.$transaction.bind(prisma);
@@ -180,7 +208,7 @@ describe('Admin roadmaps API (UC-11)', () => {
       const response = await request(app).get('/api/v1/admin/roadmaps').set('Authorization', TestDatabase.tokenFor(user));
       expect(response.status).toBe(403);
     }
-    const asLecturer = await request(app).post(`/api/v1/admin/roadmaps/${tranh.id}/versions`).set('Authorization', TestDatabase.tokenFor(lecturer)).send({ weeks: weeksPayload() });
+    const asLecturer = await request(app).post(`/api/v1/admin/roadmaps/${tranh.id}/versions`).set('Authorization', TestDatabase.tokenFor(lecturer)).send({ weeks: weeksPayload(), baseVersion: null });
     expect(asLecturer.status).toBe(403);
 
     const inactive = await TestDatabase.createInstrument('Đàn cũ', false);

@@ -4,6 +4,7 @@ import AppError from '../../../utils/AppError.ts';
 import DateTimeUtil from '../../../utils/DateTimeUtil.ts';
 import ClassConstant from '../constant/ClassConstant.ts';
 import ClassDTO from '../dto/ClassDTO.ts';
+import AssignmentService from '../../assignments/service/AssignmentService.ts';
 import RoadmapRepository from '../../roadmaps/repository/RoadmapRepository.ts';
 import ClassRepository from '../repository/ClassRepository.ts';
 import ClassAccessService from './ClassAccessService.ts';
@@ -128,6 +129,8 @@ export default class ClassService {
     await ClassAccessService.assertOwnedClass(classId, lecturerId, { requireActive: true });
     const endedClass = await PrismaClientProvider.instance.$transaction(async (transaction) => {
       const classRecord = await ClassRepository.markClassFinished(classId, new Date(), transaction);
+      // A17 (user decision 16/10): a finished class closes its published assignments.
+      await AssignmentService.closePublishedForClass(classId, transaction);
       await AuditLogger.record({
         actorId: lecturerId,
         action: auditActions.CLASS_END,

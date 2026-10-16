@@ -17,7 +17,16 @@ export default class TestDatabase {
     const databaseUrl = process.env.DATABASE_URL ?? '';
     if (!databaseUrl.includes('test')) throw new Error(`Refusing to truncate a non-test database: ${databaseUrl}`);
     await TestDatabase.prisma.$executeRawUnsafe(
-      'TRUNCATE TABLE audit_logs, class_members, student_import_logs, roadmap_week_exercises, roadmap_weeks, classes, roadmaps, pieces, instruments, auth_sessions, auth_identities, users CASCADE'
+      'TRUNCATE TABLE submission_comments, submissions, notifications, assignment_versions, assignments, audit_logs, class_members, student_import_logs, roadmap_week_exercises, roadmap_weeks, classes, roadmaps, pieces, instruments, system_settings, auth_sessions, auth_identities, users CASCADE'
+    );
+    await TestDatabase.resetGradingSettings();
+  }
+
+  // Same initial values as migration 20261017000000_m03_assignments.
+  static async resetGradingSettings(minAccuracy: number = 70, atRiskMargin: number = 40): Promise<void> {
+    await TestDatabase.prisma.$executeRawUnsafe(
+      `INSERT INTO system_settings (key, value, updated_at) VALUES ('grading.minAccuracy', '${minAccuracy}', NOW()), ('grading.atRiskMargin', '${atRiskMargin}', NOW())
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`
     );
   }
 
@@ -69,6 +78,49 @@ export default class TestDatabase {
         startDate: DateTimeUtil.toDateOnly(startDate),
         endDate: DateTimeUtil.toDateOnly(DateTimeUtil.addDays(startDate, 42)),
         status: overrides.status ?? 'ACTIVE'
+      }
+    });
+  }
+
+  static async createAssignment(
+    classId: string,
+    lecturerId: string,
+    overrides: Partial<{ title: string; kind: 'SOLO' | 'ENSEMBLE' | 'BONUS' | 'OTHER'; status: 'DRAFT' | 'PUBLISHED' | 'CLOSED'; pieceId: string | null; requiredBpm: number | null; deletedAt: Date | null }> = {}
+  ) {
+    const assignment = await TestDatabase.prisma.assignment.create({
+      data: { classId, createdById: lecturerId, status: overrides.status ?? 'PUBLISHED', deletedAt: overrides.deletedAt ?? null }
+    });
+    const version = await TestDatabase.prisma.assignmentVersion.create({
+      data: {
+        assignmentId: assignment.id,
+        version: 1,
+        title: overrides.title ?? `Bài tập ${TestDatabase.nextId()}`,
+        kind: overrides.kind ?? 'SOLO',
+        pieceId: overrides.pieceId ?? null,
+        requiredBpm: overrides.requiredBpm ?? null,
+        createdById: lecturerId
+      }
+    });
+    return TestDatabase.prisma.assignment.update({ where: { id: assignment.id }, data: { currentVersionId: version.id }, include: { currentVersion: true } });
+  }
+
+  static async createSubmission(
+    assignmentId: string,
+    studentId: string,
+    overrides: Partial<{ status: 'PROCESSING' | 'COMPLETED' | 'REJECTED' | 'FAILED'; accuracy: number | null; submittedAt: Date; versionId: string }> = {}
+  ) {
+    const assignment = await TestDatabase.prisma.assignment.findUniqueOrThrow({ where: { id: assignmentId } });
+    const status = overrides.status ?? 'COMPLETED';
+    return TestDatabase.prisma.submission.create({
+      data: {
+        assignmentId,
+        assignmentVersionId: overrides.versionId ?? (assignment.currentVersionId as string),
+        classId: assignment.classId,
+        studentId,
+        audioUrl: '/samples/bvc-sample.wav',
+        status,
+        accuracy: overrides.accuracy === undefined ? (status === 'COMPLETED' ? 80 : null) : overrides.accuracy,
+        submittedAt: overrides.submittedAt ?? new Date()
       }
     });
   }

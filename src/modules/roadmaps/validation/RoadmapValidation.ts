@@ -29,7 +29,9 @@ export default class RoadmapValidation {
           content: z.string(),
           exerciseIds: z.array(z.uuid())
         })
-      )
+      ),
+      // Version the admin edited (null = the standard framework); a newer version makes the save stale.
+      baseVersion: z.number().int().positive().nullable()
     }),
     params: instrumentParams,
     query: emptyQuery

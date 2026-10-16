@@ -38,8 +38,8 @@ export default class RoadmapController {
   }
 
   static async saveVersion(request: Request, response: Response): Promise<Response> {
-    const { body, params } = RoadmapController.getValidated<{ weeks: Backend.RoadmapWeekInput[] }, { instrumentId: string }>(request);
-    const roadmap = await RoadmapService.saveVersion(params.instrumentId, RoadmapController.getUser(request).userId, body.weeks);
+    const { body, params } = RoadmapController.getValidated<{ weeks: Backend.RoadmapWeekInput[]; baseVersion: number | null }, { instrumentId: string }>(request);
+    const roadmap = await RoadmapService.saveVersion(params.instrumentId, RoadmapController.getUser(request).userId, body.weeks, body.baseVersion);
     return ApiResponse.sendSuccessResponse(response, { statusCode: 201, data: roadmap, message: RoadmapConstant.messages.ROADMAP_SAVED });
   }
 }
