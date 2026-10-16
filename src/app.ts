@@ -1,3 +1,4 @@
+import path from 'node:path';
 import express from 'express';
 import type { Express } from 'express';
 import cors from 'cors';
@@ -27,6 +28,10 @@ export function createApp(): Express {
   app.get('/api/health', (_request, response) => {
     response.json({ status: 'OK', timestamp: new Date().toISOString() });
   });
+  app.use('/uploads', (_request, response, next) => {
+    response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  }, express.static(path.resolve('uploads')));
   app.use('/api', ApiRoute.createRouter());
   registerErrorHandlers(app);
   return app;

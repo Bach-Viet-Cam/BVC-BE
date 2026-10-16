@@ -12,6 +12,19 @@ enum UserStatus {
   LOCKED
 }
 
+enum ConfigValueType {
+  STRING
+  NUMBER
+  BOOLEAN
+  JSON
+}
+
+enum ConfigGroup {
+  FILE_LIMIT
+  SCORING
+  PRACTICE_RULE
+}
+
 model User {
   id               String            @id @default(uuid())
   email            String            @unique
@@ -22,6 +35,12 @@ model User {
   lastLoginAt      DateTime?         @map("last_login_at")
   identities       AuthIdentity[]
   sessions         AuthSession[]
+  ownedClasses     Class[]
+  classMemberships ClassMember[]
+  submissions      Submission[]
+  ensembleSessions EnsembleSession[]
+  createdNotifications Notification[]     @relation("NotificationCreator")
+  notifications        UserNotification[] @relation("UserNotifications")
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
 
@@ -52,4 +71,273 @@ model AuthSession {
 
   @@index([userId])
   @@map("auth_sessions")
+}
+
+model Instrument {
+  id               String            @id @default(uuid())
+  code             String            @unique
+  name             String
+  description      String?
+  isActive         Boolean           @default(true) @map("is_active")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  classes          Class[]
+  classMembers     ClassMember[]
+  ensembleTracks   EnsembleTrack[]
+  ensembleSessions EnsembleSession[]
+
+  @@map("instruments")
+}
+
+model SystemConfig {
+  id          String          @id @default(uuid())
+  key         String          @unique
+  value       String
+  valueType   ConfigValueType @map("value_type")
+  group       ConfigGroup
+  label       String
+  description String?
+  updatedById String?         @map("updated_by_id")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  @@map("system_configs")
+}
+
+enum ClassStatus {
+  ACTIVE
+  ENDED
+}
+
+enum AssignmentType {
+  PRACTICE
+  RHYTHM
+  RECORDING
+  SHEET
+  BONUS
+  EXAM
+}
+
+enum SubmissionStatus {
+  PROCESSING
+  COMPLETED
+  REJECTED
+  FAILED
+}
+
+enum EnsembleSessionStatus {
+  RECORDING
+  COMPLETED
+  FAILED
+}
+
+model Piece {
+  id               String            @id @default(uuid())
+  title            String
+  composer         String?
+  bpm              Int               @default(90)
+  isVisible        Boolean           @default(true) @map("is_visible")
+  categoryId       String?           @map("category_id")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  category         ContentCategory?  @relation(fields: [categoryId], references: [id])
+  assignments      Assignment[]
+  ensembleTracks   EnsembleTrack[]
+  ensembleSessions EnsembleSession[]
+
+  @@map("pieces")
+}
+
+model ContentCategory {
+  id        String            @id @default(uuid())
+  name      String
+  parentId  String?           @map("parent_id")
+  sortOrder Int               @default(0) @map("sort_order")
+  createdAt DateTime          @default(now()) @map("created_at")
+  parent    ContentCategory?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children  ContentCategory[] @relation("CategoryTree")
+  pieces    Piece[]
+
+  @@index([parentId])
+  @@map("content_categories")
+}
+
+model Class {
+  id           String        @id @default(uuid())
+  name         String
+  instrumentId String        @map("instrument_id")
+  ownerId      String        @map("owner_id")
+  startDate    DateTime      @map("start_date")
+  status       ClassStatus   @default(ACTIVE)
+  createdAt    DateTime      @default(now()) @map("created_at")
+  instrument   Instrument    @relation(fields: [instrumentId], references: [id])
+  owner        User          @relation(fields: [ownerId], references: [id])
+  members      ClassMember[]
+  assignments  Assignment[]
+
+  @@index([ownerId])
+  @@map("classes")
+}
+
+model ClassMember {
+  id           String     @id @default(uuid())
+  classId      String     @map("class_id")
+  userId       String     @map("user_id")
+  instrumentId String     @map("instrument_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  class        Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id])
+  instrument   Instrument @relation(fields: [instrumentId], references: [id])
+
+  @@unique([classId, userId])
+  @@index([userId])
+  @@map("class_members")
+}
+
+model Assignment {
+  id               String            @id @default(uuid())
+  classId          String            @map("class_id")
+  pieceId          String?           @map("piece_id")
+  title            String
+  type             AssignmentType
+  description      String            @default("")
+  weekNo           Int?              @map("week_no")
+  deadline         DateTime
+  targetBpm        Int?              @map("target_bpm")
+  minAccuracy      Int?              @map("min_accuracy")
+  maxSubmissions   Int               @default(3) @map("max_submissions")
+  isPublished      Boolean           @default(false) @map("is_published")
+  bonusPoints      Int?              @map("bonus_points")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  class            Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
+  piece            Piece?            @relation(fields: [pieceId], references: [id])
+  rubric           Rubric?
+  submissions      Submission[]
+  ensembleSessions EnsembleSession[]
+
+  @@index([classId])
+  @@map("assignments")
+}
+
+model Rubric {
+  id           String            @id @default(uuid())
+  assignmentId String            @unique @map("assignment_id")
+  assignment   Assignment        @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  criteria     RubricCriterion[]
+
+  @@map("rubrics")
+}
+
+model RubricCriterion {
+  id       String @id @default(uuid())
+  rubricId String @map("rubric_id")
+  name     String
+  weight   Int
+  position Int    @default(0)
+  rubric   Rubric @relation(fields: [rubricId], references: [id], onDelete: Cascade)
+
+  @@index([rubricId])
+  @@map("rubric_criteria")
+}
+
+model Submission {
+  id           String           @id @default(uuid())
+  assignmentId String           @map("assignment_id")
+  studentId    String           @map("student_id")
+  status       SubmissionStatus @default(PROCESSING)
+  accuracy     Float?
+  fileUrl      String?          @map("file_url")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      User             @relation(fields: [studentId], references: [id])
+
+  @@index([assignmentId, studentId])
+  @@map("submissions")
+}
+
+model EnsembleTrack {
+  id            String     @id @default(uuid())
+  pieceId       String     @map("piece_id")
+  instrumentId  String     @map("instrument_id")
+  fileUrl       String     @map("file_url")
+  durationSec   Int        @map("duration_sec")
+  offsetMs      Int        @default(0) @map("offset_ms")
+  defaultVolume Float      @default(1) @map("default_volume")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  piece         Piece      @relation(fields: [pieceId], references: [id], onDelete: Cascade)
+  instrument    Instrument @relation(fields: [instrumentId], references: [id])
+
+  @@unique([pieceId, instrumentId])
+  @@map("ensemble_tracks")
+}
+
+model EnsembleSession {
+  id            String                @id @default(uuid())
+  studentId     String                @map("student_id")
+  pieceId       String                @map("piece_id")
+  instrumentId  String                @map("instrument_id")
+  assignmentId  String?               @map("assignment_id")
+  recordingUrl  String?               @map("recording_url")
+  trackSettings Json                  @default("[]") @map("track_settings")
+  targetBpm     Int                   @map("target_bpm")
+  status        EnsembleSessionStatus @default(RECORDING)
+  createdAt     DateTime              @default(now()) @map("created_at")
+  student       User                  @relation(fields: [studentId], references: [id])
+  piece         Piece                 @relation(fields: [pieceId], references: [id])
+  instrument    Instrument            @relation(fields: [instrumentId], references: [id])
+  assignment    Assignment?           @relation(fields: [assignmentId], references: [id])
+
+  @@index([studentId])
+  @@map("ensemble_sessions")
+}
+
+enum NotificationType {
+  DEADLINE
+  ANNOUNCEMENT
+  SYSTEM
+  BONUS
+}
+
+enum NotificationTarget {
+  ALL
+  STUDENT
+  TEACHER
+}
+
+enum NotificationStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+}
+
+model Notification {
+  id             String             @id @default(uuid())
+  title          String
+  body           String
+  type           NotificationType
+  target         NotificationTarget @default(ALL)
+  status         NotificationStatus @default(DRAFT)
+  scheduledAt    DateTime?          @map("scheduled_at")
+  sentAt         DateTime?          @map("sent_at")
+  recipientCount Int                @default(0) @map("recipient_count")
+  createdById    String             @map("created_by_id")
+  createdAt      DateTime           @default(now()) @map("created_at")
+  updatedAt      DateTime           @updatedAt @map("updated_at")
+  createdBy      User               @relation("NotificationCreator", fields: [createdById], references: [id])
+  recipients     UserNotification[]
+
+  @@index([status, scheduledAt])
+  @@map("notifications")
+}
+
+model UserNotification {
+  id             String       @id @default(uuid())
+  notificationId String       @map("notification_id")
+  userId         String       @map("user_id")
+  isRead         Boolean      @default(false) @map("is_read")
+  readAt         DateTime?    @map("read_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  user           User         @relation("UserNotifications", fields: [userId], references: [id])
+
+  @@unique([notificationId, userId])
+  @@index([userId, isRead])
+  @@map("user_notifications")
 }

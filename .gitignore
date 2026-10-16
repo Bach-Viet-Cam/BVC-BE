@@ -28,3 +28,6 @@ prisma/migrations/
 # Build
 dist/
 build/
+
+# Uploaded files (generated at runtime / by seed)
+uploads/
