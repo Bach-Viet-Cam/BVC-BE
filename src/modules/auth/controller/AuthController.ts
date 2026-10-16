@@ -10,17 +10,6 @@ export default class AuthController {
     return cookies[AuthService.getRefreshTokenCookieName()];
   }
 
-  static async login(request: Request, response: Response): Promise<Response> {
-    const requestBody = request.validated?.body ?? request.body;
-    const authResult = await AuthService.authenticateWithCredentials(requestBody as { email: string; password?: string });
-    AuthService.setRefreshTokenCookie(response, authResult.refreshToken);
-    return ApiResponse.sendSuccessResponse(response, {
-      statusCode: 200,
-      data: { accessToken: authResult.accessToken, user: authResult.user },
-      message: 'Đăng nhập thành công.'
-    });
-  }
-
   static async googleAuth(request: Request, response: Response): Promise<Response> {
     const requestBody = request.validated?.body ?? request.body;
     const authResult = await AuthService.authenticateWithGoogle(requestBody as Backend.GoogleAuthRequest);

@@ -9,7 +9,6 @@ import AuthValidation from '../validation/AuthValidation.ts';
 export default class AuthRoute {
   static register(router: Router): void {
     const authRouter = express.Router();
-    authRouter.post('/login', validateRequest(AuthValidation.loginSchema), AsyncHandler.wrap(AuthController.login));
     authRouter.post('/google', validateRequest(AuthValidation.googleAuthSchema), AsyncHandler.wrap(AuthController.googleAuth));
     authRouter.post('/refresh', validateRequest(AuthValidation.refreshSchema), AsyncHandler.wrap(AuthController.refresh));
     authRouter.post('/logout', validateRequest(AuthValidation.logoutSchema), AsyncHandler.wrap(AuthController.logout));

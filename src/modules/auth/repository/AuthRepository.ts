@@ -27,18 +27,6 @@ export default class AuthRepository {
     });
   }
 
-  static async createUserWithIdentity({ email, username, role, provider, providerId }: { email: string; username: string; role: Backend.UserRole; provider: string; providerId: string }): Promise<Backend.UserRecord> {
-    return AuthRepository.client.user.create({
-      data: {
-        email,
-        username,
-        role,
-        identities: { create: { provider, providerId } }
-      },
-      select: AuthModel.userSelect
-    });
-  }
-
   static async createIdentity({ userId, provider, providerId }: { userId: string; provider: string; providerId: string }): Promise<unknown> {
     return AuthRepository.client.authIdentity.create({
       data: { userId, provider, providerId },

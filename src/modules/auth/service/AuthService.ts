@@ -21,12 +21,6 @@ const toUserDTO = AuthDTO.toUserDTO;
 export default class AuthService {
   static readonly googleClient = new OAuth2Client(EnvConfig.googleClientId);
 
-  static getSafeRole(role: Backend.UserRole | undefined): Backend.UserRole {
-    return role !== undefined && AuthConstant.selfRegisterableRoles.has(role)
-      ? role
-      : AuthConstant.roles.STUDENT;
-  }
-
   static createAccessToken(user: Backend.UserRecord): string {
     return jwt.sign(
       { userId: user.id, role: user.role },
@@ -54,7 +48,7 @@ export default class AuthService {
       httpOnly: true,
       secure: EnvConfig.nodeEnv === 'production',
       sameSite: 'lax' as const,
-      path: '/api/auth',
+      path: '/api/v1/auth',
       maxAge: EnvConfig.refreshTokenExpiresInDays * 24 * 60 * 60
     };
   }
@@ -96,7 +90,7 @@ export default class AuthService {
     throw AppError.unauthorized(AUTH_MESSAGES.GOOGLE_TOKEN_INVALID);
   }
 }
-  static async findOrCreateUser(googleProfile: Backend.GoogleProfile, requestedRole?: Backend.UserRole): Promise<Backend.UserRecord> {
+  static async findUserForGoogleLogin(googleProfile: Backend.GoogleProfile): Promise<Backend.UserRecord> {
     const existingIdentity = await authRepository.findIdentityByProvider(
       AUTH_PROVIDERS.GOOGLE,
       googleProfile.providerId
@@ -105,20 +99,14 @@ export default class AuthService {
     if (existingIdentity) return existingIdentity.user;
 
     const existingUser = await authRepository.findUserByEmail(googleProfile.email);
-    if (existingUser) {
-      await authRepository.createIdentity({
-        userId: existingUser.id,
-        provider: AUTH_PROVIDERS.GOOGLE,
-        providerId: googleProfile.providerId
-      });
-      return existingUser;
-    }
-
-    return authRepository.createUserWithIdentity({
-      ...googleProfile,
-      role: AuthService.getSafeRole(requestedRole),
-      provider: AUTH_PROVIDERS.GOOGLE
+    if (!existingUser) throw AppError.unauthorized(AUTH_MESSAGES.ACCOUNT_NOT_PROVISIONED);
+    AuthService.assertNotLocked(existingUser);
+    await authRepository.createIdentity({
+      userId: existingUser.id,
+      provider: AUTH_PROVIDERS.GOOGLE,
+      providerId: googleProfile.providerId
     });
+    return existingUser;
   }
 
   static assertNotLocked(user: Backend.UserRecord): void {
@@ -148,22 +136,9 @@ export default class AuthService {
     };
   }
 
-  static async authenticateWithCredentials({ email }: { email: string; password?: string }): Promise<Backend.AuthResult> {
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = await authRepository.findUserByEmail(normalizedEmail);
-    if (!user) {
-      throw AppError.unauthorized('Email hoặc mật khẩu không chính xác.');
-    }
-    AuthService.assertNotLocked(user);
-    const activeUser = await AuthService.activateOnLogin(user);
-    const tokens = await AuthService.createSessionForUser(activeUser);
-
-    return { ...tokens, user: toUserDTO(activeUser) };
-  }
-
-  static async authenticateWithGoogle({ credential, role }: Backend.GoogleAuthRequest): Promise<Backend.AuthResult> {
+  static async authenticateWithGoogle({ credential }: Backend.GoogleAuthRequest): Promise<Backend.AuthResult> {
     const googleProfile = await AuthService.verifyGoogleCredential(credential);
-    const foundUser = await AuthService.findOrCreateUser(googleProfile, role);
+    const foundUser = await AuthService.findUserForGoogleLogin(googleProfile);
     const user = await AuthService.activateOnLogin(foundUser);
     const tokens = await AuthService.createSessionForUser(user);
 
