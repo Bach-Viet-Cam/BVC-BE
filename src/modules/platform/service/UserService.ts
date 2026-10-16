@@ -4,6 +4,7 @@ import PlatformConstant from '../constant/PlatformConstant.ts';
 import UserDTO from '../dto/UserDTO.ts';
 import UserRepository from '../repository/UserRepository.ts';
 import UserPolicyService from './UserPolicyService.ts';
+import UserImportPolicyService from './UserImportPolicyService.ts';
 
 export default class UserService {
   static async list(query: Backend.UserListQuery): Promise<Backend.PaginatedResult<Backend.UserListItem>> {
@@ -65,5 +66,28 @@ export default class UserService {
     const target = await UserService.getOrThrow(targetId);
     const nextStatus: Backend.UserStatus = target.lastLoginAt ? 'ACTIVE' : 'PENDING';
     return UserDTO.toListItem(await UserRepository.updateStatus(targetId, nextStatus));
+  }
+
+  static async importStudents(input: Backend.UserImportInput): Promise<Backend.UserImportResult> {
+    const keys = UserImportPolicyService.lookupKeys(input.rows);
+    const existing = await UserRepository.findByEmailsOrCodes(keys.emails, keys.codes);
+    const results = UserImportPolicyService.analyze({ rows: input.rows, mode: input.mode, existing });
+    const summary = UserImportPolicyService.summarize(results);
+    if (input.dryRun) return { dryRun: true, results, summary, createdCount: 0, updatedCount: 0 };
+    if (summary.create + summary.update === 0) throw AppError.badRequest(PlatformConstant.messages.IMPORT_NO_ACTIONABLE_ROWS);
+
+    const creates = results
+      .filter((result) => result.action === 'CREATE')
+      .map((result) => ({ email: result.email, username: result.username, studentCode: result.studentCode }));
+    const updates = results
+      .filter((result) => result.action === 'UPDATE' && result.existingUserId !== null)
+      .map((result) => ({ id: result.existingUserId as string, username: result.username, studentCode: result.studentCode }));
+    try {
+      await UserRepository.applyStudentImport(creates, updates);
+    } catch (error: unknown) {
+      if (UserRepository.isUniqueViolation(error)) throw AppError.conflict(PlatformConstant.messages.IMPORT_CONFLICT);
+      throw error;
+    }
+    return { dryRun: false, results, summary, createdCount: creates.length, updatedCount: updates.length };
   }
 }

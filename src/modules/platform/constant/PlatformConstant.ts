@@ -48,7 +48,35 @@ export default class PlatformConstant {
     NOTIFICATION_LOCKED: 'Thông báo đã gửi, không thể sửa hoặc xóa.',
     NOTIFICATION_ALREADY_SENT: 'Thông báo này đã được gửi.',
     NOTIFICATION_SCHEDULE_PAST: 'Thời điểm hẹn giờ phải ở tương lai.',
-    NOTIFICATION_DELETED: 'Đã xóa thông báo.'
+    NOTIFICATION_DELETED: 'Đã xóa thông báo.',
+    IMPORT_NO_ACTIONABLE_ROWS: 'Không có dòng hợp lệ để import.',
+    IMPORT_CONFLICT: 'Dữ liệu vừa thay đổi trong lúc import. Vui lòng kiểm tra lại bản xem trước.',
+    IMPORT_DONE: 'Import hoàn tất.'
+  });
+  static readonly userImport = Object.freeze({
+    maxRows: 1000,
+    maxFieldLength: 255,
+    maxEmailLength: 100,
+    maxUsernameLength: 100,
+    studentCodePattern: /^[A-Za-z0-9_-]{1,20}$/,
+    transactionTimeoutMs: 30_000
+  });
+  static readonly userImportMessages = Object.freeze({
+    EMAIL_REQUIRED: 'Thiếu email.',
+    EMAIL_INVALID: 'Email không hợp lệ (tối đa 100 ký tự).',
+    USERNAME_REQUIRED: 'Thiếu họ tên.',
+    USERNAME_TOO_LONG: 'Họ tên tối đa 100 ký tự.',
+    USERNAME_INVALID: 'Họ tên chứa ký tự không hợp lệ.',
+    CODE_REQUIRED: 'Thiếu mã sinh viên.',
+    CODE_INVALID: 'Mã sinh viên chỉ gồm chữ, số, dấu gạch ngang hoặc gạch dưới, tối đa 20 ký tự.',
+    EMAIL_PRIVILEGED: 'Email thuộc tài khoản giảng viên hoặc quản trị, không thể import.',
+    CODE_TAKEN: 'Mã sinh viên đã được dùng bởi tài khoản khác.',
+    EXISTS_SKIPPED: 'Tài khoản đã tồn tại, bỏ qua.',
+    NO_CHANGES: 'Không có thay đổi so với dữ liệu hiện có.',
+    UPDATE_USERNAME: 'Cập nhật họ tên.',
+    UPDATE_CODE: 'Cập nhật mã sinh viên.',
+    duplicateEmail: (rowNumber: number): string => `Trùng email với dòng ${rowNumber}.`,
+    duplicateCode: (rowNumber: number): string => `Trùng mã sinh viên với dòng ${rowNumber}.`
   });
   static readonly notificationStatusMessages: Record<Backend.NotificationStatusName, string> = {
     DRAFT: 'Đã lưu nháp thông báo.',

@@ -9,6 +9,15 @@ const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(100));
 const usernameSchema = z.string().trim().min(1).max(100);
 const studentCodeSchema = z.string().trim().min(1).max(20);
 
+const importRowSchema = z
+  .object({
+    rowNumber: z.number().int().min(1).max(1_048_576),
+    studentCode: z.string().max(PlatformConstant.userImport.maxFieldLength),
+    username: z.string().max(PlatformConstant.userImport.maxFieldLength),
+    email: z.string().max(PlatformConstant.userImport.maxFieldLength)
+  })
+  .strict();
+
 export default class UserValidation {
   static readonly listSchema = z.object({
     body: z.unknown(),
@@ -34,4 +43,15 @@ export default class UserValidation {
     query: noQuery
   });
   static readonly idSchema = z.object({ body: z.unknown(), params: idParams, query: noQuery });
+  static readonly importSchema = z.object({
+    body: z
+      .object({
+        rows: z.array(importRowSchema).min(1).max(PlatformConstant.userImport.maxRows),
+        mode: z.enum(['skip', 'update']),
+        dryRun: z.boolean()
+      })
+      .strict(),
+    params: noParams,
+    query: noQuery
+  });
 }

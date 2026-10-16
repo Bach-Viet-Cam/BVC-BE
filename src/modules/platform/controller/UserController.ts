@@ -45,4 +45,13 @@ export default class UserController {
       message: PlatformConstant.messages.USER_UNLOCKED
     });
   }
+
+  static async importStudents(request: Request, response: Response): Promise<Response> {
+    const validated = request.validated as { body: Backend.UserImportInput };
+    const result = await UserService.importStudents(validated.body);
+    return ApiResponse.sendSuccessResponse(response, {
+      data: result,
+      message: result.dryRun ? '' : PlatformConstant.messages.IMPORT_DONE
+    });
+  }
 }

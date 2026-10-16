@@ -108,4 +108,14 @@ declare namespace Backend {
     scheduledAt: Date | null;
   }
   interface NotificationListQuery { status?: NotificationStatusName; page: number; pageSize: number; }
+
+  type ImportMode = 'skip' | 'update';
+  type ImportAction = 'CREATE' | 'UPDATE' | 'SKIP' | 'ERROR';
+  interface UserImportRowInput { rowNumber: number; studentCode: string; username: string; email: string; }
+  interface UserImportInput { rows: UserImportRowInput[]; mode: ImportMode; dryRun: boolean; }
+  interface UserImportRowResult extends UserImportRowInput { action: ImportAction; messages: string[]; existingUserId: string | null; }
+  interface UserImportSummary { total: number; create: number; update: number; skip: number; error: number; }
+  interface UserImportResult { dryRun: boolean; results: UserImportRowResult[]; summary: UserImportSummary; createdCount: number; updatedCount: number; }
+  interface UserImportCreateData { email: string; username: string; studentCode: string; }
+  interface UserImportUpdateData { id: string; username: string; studentCode: string; }
 }

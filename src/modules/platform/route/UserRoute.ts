@@ -14,6 +14,7 @@ export default class UserRoute {
     userRouter.use(AsyncHandler.wrap(requireAuthenticatedUser), requireRoles(AuthConstant.roles.SYSTEM_ADMIN));
     userRouter.get('/', validateRequest(UserValidation.listSchema), AsyncHandler.wrap(UserController.list));
     userRouter.post('/', validateRequest(UserValidation.createSchema), AsyncHandler.wrap(UserController.create));
+    userRouter.post('/import', validateRequest(UserValidation.importSchema), AsyncHandler.wrap(UserController.importStudents));
     userRouter.patch('/:id', validateRequest(UserValidation.updateSchema), AsyncHandler.wrap(UserController.update));
     userRouter.post('/:id/lock', validateRequest(UserValidation.idSchema), AsyncHandler.wrap(UserController.lock));
     userRouter.post('/:id/unlock', validateRequest(UserValidation.idSchema), AsyncHandler.wrap(UserController.unlock));

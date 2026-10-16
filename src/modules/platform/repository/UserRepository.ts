@@ -1,5 +1,8 @@
 import type { Prisma } from '@prisma/client';
+import AppError from '../../../utils/AppError.ts';
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
+import AuthConstant from '../../auth/constant/AuthConstant.ts';
+import PlatformConstant from '../constant/PlatformConstant.ts';
 import UserModel from '../model/UserModel.ts';
 
 export default class UserRepository {
@@ -65,5 +68,37 @@ export default class UserRepository {
 
   static async updateStatus(id: string, status: Backend.UserStatus): Promise<Backend.UserAdminRecord> {
     return UserRepository.client.user.update({ where: { id }, data: { status }, select: UserModel.adminSelect });
+  }
+
+  static async findByEmailsOrCodes(emails: string[], codes: string[]): Promise<Backend.UserAdminRecord[]> {
+    return UserRepository.client.user.findMany({
+      where: { OR: [{ email: { in: emails } }, { studentCode: { in: codes } }] },
+      select: UserModel.adminSelect
+    });
+  }
+
+  static async applyStudentImport(creates: Backend.UserImportCreateData[], updates: Backend.UserImportUpdateData[]): Promise<void> {
+    await UserRepository.client.$transaction(
+      async (transaction) => {
+        if (creates.length > 0) {
+          await transaction.user.createMany({
+            data: creates.map((item) => ({ ...item, role: AuthConstant.roles.STUDENT, status: 'PENDING' as const }))
+          });
+        }
+        for (const item of updates) {
+          const result = await transaction.user.updateMany({
+            where: { id: item.id, role: AuthConstant.roles.STUDENT },
+            data: { username: item.username, studentCode: item.studentCode }
+          });
+          // Tài khoản vừa bị xóa/đổi vai trò giữa lúc phân tích và lúc ghi → hủy cả transaction.
+          if (result.count !== 1) throw AppError.conflict(PlatformConstant.messages.IMPORT_CONFLICT);
+        }
+      },
+      { maxWait: 5000, timeout: PlatformConstant.userImport.transactionTimeoutMs }
+    );
+  }
+
+  static isUniqueViolation(error: unknown): boolean {
+    return typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'P2002';
   }
 }
