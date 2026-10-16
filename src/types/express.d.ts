@@ -1,7 +1,7 @@
 declare namespace Express {
   interface Request {
     auth?: {
-      user: unknown;
+      user: Backend.UserDTO;
     };
     validated?: {
       body: unknown;
