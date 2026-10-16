@@ -29,6 +29,8 @@ model User {
   removedMembers  ClassMember[]      @relation("ClassMemberRemovedBy")
   importLogs      StudentImportLog[]
   auditLogs       AuditLog[]
+  createdPieces   Piece[]
+  roadmaps        Roadmap[]
   createdAt       DateTime           @default(now()) @map("created_at")
   updatedAt       DateTime           @updatedAt @map("updated_at")
 
@@ -63,11 +65,13 @@ model AuthSession {
 
 // TODO(M06): instrument catalogue is owned by M06; this is the minimum M03 needs.
 model Instrument {
-  id        String   @id @default(uuid())
-  name      String   @unique @db.VarChar(100)
-  isActive  Boolean  @default(true) @map("is_active")
+  id        String    @id @default(uuid())
+  name      String    @unique @db.VarChar(100)
+  isActive  Boolean   @default(true) @map("is_active")
   classes   Class[]
-  createdAt DateTime @default(now()) @map("created_at")
+  pieces    Piece[]
+  roadmaps  Roadmap[]
+  createdAt DateTime  @default(now()) @map("created_at")
 
   @@map("instruments")
 }
@@ -92,6 +96,8 @@ model Class {
   endDate      DateTime           @map("end_date") @db.Date
   status       ClassStatus        @default(ACTIVE)
   endedAt      DateTime?          @map("ended_at")
+  roadmapId    String?            @map("roadmap_id")
+  roadmap      Roadmap?           @relation(fields: [roadmapId], references: [id])
   members      ClassMember[]
   importLogs   StudentImportLog[]
   createdAt    DateTime           @default(now()) @map("created_at")
@@ -99,6 +105,7 @@ model Class {
 
   @@index([lecturerId, status])
   @@index([instrumentId])
+  @@index([roadmapId])
   @@map("classes")
 }
 
@@ -175,4 +182,73 @@ model AuditLog {
   @@index([actorId])
   @@index([entityType, entityId])
   @@map("audit_logs")
+}
+
+enum PieceKind {
+  FINGER_EXERCISE
+  SONG
+}
+
+// TODO(M02): minimal music library — M02 owns pieces, sheet music and the library screens.
+model Piece {
+  id           String                @id @default(uuid())
+  title        String                @db.VarChar(200)
+  instrumentId String                @map("instrument_id")
+  instrument   Instrument            @relation(fields: [instrumentId], references: [id])
+  kind         PieceKind
+  defaultBpm   Int?                  @map("default_bpm")
+  isVisible    Boolean               @default(true) @map("is_visible")
+  createdById  String?               @map("created_by")
+  createdBy    User?                 @relation(fields: [createdById], references: [id])
+  roadmapUses  RoadmapWeekExercise[]
+  createdAt    DateTime              @default(now()) @map("created_at")
+
+  @@index([instrumentId, kind, isVisible])
+  @@index([createdById])
+  @@map("pieces")
+}
+
+// One row = one immutable roadmap version of an instrument (UC-11). Never updated after insert.
+model Roadmap {
+  id           String        @id @default(uuid())
+  instrumentId String        @map("instrument_id")
+  instrument   Instrument    @relation(fields: [instrumentId], references: [id])
+  version      Int
+  createdById  String        @map("created_by")
+  createdBy    User          @relation(fields: [createdById], references: [id])
+  weeks        RoadmapWeek[]
+  classes      Class[]
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  @@unique([instrumentId, version])
+  @@index([createdById])
+  @@map("roadmaps")
+}
+
+// week_number 1..6 is enforced by the CHECK constraint "roadmap_weeks_week_number_check" in the migration SQL.
+model RoadmapWeek {
+  id         String                @id @default(uuid())
+  roadmapId  String                @map("roadmap_id")
+  roadmap    Roadmap               @relation(fields: [roadmapId], references: [id])
+  weekNumber Int                   @map("week_number") @db.SmallInt
+  title      String                @db.VarChar(100)
+  content    String                @db.VarChar(1000)
+  exercises  RoadmapWeekExercise[]
+
+  @@unique([roadmapId, weekNumber])
+  @@map("roadmap_weeks")
+}
+
+model RoadmapWeekExercise {
+  id            String      @id @default(uuid())
+  roadmapWeekId String      @map("roadmap_week_id")
+  roadmapWeek   RoadmapWeek @relation(fields: [roadmapWeekId], references: [id])
+  pieceId       String      @map("piece_id")
+  piece         Piece       @relation(fields: [pieceId], references: [id])
+  sortOrder     Int         @map("sort_order")
+
+  @@unique([roadmapWeekId, sortOrder])
+  @@unique([roadmapWeekId, pieceId])
+  @@index([pieceId])
+  @@map("roadmap_week_exercises")
 }

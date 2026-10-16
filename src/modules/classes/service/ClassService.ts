@@ -4,6 +4,7 @@ import AppError from '../../../utils/AppError.ts';
 import DateTimeUtil from '../../../utils/DateTimeUtil.ts';
 import ClassConstant from '../constant/ClassConstant.ts';
 import ClassDTO from '../dto/ClassDTO.ts';
+import RoadmapRepository from '../../roadmaps/repository/RoadmapRepository.ts';
 import ClassRepository from '../repository/ClassRepository.ts';
 import ClassAccessService from './ClassAccessService.ts';
 
@@ -46,9 +47,10 @@ export default class ClassService {
       instrumentId: input.instrumentId,
       description: input.description || null,
       startDate: DateTimeUtil.toDateOnly(input.startDate),
-      endDate: DateTimeUtil.toDateOnly(ClassService.calculateEndDate(input.startDate))
+      endDate: DateTimeUtil.toDateOnly(ClassService.calculateEndDate(input.startDate)),
+      // UC-11: a new class is bound to the latest roadmap version of its instrument (null until one exists).
+      roadmapId: await RoadmapRepository.findLatestRoadmapId(input.instrumentId)
     };
-    // TODO(M03-roadmap): pin the latest roadmap version of the instrument here (sub-project 2).
     const createdClass = await ClassService.runUniqueGuarded(() =>
       PrismaClientProvider.instance.$transaction(async (transaction) => {
         const classRecord = await ClassRepository.createClass(lecturerId, classData, transaction);
@@ -99,6 +101,8 @@ export default class ClassService {
       if (hasStarted) throw AppError.fieldError(409, { field: 'instrumentId', code: 'MSG-08', message: messages.INSTRUMENT_LOCKED });
       await ClassService.assertInstrumentActive(input.instrumentId);
       changes.instrumentId = input.instrumentId;
+      // Q6: the roadmap belongs to the instrument, so re-pin to the new instrument's latest version.
+      changes.roadmapId = await RoadmapRepository.findLatestRoadmapId(input.instrumentId);
     }
     if (input.startDate !== undefined && input.startDate !== currentStartDate) {
       if (hasStarted) throw AppError.fieldError(409, { field: 'startDate', code: 'MSG-08', message: messages.START_DATE_LOCKED });

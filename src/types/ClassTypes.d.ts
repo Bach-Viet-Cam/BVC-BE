@@ -17,6 +17,7 @@ declare namespace Backend {
     endDate: Date;
     status: ClassStatus;
     endedAt: Date | null;
+    roadmapId: string | null;
     createdAt: Date;
     instrument: { id: string; name: string };
     _count: { members: number };
@@ -73,6 +74,7 @@ declare namespace Backend {
     description: string | null;
     startDate: Date;
     endDate: Date;
+    roadmapId?: string | null;
   }
 
   interface MemberRecord {

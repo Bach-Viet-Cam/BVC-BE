@@ -17,7 +17,7 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      include: ['src/modules/classes/**/*.ts', 'src/utils/DateTimeUtil.ts', 'src/constants/MessageConstant.ts'],
+      include: ['src/modules/classes/**/*.ts', 'src/modules/roadmaps/**/*.ts', 'src/utils/DateTimeUtil.ts', 'src/constants/MessageConstant.ts'],
       reporter: ['text', 'html'],
       thresholds: { lines: 70, statements: 70, functions: 70, branches: 70 }
     }

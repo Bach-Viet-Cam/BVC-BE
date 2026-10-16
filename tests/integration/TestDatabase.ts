@@ -17,7 +17,7 @@ export default class TestDatabase {
     const databaseUrl = process.env.DATABASE_URL ?? '';
     if (!databaseUrl.includes('test')) throw new Error(`Refusing to truncate a non-test database: ${databaseUrl}`);
     await TestDatabase.prisma.$executeRawUnsafe(
-      'TRUNCATE TABLE audit_logs, class_members, student_import_logs, classes, instruments, auth_sessions, auth_identities, users CASCADE'
+      'TRUNCATE TABLE audit_logs, class_members, student_import_logs, roadmap_week_exercises, roadmap_weeks, classes, roadmaps, pieces, instruments, auth_sessions, auth_identities, users CASCADE'
     );
   }
 
@@ -45,6 +45,17 @@ export default class TestDatabase {
 
   static async createInstrument(name: string = `Đàn ${TestDatabase.nextId()}`, isActive: boolean = true) {
     return TestDatabase.prisma.instrument.create({ data: { name, isActive } });
+  }
+
+  static async createPiece(instrumentId: string, overrides: Partial<{ title: string; kind: 'FINGER_EXERCISE' | 'SONG'; isVisible: boolean }> = {}) {
+    return TestDatabase.prisma.piece.create({
+      data: {
+        title: overrides.title ?? `Luyện ngón ${TestDatabase.nextId()}`,
+        instrumentId,
+        kind: overrides.kind ?? 'FINGER_EXERCISE',
+        isVisible: overrides.isVisible ?? true
+      }
+    });
   }
 
   static async createClass(lecturerId: string, instrumentId: string, overrides: Partial<{ name: string; cohort: string; startDate: string; status: 'ACTIVE' | 'FINISHED' }> = {}) {

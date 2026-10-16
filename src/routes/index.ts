@@ -3,6 +3,7 @@ import type { Router } from 'express';
 import AuthRoute from '../modules/auth/route/AuthRoute.ts';
 import ClassRoute from '../modules/classes/route/ClassRoute.ts';
 import PlatformRoute from '../modules/platform/route/PlatformRoute.ts';
+import RoadmapRoute from '../modules/roadmaps/route/RoadmapRoute.ts';
 
 export default class ApiRoute {
   static createRouter(): Router {
@@ -11,6 +12,7 @@ export default class ApiRoute {
     AuthRoute.register(v1Router);
     PlatformRoute.register(v1Router);
     ClassRoute.register(v1Router);
+    RoadmapRoute.register(v1Router);
     apiRouter.use('/v1', v1Router);
     return apiRouter;
   }

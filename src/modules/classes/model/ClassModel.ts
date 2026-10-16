@@ -12,6 +12,7 @@ export default class ClassModel {
     endDate: true,
     status: true,
     endedAt: true,
+    roadmapId: true,
     createdAt: true,
     instrument: { select: { id: true, name: true } },
     _count: { select: { members: { where: ClassModel.activeMemberFilter } } }
