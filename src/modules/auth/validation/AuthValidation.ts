@@ -7,6 +7,6 @@ export default class AuthValidation {
     body: z.object({ credential: z.string().trim().min(1) }).strict(),
     ...requestShape
   });
-  static readonly refreshSchema = z.object({ body: z.object({}), ...requestShape });
+  static readonly refreshSchema = z.object({ body: z.object({}).default({}), ...requestShape });
   static readonly logoutSchema = AuthValidation.refreshSchema;
 }
