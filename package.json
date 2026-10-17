@@ -10,7 +10,8 @@
     "build": "tsc --noEmit",
     "test": "tsx --test \"src/**/*.test.ts\"",
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "audio:cleanup": "tsx --eval \"import AudioCleanupService from './src/modules/audio/service/AudioCleanupService.ts'; AudioCleanupService.execute().catch(() => { console.error('Không thể dọn file audio.'); process.exitCode = 1; });\""
   },
   "keywords": [],
   "author": "",
@@ -18,6 +19,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.8.0",
+    "amqplib": "^2.2.0",
     "cookie": "^1.0.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",

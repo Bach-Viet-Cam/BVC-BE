@@ -1,10 +1,12 @@
 export default class AppError extends Error {
   readonly statusCode: number;
+  readonly details?: { evaluationId: string; status: string };
 
-  constructor(message: string, statusCode: number = 500) {
+  constructor(message: string, statusCode: number = 500, details?: { evaluationId: string; status: string }) {
     super(message);
     this.name = 'AppError';
     this.statusCode = statusCode;
+    this.details = details;
   }
 
   static unauthorized(message: string = 'Thông tin xác thực không hợp lệ.'): AppError {

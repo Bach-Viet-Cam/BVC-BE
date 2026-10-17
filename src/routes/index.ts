@@ -1,3 +1,4 @@
+import AudioRoute from '../modules/audio/route/AudioRoute.ts';
 import express from 'express';
 import type { Router } from 'express';
 import AuthRoute from '../modules/auth/route/AuthRoute.ts';
@@ -25,6 +26,7 @@ export default class ApiRoute {
     ProgressRoute.register(v1Router);
     AssignmentRoute.register(v1Router);
     EnsembleRoute.register(v1Router);
+    new AudioRoute().register(v1Router);
     apiRouter.use('/v1', v1Router);
     return apiRouter;
   }

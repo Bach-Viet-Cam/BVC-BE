@@ -26,23 +26,25 @@ enum ConfigGroup {
 }
 
 model User {
-  id               String            @id @default(uuid())
-  email            String            @unique
-  username         String
-  role             Int
-  status           UserStatus        @default(ACTIVE)
-  studentCode      String?           @unique @map("student_code")
-  lastLoginAt      DateTime?         @map("last_login_at")
-  identities       AuthIdentity[]
-  sessions         AuthSession[]
-  ownedClasses     Class[]
-  classMemberships ClassMember[]
-  submissions      Submission[]
-  ensembleSessions EnsembleSession[]
-  createdNotifications Notification[]     @relation("NotificationCreator")
-  notifications        UserNotification[] @relation("UserNotifications")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
+  id                   String                   @id @default(uuid())
+  email                String                   @unique
+  username             String
+  role                 Int
+  status               UserStatus               @default(ACTIVE)
+  studentCode          String?                  @unique @map("student_code")
+  lastLoginAt          DateTime?                @map("last_login_at")
+  identities           AuthIdentity[]
+  sessions             AuthSession[]
+  ownedClasses         Class[]
+  classMemberships     ClassMember[]
+  submissions          Submission[]
+  audioUploads         AudioUpload[]
+  audioEvaluations     AudioEvaluationRequest[]
+  ensembleSessions     EnsembleSession[]
+  createdNotifications Notification[]           @relation("NotificationCreator")
+  notifications        UserNotification[]       @relation("UserNotifications")
+  createdAt            DateTime                 @default(now()) @map("created_at")
+  updatedAt            DateTime                 @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -340,4 +342,46 @@ model UserNotification {
   @@unique([notificationId, userId])
   @@index([userId, isRead])
   @@map("user_notifications")
+}
+
+model AudioUpload {
+  id                  String                   @id @default(uuid())
+  ownerId             String                   @map("owner_id")
+  provider            String
+  key                 String
+  url                 String                   @unique
+  originalName        String                   @map("original_name")
+  contentType         String                   @map("content_type")
+  sizeBytes           Int                      @map("size_bytes")
+  createdAt           DateTime                 @default(now()) @map("created_at")
+  deletingAt          DateTime?                @map("deleting_at")
+  owner               User                     @relation(fields: [ownerId], references: [id])
+  templateEvaluations AudioEvaluationRequest[] @relation("AudioTemplate")
+  studentEvaluations  AudioEvaluationRequest[] @relation("AudioStudent")
+
+  @@unique([provider, key])
+  @@index([ownerId])
+  @@index([createdAt])
+  @@map("audio_uploads")
+}
+
+model AudioEvaluationRequest {
+  evaluationId     String      @id @map("evaluation_id")
+  messageId        String      @unique @map("message_id")
+  ownerId          String      @map("owner_id")
+  templateUploadId String      @map("template_upload_id")
+  studentUploadId  String      @map("student_upload_id")
+  instrumentCode   String      @map("instrument_code")
+  publicationState String      @default("publishing") @map("publication_state")
+  lastErrorCode    String?     @map("last_error_code")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  publishedAt      DateTime?   @map("published_at")
+  owner            User        @relation(fields: [ownerId], references: [id])
+  templateUpload   AudioUpload @relation("AudioTemplate", fields: [templateUploadId], references: [id], onDelete: Restrict)
+  studentUpload    AudioUpload @relation("AudioStudent", fields: [studentUploadId], references: [id], onDelete: Restrict)
+
+  @@index([ownerId, createdAt])
+  @@index([templateUploadId])
+  @@index([studentUploadId])
+  @@map("audio_evaluation_requests")
 }
