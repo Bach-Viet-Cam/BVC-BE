@@ -50,3 +50,18 @@ describe('EnsemblePolicyService.parseTrackSettings', () => {
     assert.equal(EnsemblePolicyService.parseTrackSettings('not json'), null);
   });
 });
+
+describe('EnsemblePolicyService.canPracticePiece', () => {
+  const piece = (visibility: 'PUBLIC' | 'HIDDEN', moderation: 'NORMAL' | 'ADMIN_HIDDEN' = 'NORMAL', deletedAt: Date | null = null) => ({ visibility, moderation, deletedAt });
+  it('luyện tự do chỉ với bài công khai', () => {
+    assert.equal(EnsemblePolicyService.canPracticePiece({ piece: piece('PUBLIC'), isViaAssignment: false }), true);
+    assert.equal(EnsemblePolicyService.canPracticePiece({ piece: piece('HIDDEN'), isViaAssignment: false }), false);
+  });
+  it('bài tập được dùng bài giảng viên đang ẩn', () => {
+    assert.equal(EnsemblePolicyService.canPracticePiece({ piece: piece('HIDDEN'), isViaAssignment: true }), true);
+  });
+  it('không bao giờ dùng bài bị admin ẩn hoặc đã xóa', () => {
+    assert.equal(EnsemblePolicyService.canPracticePiece({ piece: piece('PUBLIC', 'ADMIN_HIDDEN'), isViaAssignment: true }), false);
+    assert.equal(EnsemblePolicyService.canPracticePiece({ piece: piece('PUBLIC', 'NORMAL', new Date()), isViaAssignment: true }), false);
+  });
+});

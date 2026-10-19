@@ -1,5 +1,6 @@
 import AppError from '../../../utils/AppError.ts';
 import SystemConfigService from '../../platform/service/SystemConfigService.ts';
+import EnsemblePolicyService from '../../ensemble/service/EnsemblePolicyService.ts';
 import ClassesConstant from '../constant/ClassesConstant.ts';
 import AssignmentDTO, { type AssignmentDetail, type AssignmentListItem } from '../dto/AssignmentDTO.ts';
 import AssignmentRepository, { type AssignmentRow } from '../repository/AssignmentRepository.ts';
@@ -48,7 +49,8 @@ export default class AssignmentService {
     const defaultMinAccuracy = await SystemConfigService.getNumber('min_accuracy_default');
     const now = new Date();
     const canSubmit = AssignmentPolicyService.canSubmit({ isPublished: row.isPublished, deadline: row.deadline, now, maxSubmissions: row.maxSubmissions, submissions: row.submissions });
-    const hasEnsembleTracks = row.piece?.ensembleTracks.some((track) => track.instrumentId !== membership.instrumentId) ?? false;
+    const isPiecePracticable = row.piece ? EnsemblePolicyService.canPracticePiece({ piece: row.piece, isViaAssignment: true }) : false;
+    const hasEnsembleTracks = isPiecePracticable && (row.piece?.ensembleTracks.some((track) => track.instrumentId !== membership.instrumentId) ?? false);
     return AssignmentDTO.toDetail(row, AssignmentService.buildListItem(row, defaultMinAccuracy, now), { canSubmit, hasEnsembleTracks });
   }
 }

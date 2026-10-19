@@ -1,4 +1,5 @@
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
+import type { PieceAvailability } from '../service/EnsemblePolicyService.ts';
 
 export interface EnsembleTrackRecord {
   id: string;
@@ -27,8 +28,11 @@ export default class EnsembleRepository {
     return PrismaClientProvider.instance;
   }
 
-  static async findPiece(pieceId: string): Promise<{ id: string; title: string; bpm: number } | null> {
-    return EnsembleRepository.client.piece.findUnique({ where: { id: pieceId }, select: { id: true, title: true, bpm: true } });
+  static async findPiece(pieceId: string): Promise<({ id: string; title: string; bpm: number } & PieceAvailability) | null> {
+    return EnsembleRepository.client.piece.findUnique({
+      where: { id: pieceId },
+      select: { id: true, title: true, bpm: true, visibility: true, moderation: true, deletedAt: true }
+    });
   }
 
   static async findTracks(pieceId: string): Promise<EnsembleTrackRecord[]> {

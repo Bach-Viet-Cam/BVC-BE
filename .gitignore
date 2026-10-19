@@ -27,8 +27,8 @@ dist/
 build/
 
 # Local object storage (STORAGE_DRIVER=local)
-storage/
-storage-test/
+/storage/
+/storage-test/
 
 # Uploaded files (generated at runtime / by seed)
-uploads/
+/uploads/

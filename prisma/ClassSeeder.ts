@@ -1,6 +1,7 @@
 import path from 'node:path';
 import PrismaClientProvider from '../src/config/PrismaClient.ts';
 import SeedAudioService from './SeedAudioService.ts';
+import TextNormalizer from '../src/utils/TextNormalizer.ts';
 
 interface AssignmentSeed {
   id: string;
@@ -83,7 +84,27 @@ export default class ClassSeeder {
       });
     }
 
-    await client.piece.upsert({ where: { id: ClassSeeder.pieceId }, update: {}, create: { id: ClassSeeder.pieceId, title: 'Lý ngựa ô', composer: 'Dân ca Nam Bộ', bpm: 96 } });
+    const genre = await client.category.upsert({ where: { type_name: { type: 'GENRE', name: 'Dân ca' } }, update: {}, create: { type: 'GENRE', name: 'Dân ca' } });
+    const level = await client.category.upsert({ where: { type_name: { type: 'LEVEL', name: 'Trung cấp' } }, update: {}, create: { type: 'LEVEL', name: 'Trung cấp' } });
+    const pieceTitle = 'Lý ngựa ô';
+    const pieceComposer = 'Dân ca Nam Bộ';
+    await client.piece.upsert({
+      where: { id: ClassSeeder.pieceId },
+      update: {},
+      create: {
+        id: ClassSeeder.pieceId,
+        ownerId: teacher.id,
+        title: pieceTitle,
+        composer: pieceComposer,
+        bpm: 96,
+        visibility: 'PUBLIC',
+        genreId: genre.id,
+        levelId: level.id,
+        titleNormalized: TextNormalizer.normalize(pieceTitle),
+        composerNormalized: TextNormalizer.normalize(pieceComposer),
+        searchText: TextNormalizer.normalize(`${pieceTitle} ${pieceComposer}`)
+      }
+    });
     for (const track of ClassSeeder.ensembleTracks) {
       const relativeUrl = `/uploads/seed/${track.instrumentCode}.wav`;
       SeedAudioService.writeTone(path.resolve('uploads', 'seed', `${track.instrumentCode}.wav`), track.frequency, 20);

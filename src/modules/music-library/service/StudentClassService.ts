@@ -1,9 +1,11 @@
+import ClassMembershipRepository from '../repository/ClassMembershipRepository.ts';
+
 type ActiveInstrumentResolver = (studentId: string) => Promise<string | null>;
 
-// Bridge to M03 (classes). Each class teaches exactly one instrument; M02 only needs the instrument of the
-// student's active class (R-07). Until M03 registers its resolver, no class instrument is known.
+// Bridge to M03 (classes): M02 only needs the instrument of the student's active class (R-07).
+// Tests can swap the resolver to avoid seeding classes.
 export default class StudentClassService {
-  static activeInstrumentResolver: ActiveInstrumentResolver = async () => null;
+  static activeInstrumentResolver: ActiveInstrumentResolver = ClassMembershipRepository.findActiveInstrumentId;
 
   static useActiveInstrumentResolver(resolver: ActiveInstrumentResolver): void {
     StudentClassService.activeInstrumentResolver = resolver;
