@@ -35,6 +35,10 @@ model User {
   lastLoginAt          DateTime?                @map("last_login_at")
   identities           AuthIdentity[]
   sessions             AuthSession[]
+  ownedPieces          Piece[]                  @relation("PieceOwner")
+  uploadedSheetMusic   SheetMusic[]             @relation("SheetMusicUploader")
+  uploadedMediaFiles   MediaFile[]              @relation("MediaFileUploader")
+  savedItems           SavedItem[]
   ownedClasses         Class[]
   classMemberships     ClassMember[]
   submissions          Submission[]
@@ -75,19 +79,55 @@ model AuthSession {
   @@map("auth_sessions")
 }
 
+// ---------- Catalog: M02 genre/level categories; instruments and system config are shared with M06 ----------
+
+enum ActiveStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CategoryType {
+  GENRE
+  LEVEL
+}
+
 model Instrument {
   id               String            @id @default(uuid())
   code             String            @unique
   name             String
   description      String?
+  // Pitch range sent to the AI service for reference-recording analysis
+  fminHz           Float             @default(80) @map("fmin_hz")
+  fmaxHz           Float             @default(2000) @map("fmax_hz")
+  toleranceCents   Int               @default(30) @map("tolerance_cents")
   isActive         Boolean           @default(true) @map("is_active")
-  createdAt        DateTime          @default(now()) @map("created_at")
+  pieces           PieceInstrument[]
+  sheetMusic       SheetMusic[]
   classes          Class[]
   classMembers     ClassMember[]
   ensembleTracks   EnsembleTrack[]
   ensembleSessions EnsembleSession[]
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at")
 
   @@map("instruments")
+}
+
+model Category {
+  id              String       @id @default(uuid())
+  type            CategoryType
+  name            String
+  description     String?
+  displayOrder    Int          @default(0) @map("display_order")
+  status          ActiveStatus @default(ACTIVE)
+  genrePieces     Piece[]      @relation("PieceGenre")
+  levelPieces     Piece[]      @relation("PieceLevel")
+  levelSheetMusic SheetMusic[] @relation("SheetMusicLevel")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  @@unique([type, name])
+  @@map("category")
 }
 
 model SystemConfig {
@@ -103,6 +143,183 @@ model SystemConfig {
 
   @@map("system_configs")
 }
+
+// ---------- M02: Music content & sheet library ----------
+
+enum Visibility {
+  PUBLIC
+  HIDDEN
+}
+
+enum Moderation {
+  NORMAL
+  ADMIN_HIDDEN
+}
+
+enum SheetKind {
+  MAIN
+  LEVEL
+}
+
+enum AnalysisStatus {
+  NONE
+  PROCESSING
+  READY
+  ERROR
+}
+
+enum MediaKind {
+  COVER
+  SHEET
+  AUDIO
+  VIDEO
+}
+
+enum MediaStatus {
+  PENDING
+  READY
+}
+
+enum SavedTargetType {
+  PIECE
+  SHEET_MUSIC
+}
+
+model MediaFile {
+  id               String       @id @default(uuid())
+  kind             MediaKind
+  status           MediaStatus  @default(PENDING)
+  storageKey       String       @unique @map("storage_key")
+  originalName     String       @map("original_name")
+  mimeType         String       @map("mime_type")
+  sizeBytes        Int          @map("size_bytes")
+  durationSec      Int?         @map("duration_sec")
+  pageCount        Int?         @map("page_count")
+  uploadedById     String       @map("uploaded_by")
+  uploadedBy       User         @relation("MediaFileUploader", fields: [uploadedById], references: [id])
+  coverOfPieces    Piece[]      @relation("PieceCover")
+  sheetOf          SheetMusic[] @relation("SheetMusicSheetFile")
+  referenceAudioOf SheetMusic[] @relation("SheetMusicReferenceAudio")
+  tutorialVideoOf  SheetMusic[] @relation("SheetMusicTutorialVideo")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  @@index([uploadedById])
+  @@map("media_file")
+}
+
+model Piece {
+  id                 String            @id @default(uuid())
+  ownerId            String            @map("owner_id")
+  owner              User              @relation("PieceOwner", fields: [ownerId], references: [id])
+  title              String            @db.VarChar(200)
+  composer           String?           @db.VarChar(200)
+  description        String?           @db.VarChar(1000)
+  // Default tempo for assignments and ensemble practice
+  bpm                Int               @default(90)
+  coverFileId        String?           @map("cover_file_id")
+  coverFile          MediaFile?        @relation("PieceCover", fields: [coverFileId], references: [id], onDelete: SetNull)
+  genreId            String            @map("genre_id")
+  genre              Category          @relation("PieceGenre", fields: [genreId], references: [id])
+  levelId            String            @map("level_id")
+  level              Category          @relation("PieceLevel", fields: [levelId], references: [id])
+  // Node in the admin content-category tree
+  categoryId         String?           @map("category_id")
+  category           ContentCategory?  @relation(fields: [categoryId], references: [id])
+  visibility         Visibility        @default(HIDDEN)
+  moderation         Moderation        @default(NORMAL)
+  moderationReason   String?           @map("moderation_reason")
+  // Lowercase, diacritic-free copies for accent-insensitive search and A→Z sorting
+  titleNormalized    String            @default("") @map("title_normalized")
+  composerNormalized String            @default("") @map("composer_normalized")
+  searchText         String            @default("") @map("search_text")
+  instruments        PieceInstrument[]
+  sheetMusic         SheetMusic[]
+  savedItems         SavedItem[]
+  assignments        Assignment[]
+  ensembleTracks     EnsembleTrack[]
+  ensembleSessions   EnsembleSession[]
+  deletedAt          DateTime?         @map("deleted_at")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @default(now()) @updatedAt @map("updated_at")
+
+  @@index([ownerId, updatedAt])
+  @@index([visibility, moderation, createdAt])
+  @@map("pieces")
+}
+
+model PieceInstrument {
+  pieceId      String     @map("piece_id")
+  piece        Piece      @relation(fields: [pieceId], references: [id], onDelete: Cascade)
+  instrumentId String     @map("instrument_id")
+  instrument   Instrument @relation(fields: [instrumentId], references: [id])
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@id([pieceId, instrumentId])
+  @@map("piece_instrument")
+}
+
+model SheetMusic {
+  id                   String         @id @default(uuid())
+  pieceId              String         @map("piece_id")
+  piece                Piece          @relation(fields: [pieceId], references: [id], onDelete: Cascade)
+  instrumentId         String         @map("instrument_id")
+  instrument           Instrument     @relation(fields: [instrumentId], references: [id])
+  kind                 SheetKind
+  // instrument_id when kind = MAIN, NULL otherwise; unique with piece_id → max one main per (piece, instrument) (GBR-55)
+  mainInstrumentId     String?        @map("main_instrument_id")
+  name                 String         @db.VarChar(100)
+  levelId              String         @map("level_id")
+  level                Category       @relation("SheetMusicLevel", fields: [levelId], references: [id])
+  description          String?        @db.VarChar(500)
+  sheetFileId          String         @map("sheet_file_id")
+  sheetFile            MediaFile      @relation("SheetMusicSheetFile", fields: [sheetFileId], references: [id])
+  referenceAudioId     String?        @map("reference_audio_id")
+  referenceAudio       MediaFile?     @relation("SheetMusicReferenceAudio", fields: [referenceAudioId], references: [id])
+  tutorialVideoId      String?        @map("tutorial_video_id")
+  tutorialVideo        MediaFile?     @relation("SheetMusicTutorialVideo", fields: [tutorialVideoId], references: [id])
+  durationSec          Int?           @map("duration_sec")
+  visibility           Visibility     @default(PUBLIC)
+  moderation           Moderation     @default(NORMAL)
+  analysisStatus       AnalysisStatus @default(NONE) @map("analysis_status")
+  analysisFileUrl      String?        @map("analysis_file_url")
+  analysisError        String?        @map("analysis_error")
+  analysisJobId        String?        @map("analysis_job_id")
+  timeSignatureMissing Boolean        @default(false) @map("time_signature_missing")
+  uploaderId           String         @map("uploader_id")
+  uploader             User           @relation("SheetMusicUploader", fields: [uploaderId], references: [id])
+  savedItems           SavedItem[]
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
+
+  @@unique([pieceId, name])
+  @@unique([pieceId, mainInstrumentId])
+  @@index([pieceId, instrumentId])
+  @@map("sheet_music")
+}
+
+model SavedItem {
+  id           String          @id @default(uuid())
+  studentId    String          @map("student_id")
+  student      User            @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  targetType   SavedTargetType @map("target_type")
+  // Same value as piece_id or sheet_music_id; keeps the uniqueness rule free of NULL columns (R-06)
+  targetId     String          @map("target_id")
+  pieceId      String?         @map("piece_id")
+  piece        Piece?          @relation(fields: [pieceId], references: [id], onDelete: Cascade)
+  sheetMusicId String?         @map("sheet_music_id")
+  sheetMusic   SheetMusic?     @relation(fields: [sheetMusicId], references: [id], onDelete: Cascade)
+  savedAt      DateTime        @default(now()) @map("saved_at")
+  createdAt    DateTime        @default(now()) @map("created_at")
+  updatedAt    DateTime        @updatedAt @map("updated_at")
+
+  @@unique([studentId, targetType, targetId])
+  @@index([studentId, savedAt])
+  @@map("saved_item")
+}
+
+// ---------- Classes, ensemble, notifications, audio ----------
 
 enum ClassStatus {
   ACTIVE
@@ -129,22 +346,6 @@ enum EnsembleSessionStatus {
   RECORDING
   COMPLETED
   FAILED
-}
-
-model Piece {
-  id               String            @id @default(uuid())
-  title            String
-  composer         String?
-  bpm              Int               @default(90)
-  isVisible        Boolean           @default(true) @map("is_visible")
-  categoryId       String?           @map("category_id")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  category         ContentCategory?  @relation(fields: [categoryId], references: [id])
-  assignments      Assignment[]
-  ensembleTracks   EnsembleTrack[]
-  ensembleSessions EnsembleSession[]
-
-  @@map("pieces")
 }
 
 model ContentCategory {

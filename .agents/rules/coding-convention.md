@@ -403,6 +403,16 @@ Current CORS variable:
 - `SEPAY_WEBHOOK_SECRET`: secret key used to verify SePay webhook HMAC-SHA256 signatures
 - `SEPAY_WEBHOOK_TOLERANCE_SECONDS`: allowed timestamp drift in seconds for SePay webhook replay protection
 
+Music library (M02) variables:
+
+- `PUBLIC_API_URL`: public base URL of this API; local signed URLs and the AI callback URL are built from it
+- `STORAGE_DRIVER`: `local` (files on disk served by the API, dev/test) or `s3` (S3 / MinIO)
+- `STORAGE_LOCAL_DIR`, `STORAGE_SIGNING_SECRET`: folder and HMAC secret of the local driver
+- `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE`: S3 driver
+- `AI_SERVICE_URL`, `AI_CALLBACK_SECRET`, `AI_RETRY_DELAY_MS`: Python analysis service, callback shared secret, retry delay
+- `MOCK_AI_SERVICE`, `MOCK_AI_DELAY_MS`: dev-only fake AI service mounted at `/api/v1/internal/mock-ai`
+- `TEST_DATABASE_URL`: database used by `npm test` (integration tests truncate it)
+
 ### 7.3 Reading Environment Variables
 
 - All environment variables must be read and normalized in `src/config/EnvConfig.ts`

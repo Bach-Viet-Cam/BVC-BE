@@ -20,11 +20,11 @@ export default class AudioEvaluationService {
     await this.repository.createRequest(ownerId, input, job, this.storage.provider);
     const state = await this.publisher.publish(job);
     try { await this.repository.updatePublication(job.evaluationId, state); } catch {
-      throw new AppError('Chưa xác định được trạng thái gửi yêu cầu. Hãy kiểm tra lại bằng mã đã tạo.', 503, { evaluationId: job.evaluationId, status: 'publish_unknown' });
+      throw new AppError('Chưa xác định được trạng thái gửi yêu cầu. Hãy kiểm tra lại bằng mã đã tạo.', 503, { details: { evaluationId: job.evaluationId, status: 'publish_unknown' } });
     }
     if (state !== 'published') throw new AppError(state === 'publish_failed'
       ? 'Không thể gửi yêu cầu vào hàng đợi. Vui lòng thử lại sau.'
-      : 'Chưa xác định được yêu cầu đã vào hàng đợi. Hãy tiếp tục kiểm tra bằng mã đã tạo.', 503, { evaluationId: job.evaluationId, status: state });
+      : 'Chưa xác định được yêu cầu đã vào hàng đợi. Hãy tiếp tục kiểm tra bằng mã đã tạo.', 503, { details: { evaluationId: job.evaluationId, status: state } });
     return new AudioDTO().pending(job.evaluationId, 'queued');
   }
 

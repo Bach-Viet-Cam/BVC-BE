@@ -9,7 +9,7 @@ export default class ContentCategoryRepository {
 
   static async listRows(): Promise<Backend.ContentCategoryRow[]> {
     const rows = await ContentCategoryRepository.client.contentCategory.findMany({
-      select: { ...ContentCategoryRepository.recordSelect, _count: { select: { pieces: true } } }
+      select: { ...ContentCategoryRepository.recordSelect, _count: { select: { pieces: { where: { deletedAt: null } } } } }
     });
     return rows.map(({ _count, ...row }) => ({ ...row, pieceCount: _count.pieces }));
   }
@@ -27,7 +27,7 @@ export default class ContentCategoryRepository {
   }
 
   static async countPieces(id: string): Promise<number> {
-    return ContentCategoryRepository.client.piece.count({ where: { categoryId: id } });
+    return ContentCategoryRepository.client.piece.count({ where: { categoryId: id, deletedAt: null } });
   }
 
   static async create(data: { name: string; parentId: string | null; sortOrder: number }): Promise<Backend.ContentCategoryRecord> {

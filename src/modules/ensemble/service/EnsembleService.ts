@@ -34,7 +34,9 @@ export interface UploadedRecording {
 export default class EnsembleService {
   static async resolveContext(studentId: string, pieceId: string, assignmentId?: string): Promise<PracticeContext> {
     const piece = await EnsembleRepository.findPiece(pieceId);
-    if (!piece) throw AppError.notFound(EnsembleConstant.messages.PIECE_NOT_FOUND);
+    if (!piece || !EnsemblePolicyService.canPracticePiece({ piece, isViaAssignment: Boolean(assignmentId) })) {
+      throw AppError.notFound(EnsembleConstant.messages.PIECE_NOT_FOUND);
+    }
     const memberships = await EnsembleRepository.findMemberships(studentId);
     if (memberships.length === 0) throw AppError.forbidden(EnsembleConstant.messages.NOT_A_MEMBER);
     if (!assignmentId) {

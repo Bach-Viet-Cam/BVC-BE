@@ -2,6 +2,8 @@ import AudioRoute from '../modules/audio/route/AudioRoute.ts';
 import express from 'express';
 import type { Router } from 'express';
 import AuthRoute from '../modules/auth/route/AuthRoute.ts';
+import MusicLibraryRoute from '../modules/music-library/route/MusicLibraryRoute.ts';
+import LocalStorageRoute from './LocalStorageRoute.ts';
 import UserRoute from '../modules/platform/route/UserRoute.ts';
 import InstrumentRoute from '../modules/platform/route/InstrumentRoute.ts';
 import SystemConfigRoute from '../modules/platform/route/SystemConfigRoute.ts';
@@ -17,6 +19,8 @@ export default class ApiRoute {
     const apiRouter: Router = express.Router();
     const v1Router: Router = express.Router();
     AuthRoute.register(v1Router);
+    MusicLibraryRoute.register(v1Router);
+    LocalStorageRoute.register(v1Router);
     UserRoute.register(v1Router);
     InstrumentRoute.register(v1Router);
     SystemConfigRoute.register(v1Router);
