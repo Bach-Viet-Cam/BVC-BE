@@ -64,7 +64,7 @@ export default class CatalogService {
     const instruments = await CatalogRepository.findInstrumentsByIds(instrumentIds);
     const isEveryInstrumentUsable = instrumentIds.every((instrumentId) => {
       const instrument = instruments.find((candidate) => candidate.id === instrumentId);
-      return instrument && (instrument.status === 'ACTIVE' || previousInstrumentIds.includes(instrumentId));
+      return instrument && (instrument.isActive || previousInstrumentIds.includes(instrumentId));
     });
     if (!isEveryInstrumentUsable) throw AppError.withMessage(400, 'MSG-08', MESSAGES.CATEGORY_INACTIVE, 'instrumentIds');
   }

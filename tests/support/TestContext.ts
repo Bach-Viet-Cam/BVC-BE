@@ -33,8 +33,8 @@ export default class TestContext {
   static catalog: { instruments: Record<string, string>; genres: Record<string, string>; levels: Record<string, string> };
 
   static async reset(): Promise<void> {
-    await TestContext.prisma.$executeRawUnsafe(`TRUNCATE TABLE saved_item, sheet_music, piece_instrument, piece, media_file,
-      category, instrument, system_config, auth_sessions, auth_identities, users RESTART IDENTITY CASCADE`);
+    await TestContext.prisma.$executeRawUnsafe(`TRUNCATE TABLE saved_item, sheet_music, piece_instrument, pieces, media_file,
+      category, instruments, system_configs, auth_sessions, auth_identities, users RESTART IDENTITY CASCADE`);
     TestContext.queue = new RecordingQueue();
     AnalysisService.useQueue(TestContext.queue);
     await TestContext.seedCatalog();

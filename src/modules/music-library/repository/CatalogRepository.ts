@@ -32,7 +32,7 @@ export default class CatalogRepository {
 
   static async listActiveInstruments(): Promise<MusicLibrary.InstrumentRecord[]> {
     return CatalogRepository.client.instrument.findMany({
-      where: { status: 'ACTIVE' },
+      where: { isActive: true },
       select: MusicLibraryModel.instrumentRefSelect,
       orderBy: { name: 'asc' }
     });

@@ -29,7 +29,7 @@ describe('Upload & kiểm tra file (GBR-43)', () => {
     expect(response.status).toBe(400);
     expect(response.body).toMatchObject({ code: 'MSG-14', message: 'File vượt quá dung lượng tối đa 20 MB.' });
 
-    await TestContext.prisma.systemConfig.create({ data: { key: 'upload.sheet.max_mb', value: '1' } });
+    await TestContext.prisma.systemConfig.create({ data: { key: 'upload.sheet.max_mb', value: '1', label: 'Sheet max MB', valueType: 'NUMBER', group: 'FILE_LIMIT' } });
     const configured = await request(app).post(`${api}/uploads/presign`).set(TestContext.auth(lecturer))
       .send({ kind: 'SHEET', fileName: 'a.pdf', mimeType: 'application/pdf', size: 2 * 1024 * 1024 });
     expect(configured.body.message).toBe('File vượt quá dung lượng tối đa 1 MB.');
@@ -61,7 +61,7 @@ describe('Upload & kiểm tra file (GBR-43)', () => {
   });
 
   it('bản thu dài hơn giới hạn → MSG-15', async () => {
-    await TestContext.prisma.systemConfig.create({ data: { key: 'upload.audio.max_duration_sec', value: '5' } });
+    await TestContext.prisma.systemConfig.create({ data: { key: 'upload.audio.max_duration_sec', value: '5', label: 'Audio max seconds', valueType: 'NUMBER', group: 'FILE_LIMIT' } });
     const wavId = await TestContext.uploadWav(lecturer, 8);
     const confirm = await request(app).post(`${api}/uploads/${wavId}/confirm`).set(TestContext.auth(lecturer));
     expect(confirm.body).toMatchObject({ code: 'MSG-15', message: 'Thời lượng bản thu phải nằm trong khoảng từ 0:01 đến 0:05.' });

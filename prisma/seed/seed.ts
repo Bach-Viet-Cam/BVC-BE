@@ -34,13 +34,13 @@ export default class DatabaseSeeder {
   static readonly genres = ['Dân ca Bắc Bộ', 'Dân ca Trung Bộ', 'Dân ca Nam Bộ', 'Nhạc tài tử', 'Nhạc cung đình', 'Nhạc mới'];
   static readonly levels = ['Cơ bản', 'Trung cấp', 'Nâng cao'];
 
-  static readonly systemConfig: Record<string, string> = {
-    'upload.cover.max_mb': '5',
-    'upload.sheet.max_mb': '10',
-    'upload.audio.max_mb': '20',
-    'upload.audio.min_duration_sec': '1',
-    'upload.audio.max_duration_sec': '600',
-    'upload.video.max_mb': '200'
+  static readonly systemConfig: Record<string, { value: string; label: string }> = {
+    'upload.cover.max_mb': { value: '5', label: 'Dung lượng ảnh bìa tối đa (MB)' },
+    'upload.sheet.max_mb': { value: '10', label: 'Dung lượng file bản nhạc tối đa (MB)' },
+    'upload.audio.max_mb': { value: '20', label: 'Dung lượng audio mẫu tối đa (MB)' },
+    'upload.audio.min_duration_sec': { value: '1', label: 'Thời lượng audio mẫu tối thiểu (giây)' },
+    'upload.audio.max_duration_sec': { value: '600', label: 'Thời lượng audio mẫu tối đa (giây)' },
+    'upload.video.max_mb': { value: '200', label: 'Dung lượng video hướng dẫn tối đa (MB)' }
   };
 
   static readonly users = [
@@ -129,8 +129,8 @@ export default class DatabaseSeeder {
         });
       }
     }
-    for (const [key, value] of Object.entries(DatabaseSeeder.systemConfig)) {
-      await prisma.systemConfig.upsert({ where: { key }, update: {}, create: { key, value } });
+    for (const [key, { value, label }] of Object.entries(DatabaseSeeder.systemConfig)) {
+      await prisma.systemConfig.upsert({ where: { key }, update: {}, create: { key, value, label, valueType: 'NUMBER', group: 'FILE_LIMIT' } });
     }
   }
 
@@ -221,7 +221,7 @@ export default class DatabaseSeeder {
     });
   }
 
-  static printDevTokens(users: { id: string; email: string; username: string; role: number }[]): void {
+  static printDevTokens(users: Backend.UserRecord[]): void {
     if (!EnvConfig.jwtSecret || EnvConfig.nodeEnv === 'production') return;
     console.log('\nDev access tokens (valid for JWT_EXPIRES_IN):');
     users.forEach((user) => console.log(`  ${user.email} (role ${user.role}): ${AuthService.createAccessToken(user)}`));

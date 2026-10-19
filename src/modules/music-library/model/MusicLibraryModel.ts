@@ -7,7 +7,7 @@ export default class MusicLibraryModel {
     id: true,
     code: true,
     name: true,
-    status: true,
+    isActive: true,
     fminHz: true,
     fmaxHz: true,
     toleranceCents: true
