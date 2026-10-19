@@ -29,7 +29,6 @@ jobs:
         run: npx prisma generate
         env:
           DATABASE_URL: "postgresql://dummy:dummy@localhost:5432/dummy"
-      - run: npm run build
       # No test suite yet — add a test step here once a framework (e.g. vitest) is chosen.
 
   docker-validate:
