@@ -27,18 +27,6 @@ export default class AuthRepository {
     });
   }
 
-  static async createUserWithIdentity({ email, username, role, provider, providerId }: { email: string; username: string; role: Backend.UserRole; provider: string; providerId: string }): Promise<Backend.UserRecord> {
-    return AuthRepository.client.user.create({
-      data: {
-        email,
-        username,
-        role,
-        identities: { create: { provider, providerId } }
-      },
-      select: AuthModel.userSelect
-    });
-  }
-
   static async createIdentity({ userId, provider, providerId }: { userId: string; provider: string; providerId: string }): Promise<unknown> {
     return AuthRepository.client.authIdentity.create({
       data: { userId, provider, providerId },
@@ -75,6 +63,20 @@ export default class AuthRepository {
     return AuthRepository.client.authSession.update({
       where: { id: sessionId },
       data: { refreshHash, expiresAt }
+    });
+  }
+
+  static async markLoggedIn(userId: string, status: Backend.UserStatus): Promise<unknown> {
+    return AuthRepository.client.user.update({
+      where: { id: userId },
+      data: { status, lastLoginAt: new Date() }
+    });
+  }
+
+  static async revokeSessionsByUser(userId: string): Promise<unknown> {
+    return AuthRepository.client.authSession.updateMany({
+      where: { userId, revokedAt: null },
+      data: { revokedAt: new Date() }
     });
   }
 }

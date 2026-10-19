@@ -1,7 +1,8 @@
+import AppError from '../utils/AppError.ts';
 import type { Application, ErrorRequestHandler } from 'express';
 import type { ZodError } from 'zod';
 
-interface ErrorBody { success: false; message: string; code?: string; field?: string; }
+interface ErrorBody { success: false; message: string; code?: string; field?: string; data?: AppError['details']; }
 
 const REQUEST_SECTIONS = new Set(['body', 'query', 'params']);
 
@@ -20,14 +21,17 @@ export function registerErrorHandlers(app: Application): void {
 
     // body-parser errors expose `type`, e.g. entity.too.large / entity.parse.failed
     const statusCode = error.statusCode || error.status || 500;
-    if (statusCode >= 500) console.error(error);
+    if (statusCode >= 500) console.error(error instanceof AppError ? error.message : error);
 
+    // An AppError 503 carries a message the user can act on (e.g. audio queue state), so it is shown as-is
+    const isMessageExposed = statusCode < 500 || (error instanceof AppError && statusCode === 503);
     const errorBody: ErrorBody = {
       success: false,
-      message: statusCode >= 500 ? 'Vui lòng thử lại sau' : error.message
+      message: isMessageExposed ? error.message : 'Vui lòng thử lại sau'
     };
     if (statusCode < 500 && error.code && /^MSG-\d+$/.test(error.code)) errorBody.code = error.code;
     if (statusCode < 500 && error.field) errorBody.field = error.field;
+    if (error instanceof AppError && error.details) errorBody.data = error.details;
     return response.status(statusCode).json(errorBody);
   };
   app.use(errorHandler);
