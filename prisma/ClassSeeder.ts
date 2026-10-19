@@ -1,6 +1,6 @@
 import path from 'node:path';
 import PrismaClientProvider from '../src/config/PrismaClient.ts';
-import SeedAudio from './SeedAudio.ts';
+import SeedAudioService from './SeedAudioService.ts';
 
 interface AssignmentSeed {
   id: string;
@@ -86,7 +86,7 @@ export default class ClassSeeder {
     await client.piece.upsert({ where: { id: ClassSeeder.pieceId }, update: {}, create: { id: ClassSeeder.pieceId, title: 'Lý ngựa ô', composer: 'Dân ca Nam Bộ', bpm: 96 } });
     for (const track of ClassSeeder.ensembleTracks) {
       const relativeUrl = `/uploads/seed/${track.instrumentCode}.wav`;
-      SeedAudio.writeTone(path.resolve('uploads', 'seed', `${track.instrumentCode}.wav`), track.frequency, 20);
+      SeedAudioService.writeTone(path.resolve('uploads', 'seed', `${track.instrumentCode}.wav`), track.frequency, 20);
       await client.ensembleTrack.upsert({
         where: { pieceId_instrumentId: { pieceId: ClassSeeder.pieceId, instrumentId: instruments[track.instrumentCode] } },
         update: {},
