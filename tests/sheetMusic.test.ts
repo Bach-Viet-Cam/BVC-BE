@@ -71,6 +71,30 @@ describe('UC-06 Quản lý bản nhạc (giảng viên)', () => {
     expect(inactive.body).toMatchObject({ code: 'MSG-08', field: 'instrumentId' });
   });
 
+  it('giảng viên khác thêm được bản nhạc; người tạo bản và chủ bài sửa được, người khác thì không', async () => {
+    const lecturerB = await TestContext.createUser('LECTURER', 'gv.b@test.local');
+    const lecturerC = await TestContext.createUser('LECTURER', 'gv.c@test.local');
+    const created = await TestContext.createSheet(lecturerB, pieceId, { name: 'Bản của B' });
+    expect(created.status).toBe(201);
+    expect(created.body.data.canManage).toBe(true);
+    const sheetUrl = `${api}/lecturer/sheet-music/${created.body.data.id}`;
+
+    const list = await request(app).get(`${api}/lecturer/pieces/${pieceId}/sheet-music`).set(TestContext.auth(lecturerC));
+    expect(list.status).toBe(200);
+    expect(list.body.data.groups[0].items[0].canManage).toBe(false);
+
+    const renameByC = await request(app).put(sheetUrl).set(TestContext.auth(lecturerC)).send({ name: 'Bản của C' });
+    expect(renameByC.status).toBe(403);
+    const renameByB = await request(app).put(sheetUrl).set(TestContext.auth(lecturerB)).send({ name: 'Bản B (sửa)' });
+    expect(renameByB.status).toBe(200);
+    const renameByOwner = await request(app).put(sheetUrl).set(TestContext.auth(lecturer)).send({ name: 'Bản B (chủ bài sửa)' });
+    expect(renameByOwner.status).toBe(200);
+
+    const editPieceByB = await request(app).patch(`${api}/lecturer/pieces/${pieceId}/visibility`)
+      .set(TestContext.auth(lecturerB)).send({ visibility: 'PUBLIC' });
+    expect(editPieceByB.status).toBe(403);
+  });
+
   it('"Tên bản" trùng trong cùng bài hát → MSG-05 (không phân biệt hoa thường)', async () => {
     await TestContext.createSheet(lecturer, pieceId, { name: 'Bản dễ' });
     const duplicate = await TestContext.createSheet(lecturer, pieceId, { name: 'BẢN DỄ', instrumentId: TestContext.catalog.instruments.SAO_TRUC });
