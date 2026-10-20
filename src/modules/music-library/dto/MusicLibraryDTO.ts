@@ -38,6 +38,15 @@ export default class MusicLibraryDTO {
     };
   }
 
+  // A piece has no instrument list of its own: it is the distinct instruments of its sheet music, in input order
+  static uniqueInstruments<TInstrument extends { id: string }>(sheetMusicList: { instrument: TInstrument }[]): TInstrument[] {
+    const instrumentsById = new Map<string, TInstrument>();
+    sheetMusicList.forEach(({ instrument }) => {
+      if (!instrumentsById.has(instrument.id)) instrumentsById.set(instrument.id, instrument);
+    });
+    return [...instrumentsById.values()];
+  }
+
   static isVisibleSheet(sheetSummary: PieceSheetSummary): boolean {
     return sheetSummary.visibility === 'PUBLIC' && sheetSummary.moderation === 'NORMAL';
   }
@@ -54,7 +63,7 @@ export default class MusicLibraryDTO {
       cover: await MusicLibraryDTO.toMediaFile(piece.coverFile),
       genre: MusicLibraryDTO.toCategoryRef(piece.genre),
       level: MusicLibraryDTO.toCategoryRef(piece.level),
-      instruments: piece.instruments.map(({ instrument }) => MusicLibraryDTO.toCategoryRef(instrument)),
+      instruments: MusicLibraryDTO.uniqueInstruments(piece.sheetMusic).map(MusicLibraryDTO.toCategoryRef),
       visibility: piece.visibility,
       moderation: piece.moderation,
       effectiveVisibility: MusicLibraryDTO.toEffectiveVisibility(piece.visibility, piece.moderation),

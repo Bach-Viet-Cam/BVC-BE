@@ -30,7 +30,6 @@ declare namespace MusicLibrary {
     description?: string | null;
     genreId: string;
     levelId: string;
-    instrumentIds: string[];
     visibility?: Visibility;
     coverFileId?: string | null;
   }

@@ -45,7 +45,6 @@ export default class PieceService {
   static async createPiece(lecturerId: string, pieceInput: MusicLibrary.PieceInput): Promise<PieceMutationResult> {
     await CatalogService.assertCategory('GENRE', pieceInput.genreId, 'genreId');
     await CatalogService.assertCategory('LEVEL', pieceInput.levelId, 'levelId');
-    await CatalogService.assertInstruments(pieceInput.instrumentIds);
     const coverFile = pieceInput.coverFileId
       ? await UploadService.requireAttachableFile(pieceInput.coverFileId, lecturerId, 'COVER', 'coverFileId')
       : null;
@@ -57,7 +56,7 @@ export default class PieceService {
       levelId: pieceInput.levelId,
       visibility: pieceInput.visibility ?? 'HIDDEN',
       coverFileId: coverFile?.id ?? null
-    }, pieceInput.instrumentIds);
+    });
     return PieceService.toMutationResult(piece);
   }
 
@@ -67,28 +66,11 @@ export default class PieceService {
     if (piece.moderation === 'ADMIN_HIDDEN') throw AppError.withMessage(409, 'MSG-08', MESSAGES.PIECE_ADMIN_HIDDEN, 'visibility');
   }
 
-  // R-02: an instrument cannot be removed while it still has sheet music
-  static async assertRemovableInstruments(piece: MusicLibrary.PieceRecord, nextInstrumentIds: string[]): Promise<void> {
-    const removedInstruments = piece.instruments
-      .map(({ instrument }) => instrument)
-      .filter((instrument) => !nextInstrumentIds.includes(instrument.id));
-    if (removedInstruments.length === 0) return;
-    const instrumentIdsInUse = await SheetMusicRepository.findInstrumentIdsInUse(piece.id, removedInstruments.map(({ id }) => id));
-    const blockingInstrument = removedInstruments.find((instrument) => instrumentIdsInUse.includes(instrument.id));
-    if (!blockingInstrument) return;
-    throw AppError.withMessage(409, 'MSG-08', {
-      action: `bỏ nhạc cụ ${blockingInstrument.name}`,
-      reason: 'nhạc cụ này vẫn còn bản nhạc'
-    }, 'instrumentIds');
-  }
-
   static async updatePiece(lecturerId: string, pieceId: string, pieceInput: MusicLibrary.PieceInput): Promise<PieceMutationResult> {
     const piece = await PieceService.getOwnedPiece(lecturerId, pieceId);
     PieceService.assertVisibilityChangeAllowed(piece, pieceInput.visibility);
     await CatalogService.assertCategory('GENRE', pieceInput.genreId, 'genreId', piece.genre.id);
     await CatalogService.assertCategory('LEVEL', pieceInput.levelId, 'levelId', piece.level.id);
-    await CatalogService.assertInstruments(pieceInput.instrumentIds, piece.instruments.map(({ instrument }) => instrument.id));
-    await PieceService.assertRemovableInstruments(piece, pieceInput.instrumentIds);
 
     const isCoverChanged = pieceInput.coverFileId !== undefined && pieceInput.coverFileId !== (piece.coverFile?.id ?? null);
     const nextCoverFile = isCoverChanged && pieceInput.coverFileId
@@ -102,7 +84,7 @@ export default class PieceService {
       levelId: pieceInput.levelId,
       ...(pieceInput.visibility ? { visibility: pieceInput.visibility } : {}),
       ...(isCoverChanged ? { coverFileId: nextCoverFile?.id ?? null } : {})
-    }, pieceInput.instrumentIds);
+    });
     if (isCoverChanged) await UploadService.discardFile(piece.coverFile);
     return PieceService.toMutationResult(updatedPiece);
   }

@@ -60,12 +60,12 @@ export default class CatalogService {
     }
   }
 
-  static async assertInstruments(instrumentIds: string[], previousInstrumentIds: string[] = []): Promise<void> {
-    const instruments = await CatalogRepository.findInstrumentsByIds(instrumentIds);
-    const isEveryInstrumentUsable = instrumentIds.every((instrumentId) => {
-      const instrument = instruments.find((candidate) => candidate.id === instrumentId);
-      return instrument && (instrument.isActive || previousInstrumentIds.includes(instrumentId));
-    });
-    if (!isEveryInstrumentUsable) throw AppError.withMessage(400, 'MSG-08', MESSAGES.CATEGORY_INACTIVE, 'instrumentIds');
+  // GBR-44: a sheet keeps its inactive instrument, but an inactive instrument cannot be newly chosen
+  static async assertInstrument(instrumentId: string, previousInstrumentId?: string): Promise<void> {
+    const [instrument] = await CatalogRepository.findInstrumentsByIds([instrumentId]);
+    if (!instrument) throw AppError.withMessage(400, 'MSG-35', { field: LABELS.instrumentId }, 'instrumentId');
+    if (!instrument.isActive && instrument.id !== previousInstrumentId) {
+      throw AppError.withMessage(400, 'MSG-08', MESSAGES.CATEGORY_INACTIVE, 'instrumentId');
+    }
   }
 }

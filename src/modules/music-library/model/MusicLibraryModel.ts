@@ -41,11 +41,17 @@ export default class MusicLibraryModel {
     coverFile: { select: MusicLibraryModel.mediaFileSelect },
     genre: { select: MusicLibraryModel.categoryRefSelect },
     level: { select: MusicLibraryModel.categoryRefSelect },
-    instruments: {
-      select: { instrument: { select: MusicLibraryModel.instrumentRefSelect } },
+    // The piece's instruments are derived from its sheet music, in the order they were first added
+    sheetMusic: {
+      select: {
+        id: true,
+        instrumentId: true,
+        visibility: true,
+        moderation: true,
+        instrument: { select: MusicLibraryModel.instrumentRefSelect }
+      },
       orderBy: { createdAt: 'asc' }
-    },
-    sheetMusic: { select: { id: true, instrumentId: true, visibility: true, moderation: true } }
+    }
   } satisfies Prisma.PieceSelect;
 
   static readonly sheetMusicSelect = {
@@ -97,11 +103,7 @@ export default class MusicLibraryModel {
     updatedAt: true,
     coverFile: { select: MusicLibraryModel.mediaFileSelect },
     genre: { select: MusicLibraryModel.categoryRefSelect },
-    level: { select: MusicLibraryModel.categoryRefSelect },
-    instruments: {
-      select: { instrument: { select: MusicLibraryModel.instrumentRefSelect } },
-      orderBy: { createdAt: 'asc' }
-    }
+    level: { select: MusicLibraryModel.categoryRefSelect }
   } satisfies Prisma.PieceSelect;
 
   static readonly savedItemSelect = {

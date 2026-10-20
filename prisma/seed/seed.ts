@@ -15,9 +15,9 @@ interface PieceSeed {
   description: string;
   genre: string;
   level: string;
-  instruments: string[];
   isPublic: boolean;
   hasCover?: boolean;
+  adminHiddenReason?: string;
   sheets: SheetSeed[];
 }
 
@@ -47,14 +47,14 @@ export default class DatabaseSeeder {
     { email: 'giangvien.demo@bvc.local', username: 'Cô Lan (GV demo)', role: AuthConstant.roles.TEACHER },
     { email: 'giangvien2.demo@bvc.local', username: 'Thầy Minh (GV demo 2)', role: AuthConstant.roles.TEACHER },
     { email: 'sinhvien1.demo@bvc.local', username: 'An (SV demo)', role: AuthConstant.roles.STUDENT },
-    { email: 'sinhvien2.demo@bvc.local', username: 'Bình (SV demo)', role: AuthConstant.roles.STUDENT }
+    { email: 'sinhvien2.demo@bvc.local', username: 'Bình (SV demo)', role: AuthConstant.roles.STUDENT },
+    { email: 'admin.demo@bvc.local', username: 'Quản trị viên (Admin demo)', role: AuthConstant.roles.SYSTEM_ADMIN }
   ];
 
   static readonly pieces: PieceSeed[] = [
     {
       title: 'Lý ngựa ô', composer: 'Dân gian', genre: 'Dân ca Nam Bộ', level: 'Cơ bản', isPublic: true, hasCover: true,
       description: 'Làn điệu dân ca Nam Bộ vui tươi, phù hợp làm bài nhập môn.',
-      instruments: ['DAN_TRANH', 'SAO_TRUC'],
       sheets: [
         { instrument: 'DAN_TRANH', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 12 },
         { instrument: 'DAN_TRANH', kind: 'LEVEL', name: 'Đàn tranh – đơn giản', level: 'Cơ bản' },
@@ -65,7 +65,6 @@ export default class DatabaseSeeder {
     {
       title: 'Trống cơm', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', level: 'Cơ bản', isPublic: true,
       description: 'Dân ca quan họ Bắc Ninh với tiết tấu rộn ràng.',
-      instruments: ['DAN_BAU', 'SAO_TRUC'],
       sheets: [
         { instrument: 'DAN_BAU', kind: 'MAIN', name: 'Đàn bầu – bản gốc', level: 'Cơ bản', audioSec: 9 },
         { instrument: 'SAO_TRUC', kind: 'LEVEL', name: 'Sáo trúc – nhập môn', level: 'Cơ bản' }
@@ -74,7 +73,6 @@ export default class DatabaseSeeder {
     {
       title: 'Bèo dạt mây trôi', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', level: 'Trung cấp', isPublic: true, hasCover: true,
       description: 'Bài dân ca trữ tình, giai điệu chậm, nhiều luyến láy.',
-      instruments: ['DAN_BAU', 'DAN_TRANH'],
       sheets: [
         { instrument: 'DAN_BAU', kind: 'MAIN', name: 'Đàn bầu – bản gốc', level: 'Trung cấp', audioSec: 14 },
         { instrument: 'DAN_TRANH', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 13 },
@@ -84,7 +82,6 @@ export default class DatabaseSeeder {
     {
       title: 'Lưu thủy kim tiền', composer: 'Dân gian', genre: 'Nhạc tài tử', level: 'Nâng cao', isPublic: true,
       description: 'Bài bản nhạc tài tử Nam Bộ.',
-      instruments: ['DAN_TRANH', 'TY_BA'],
       sheets: [
         { instrument: 'TY_BA', kind: 'MAIN', name: 'Tỳ bà – bản gốc', level: 'Nâng cao', audioSec: 15 },
         { instrument: 'DAN_TRANH', kind: 'LEVEL', name: 'Đàn tranh – luyện tập', level: 'Trung cấp', isHidden: true }
@@ -93,26 +90,28 @@ export default class DatabaseSeeder {
     {
       title: 'Dạ cổ hoài lang', composer: 'Cao Văn Lầu', genre: 'Nhạc tài tử', level: 'Trung cấp', isPublic: true,
       description: 'Bản nhạc tiền thân của điệu vọng cổ.',
-      instruments: ['DAN_TRANH'],
       sheets: [{ instrument: 'DAN_TRANH', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 16 }]
     },
     {
       title: 'Lý chiều chiều', composer: 'Dân gian', genre: 'Dân ca Trung Bộ', level: 'Cơ bản', isPublic: true,
       description: 'Dân ca Thừa Thiên Huế.',
-      instruments: ['SAO_TRUC'],
       sheets: [{ instrument: 'SAO_TRUC', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Cơ bản', audioSec: 8 }]
     },
     {
       title: 'Lý cây bông', composer: 'Dân gian', genre: 'Dân ca Nam Bộ', level: 'Cơ bản', isPublic: true,
       description: 'Chưa có bản nhạc công khai – dùng để thử cảnh báo khi công khai bài hát.',
-      instruments: ['TY_BA'],
       sheets: []
     },
     {
       title: 'Xuân và tuổi trẻ', composer: 'La Hối', genre: 'Nhạc mới', level: 'Trung cấp', isPublic: false,
       description: 'Bài hát đang soạn, chưa công khai.',
-      instruments: ['DAN_TRANH'],
       sheets: [{ instrument: 'DAN_TRANH', kind: 'MAIN', name: 'Đàn tranh – bản nháp', level: 'Trung cấp' }]
+    },
+    {
+      title: 'Hò kéo pháo', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', level: 'Trung cấp', isPublic: true,
+      description: 'Bài bị admin ẩn – dùng để thử luồng kiểm duyệt và thông báo cho giảng viên.',
+      adminHiddenReason: 'Bản thu mẫu đang được kiểm tra bản quyền.',
+      sheets: [{ instrument: 'SAO_TRUC', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Trung cấp', audioSec: 10 }]
     }
   ];
 
@@ -152,16 +151,15 @@ export default class DatabaseSeeder {
   }
 
   static async seedPieces(lecturerId: string): Promise<void> {
-    if (await prisma.piece.count({ where: { ownerId: lecturerId } }) > 0) {
-      console.log('Demo pieces already exist – skipped.');
-      return;
-    }
+    const existingTitles = new Set((await prisma.piece.findMany({ where: { ownerId: lecturerId }, select: { title: true } })).map(({ title }) => title));
     const instruments = await prisma.instrument.findMany();
     const categories = await prisma.category.findMany();
     const findInstrumentId = (code: string) => instruments.find((instrument) => instrument.code === code)!.id;
     const findCategoryId = (name: string) => categories.find((category) => category.name === name)!.id;
 
+    let createdCount = 0;
     for (const [pieceIndex, pieceSeed] of DatabaseSeeder.pieces.entries()) {
+      if (existingTitles.has(pieceSeed.title)) continue;
       const coverFile = pieceSeed.hasCover
         ? await DatabaseSeeder.storeMedia('COVER', 'cover.png', 'image/png', SampleMediaFactory.tinyPng, lecturerId, {})
         : null;
@@ -174,17 +172,19 @@ export default class DatabaseSeeder {
           genreId: findCategoryId(pieceSeed.genre),
           levelId: findCategoryId(pieceSeed.level),
           visibility: pieceSeed.isPublic ? 'PUBLIC' : 'HIDDEN',
+          moderation: pieceSeed.adminHiddenReason ? 'ADMIN_HIDDEN' : 'NORMAL',
+          moderationReason: pieceSeed.adminHiddenReason ?? null,
           coverFileId: coverFile?.id,
           titleNormalized: TextNormalizer.normalize(pieceSeed.title),
           composerNormalized: TextNormalizer.normalize(pieceSeed.composer),
           searchText: TextNormalizer.normalize(`${pieceSeed.title} ${pieceSeed.composer} ${pieceSeed.description}`),
-          createdAt: new Date(Date.now() - (DatabaseSeeder.pieces.length - pieceIndex) * 86_400_000),
-          instruments: { create: pieceSeed.instruments.map((code) => ({ instrumentId: findInstrumentId(code) })) }
+          createdAt: new Date(Date.now() - (DatabaseSeeder.pieces.length - pieceIndex) * 86_400_000)
         }
       });
       for (const sheetSeed of pieceSeed.sheets) await DatabaseSeeder.seedSheet(piece.id, pieceSeed.title, sheetSeed, lecturerId, findInstrumentId, findCategoryId);
+      createdCount += 1;
     }
-    console.log(`Seeded ${DatabaseSeeder.pieces.length} demo pieces.`);
+    console.log(createdCount > 0 ? `Seeded ${createdCount} demo pieces.` : 'Demo pieces already exist – skipped.');
   }
 
   static async seedSheet(

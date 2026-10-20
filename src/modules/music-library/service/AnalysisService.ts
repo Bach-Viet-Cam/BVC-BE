@@ -54,8 +54,17 @@ export default class AnalysisService {
       // Students keep using the previous analysis file until the new one is ready
       ...(sheetMusic.analysisFileUrl ? {} : { analysisStatus: 'PROCESSING' })
     });
-    if (previousJobId) await AnalysisService.cancelJob(previousJobId);
-    await AnalysisService.queue.enqueue(jobId, { jobId, sheetMusicId: sheetMusic.id });
+    // Analysis runs in the background: a queue failure must never fail saving the sheet music
+    try {
+      if (previousJobId) await AnalysisService.cancelJob(previousJobId);
+      await AnalysisService.queue.enqueue(jobId, { jobId, sheetMusicId: sheetMusic.id });
+    } catch (error) {
+      console.error('[analysis] Không thể xếp lịch phân tích bản thu mẫu.', error);
+      await SheetMusicRepository.updateIfJobMatches(sheetMusic.id, jobId, {
+        analysisStatus: 'ERROR',
+        analysisError: NOTIFICATIONS.DISPATCH_FAILED
+      });
+    }
   }
 
   // Sheet no longer qualifies for analysis (became a level sheet)
@@ -67,7 +76,8 @@ export default class AnalysisService {
       analysisError: null,
       timeSignatureMissing: false
     });
-    if (previousJobId) await AnalysisService.cancelJob(previousJobId);
+    // A late callback of the cancelled job is ignored by the job-id check, so a failed cancel is harmless
+    if (previousJobId) await AnalysisService.cancelJob(previousJobId).catch(() => undefined);
   }
 
   static async cancelJob(jobId: string): Promise<void> {
