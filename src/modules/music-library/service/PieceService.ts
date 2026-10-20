@@ -13,22 +13,28 @@ type LecturerPieceDTO = Awaited<ReturnType<typeof MusicLibraryDTO.toLecturerPiec
 interface PieceMutationResult { piece: LecturerPieceDTO; warning: MusicLibrary.WarningDTO | null; }
 
 export default class PieceService {
-  // R-01: lecturers only see and edit their own pieces
-  static async getOwnedPiece(lecturerId: string, pieceId: string): Promise<MusicLibrary.PieceRecord> {
+  // Every lecturer can open a piece to read it and add sheet music to it
+  static async getActivePiece(pieceId: string): Promise<MusicLibrary.PieceRecord> {
     const piece = await PieceRepository.findById(pieceId);
     if (!piece) throw AppError.withMessage(404, 'MSG-08', MESSAGES.PIECE_NOT_FOUND);
+    return piece;
+  }
+
+  // R-01: only the owner edits the piece itself (title, cover, categories, visibility)
+  static async getOwnedPiece(lecturerId: string, pieceId: string): Promise<MusicLibrary.PieceRecord> {
+    const piece = await PieceService.getActivePiece(pieceId);
     if (piece.ownerId !== lecturerId) throw AppError.forbidden();
     return piece;
   }
 
   static async listPieces(lecturerId: string, query: MusicLibrary.LecturerPieceQuery) {
     const [pieces, total] = await PieceRepository.listForOwner(lecturerId, query);
-    const pieceDTOs = await Promise.all(pieces.map(MusicLibraryDTO.toLecturerPiece));
+    const pieceDTOs = await Promise.all(pieces.map((piece) => MusicLibraryDTO.toLecturerPiece(piece, lecturerId)));
     return MusicLibraryDTO.toPaginated(pieceDTOs, total, query);
   }
 
   static async getPiece(lecturerId: string, pieceId: string): Promise<LecturerPieceDTO> {
-    return MusicLibraryDTO.toLecturerPiece(await PieceService.getOwnedPiece(lecturerId, pieceId));
+    return MusicLibraryDTO.toLecturerPiece(await PieceService.getActivePiece(pieceId), lecturerId);
   }
 
   // R-03 / MSG-46: publishing a piece without any public sheet is allowed but warned about
@@ -39,7 +45,7 @@ export default class PieceService {
   }
 
   static async toMutationResult(piece: MusicLibrary.PieceRecord): Promise<PieceMutationResult> {
-    return { piece: await MusicLibraryDTO.toLecturerPiece(piece), warning: await PieceService.buildPublicWarning(piece) };
+    return { piece: await MusicLibraryDTO.toLecturerPiece(piece, piece.ownerId), warning: await PieceService.buildPublicWarning(piece) };
   }
 
   static async createPiece(lecturerId: string, pieceInput: MusicLibrary.PieceInput): Promise<PieceMutationResult> {
@@ -101,14 +107,14 @@ export default class PieceService {
     const coverFile = await UploadService.requireAttachableFile(coverFileId, lecturerId, 'COVER', 'fileId');
     const updatedPiece = await PieceRepository.updateFields(pieceId, { coverFileId: coverFile.id });
     await UploadService.discardFile(piece.coverFile);
-    return MusicLibraryDTO.toLecturerPiece(updatedPiece);
+    return MusicLibraryDTO.toLecturerPiece(updatedPiece, lecturerId);
   }
 
   static async removeCover(lecturerId: string, pieceId: string): Promise<LecturerPieceDTO> {
     const piece = await PieceService.getOwnedPiece(lecturerId, pieceId);
-    if (!piece.coverFile) return MusicLibraryDTO.toLecturerPiece(piece);
+    if (!piece.coverFile) return MusicLibraryDTO.toLecturerPiece(piece, lecturerId);
     const updatedPiece = await PieceRepository.updateFields(pieceId, { coverFileId: null });
     await UploadService.discardFile(piece.coverFile);
-    return MusicLibraryDTO.toLecturerPiece(updatedPiece);
+    return MusicLibraryDTO.toLecturerPiece(updatedPiece, lecturerId);
   }
 }

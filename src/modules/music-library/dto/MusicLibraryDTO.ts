@@ -52,7 +52,7 @@ export default class MusicLibraryDTO {
   }
 
   // ----- Lecturer -----
-  static async toLecturerPiece(piece: MusicLibrary.PieceRecord) {
+  static async toLecturerPiece(piece: MusicLibrary.PieceRecord, viewerId: string) {
     const isAdminHidden = piece.moderation === 'ADMIN_HIDDEN';
     return {
       id: piece.id,
@@ -68,6 +68,8 @@ export default class MusicLibraryDTO {
       moderation: piece.moderation,
       effectiveVisibility: MusicLibraryDTO.toEffectiveVisibility(piece.visibility, piece.moderation),
       moderationReason: isAdminHidden ? piece.moderationReason : null,
+      // R-01: only the owner edits the piece itself; any lecturer can add sheet music
+      canEdit: piece.ownerId === viewerId,
       canChangeVisibility: !isAdminHidden,
       sheetMusicCount: piece.sheetMusic.length,
       publicSheetMusicCount: piece.sheetMusic.filter(MusicLibraryDTO.isVisibleSheet).length,
@@ -76,7 +78,7 @@ export default class MusicLibraryDTO {
     };
   }
 
-  static async toLecturerSheetMusic(sheetMusic: MusicLibrary.SheetMusicRecord) {
+  static async toLecturerSheetMusic(sheetMusic: MusicLibrary.SheetMusicRecord, canManage: boolean) {
     const isMain = sheetMusic.kind === 'MAIN';
     const isAdminHidden = sheetMusic.moderation === 'ADMIN_HIDDEN';
     const isMissingMainAudio = isMain && !sheetMusic.referenceAudio;
@@ -93,7 +95,9 @@ export default class MusicLibraryDTO {
       visibility: sheetMusic.visibility,
       moderation: sheetMusic.moderation,
       effectiveVisibility: MusicLibraryDTO.toEffectiveVisibility(sheetMusic.visibility, sheetMusic.moderation),
-      canChangeVisibility: !isAdminHidden,
+      // The lecturer who uploaded the sheet and the piece owner may edit, hide or replace its files
+      canManage,
+      canChangeVisibility: canManage && !isAdminHidden,
       canPublish: !isAdminHidden && !isMissingMainAudio,
       files: {
         sheet: await MusicLibraryDTO.toMediaFile(sheetMusic.sheetFile),

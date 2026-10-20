@@ -17,10 +17,20 @@ type LecturerSheetMusicDTO = Awaited<ReturnType<typeof MusicLibraryDTO.toLecture
 interface SheetMusicState { pieceId: string; instrumentId: string; kind: MusicLibrary.SheetKind; name: string; }
 
 export default class SheetMusicService {
-  static async getOwnedSheetMusic(lecturerId: string, sheetMusicId: string): Promise<MusicLibrary.SheetMusicWithPieceRecord> {
+  static async getActiveSheetMusic(sheetMusicId: string): Promise<MusicLibrary.SheetMusicWithPieceRecord> {
     const sheetMusic = await SheetMusicRepository.findById(sheetMusicId);
     if (!sheetMusic || sheetMusic.piece.deletedAt) throw AppError.withMessage(404, 'MSG-08', MESSAGES.SHEET_NOT_FOUND);
-    if (sheetMusic.piece.ownerId !== lecturerId) throw AppError.forbidden();
+    return sheetMusic;
+  }
+
+  // Any lecturer can add sheet music to any piece; the uploader and the piece owner manage it afterwards
+  static canManage(lecturerId: string, sheetMusic: { uploaderId: string }, pieceOwnerId: string): boolean {
+    return sheetMusic.uploaderId === lecturerId || pieceOwnerId === lecturerId;
+  }
+
+  static async getManageableSheetMusic(lecturerId: string, sheetMusicId: string): Promise<MusicLibrary.SheetMusicWithPieceRecord> {
+    const sheetMusic = await SheetMusicService.getActiveSheetMusic(sheetMusicId);
+    if (!SheetMusicService.canManage(lecturerId, sheetMusic, sheetMusic.piece.ownerId)) throw AppError.forbidden();
     return sheetMusic;
   }
 
@@ -34,7 +44,7 @@ export default class SheetMusicService {
   }
 
   static async listForPiece(lecturerId: string, pieceId: string) {
-    const piece = await PieceService.getOwnedPiece(lecturerId, pieceId);
+    const piece = await PieceService.getActivePiece(pieceId);
     const sheetMusicList = SheetMusicService.sortSheetMusic(await SheetMusicRepository.listByPiece(pieceId));
     // A piece's instruments come from its sheet music; the form may pick any active instrument
     const pieceInstruments = MusicLibraryDTO.uniqueInstruments(sheetMusicList);
@@ -43,7 +53,10 @@ export default class SheetMusicService {
       .map(async (group) => ({
         instrument: MusicLibraryDTO.toCategoryRef(group.instrument),
         count: group.items.length,
-        items: await Promise.all(group.items.map(MusicLibraryDTO.toLecturerSheetMusic))
+        items: await Promise.all(group.items.map((sheetMusic) => MusicLibraryDTO.toLecturerSheetMusic(
+          sheetMusic,
+          SheetMusicService.canManage(lecturerId, sheetMusic, piece.ownerId)
+        )))
       })));
     const activeInstruments = await CatalogRepository.listActiveInstruments();
     const optionInstruments = [
@@ -64,7 +77,8 @@ export default class SheetMusicService {
   }
 
   static async getSheetMusic(lecturerId: string, sheetMusicId: string): Promise<LecturerSheetMusicDTO> {
-    return MusicLibraryDTO.toLecturerSheetMusic(await SheetMusicService.getOwnedSheetMusic(lecturerId, sheetMusicId));
+    const sheetMusic = await SheetMusicService.getActiveSheetMusic(sheetMusicId);
+    return MusicLibraryDTO.toLecturerSheetMusic(sheetMusic, SheetMusicService.canManage(lecturerId, sheetMusic, sheetMusic.piece.ownerId));
   }
 
   static async assertUniqueName(pieceId: string, name: string, excludedSheetMusicId?: string): Promise<void> {
@@ -104,7 +118,7 @@ export default class SheetMusicService {
     pieceId: string,
     sheetMusicInput: MusicLibrary.SheetMusicCreateInput
   ): Promise<LecturerSheetMusicDTO> {
-    await PieceService.getOwnedPiece(lecturerId, pieceId);
+    await PieceService.getActivePiece(pieceId);
     await CatalogService.assertInstrument(sheetMusicInput.instrumentId);
     await CatalogService.assertCategory('LEVEL', sheetMusicInput.levelId, 'levelId');
     const existingMain = await SheetMusicRepository.findMain(pieceId, sheetMusicInput.instrumentId);
@@ -155,7 +169,7 @@ export default class SheetMusicService {
     sheetMusicId: string,
     sheetMusicInput: MusicLibrary.SheetMusicUpdateInput
   ): Promise<LecturerSheetMusicDTO> {
-    const sheetMusic = await SheetMusicService.getOwnedSheetMusic(lecturerId, sheetMusicId);
+    const sheetMusic = await SheetMusicService.getManageableSheetMusic(lecturerId, sheetMusicId);
     SheetMusicService.assertVisibilityChangeAllowed(sheetMusic, sheetMusicInput.visibility);
     const nextState: SheetMusicState = {
       pieceId: sheetMusic.pieceId,
@@ -207,7 +221,7 @@ export default class SheetMusicService {
     slot: MusicLibrary.SheetSlot,
     mediaFileId: string
   ): Promise<LecturerSheetMusicDTO> {
-    const sheetMusic = await SheetMusicService.getOwnedSheetMusic(lecturerId, sheetMusicId);
+    const sheetMusic = await SheetMusicService.getManageableSheetMusic(lecturerId, sheetMusicId);
     const mediaKind = MusicLibraryConstant.sheetSlots[slot];
     const nextFile = await UploadService.requireAttachableFile(mediaFileId, lecturerId, mediaKind, 'fileId');
     const slotUpdates: Record<MusicLibrary.SheetSlot, Prisma.SheetMusicUncheckedUpdateInput> = {
@@ -228,7 +242,7 @@ export default class SheetMusicService {
   }
 
   static async setVisibility(lecturerId: string, sheetMusicId: string, visibility: MusicLibrary.Visibility): Promise<LecturerSheetMusicDTO> {
-    const sheetMusic = await SheetMusicService.getOwnedSheetMusic(lecturerId, sheetMusicId);
+    const sheetMusic = await SheetMusicService.getManageableSheetMusic(lecturerId, sheetMusicId);
     if (sheetMusic.moderation === 'ADMIN_HIDDEN') throw AppError.withMessage(409, 'MSG-08', MESSAGES.SHEET_ADMIN_HIDDEN, 'visibility');
     SheetMusicService.assertPublishable(sheetMusic.kind, visibility, Boolean(sheetMusic.referenceAudio));
     await SheetMusicRepository.update(sheetMusicId, { visibility });

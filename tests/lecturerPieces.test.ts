@@ -52,11 +52,12 @@ describe('UC-05 Quản lý bài hát (giảng viên)', () => {
     expect(response.body.data.warning).toBeNull();
   });
 
-  it('giảng viên B không xem / sửa được bài của giảng viên A (403)', async () => {
+  it('giảng viên B xem được bài của giảng viên A nhưng không sửa được (403)', async () => {
     const otherLecturer = await TestContext.createUser('LECTURER', 'gv.b@test.local');
     const piece = await TestContext.createPiece(lecturer);
     const view = await request(app).get(`${api}/lecturer/pieces/${piece.id}`).set(TestContext.auth(otherLecturer));
-    expect(view.status).toBe(403);
+    expect(view.status).toBe(200);
+    expect(view.body.data.canEdit).toBe(false);
     const hide = await request(app).patch(`${api}/lecturer/pieces/${piece.id}/visibility`)
       .set(TestContext.auth(otherLecturer)).send({ visibility: 'PUBLIC' });
     expect(hide.status).toBe(403);
