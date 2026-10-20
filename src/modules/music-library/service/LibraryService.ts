@@ -75,9 +75,8 @@ export default class LibraryService {
       LibraryService.findSavedIds(viewer, 'PIECE', [pieceId]),
       LibraryService.findSavedIds(viewer, 'SHEET_MUSIC', sheetMusicList.map(({ id }) => id))
     ]);
-    const tabInstruments = piece.instruments
-      .map(({ instrument }) => instrument)
-      .filter((instrument) => sheetMusicList.some((sheetMusic) => sheetMusic.instrumentId === instrument.id));
+    // Each instrument with at least one public sheet is a tab
+    const tabInstruments = MusicLibraryDTO.uniqueInstruments(sheetMusicList);
     const tabs = await Promise.all(tabInstruments.map(async (instrument) => {
       const instrumentSheets = sheetMusicList.filter((sheetMusic) => sheetMusic.instrumentId === instrument.id);
       const mainSheetMusic = instrumentSheets.find((sheetMusic) => sheetMusic.kind === 'MAIN');

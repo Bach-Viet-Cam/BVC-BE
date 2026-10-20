@@ -103,7 +103,6 @@ export default class TestContext {
         description: 'Dân ca Nam Bộ',
         genreId: TestContext.catalog.genres['Dân ca Nam Bộ'],
         levelId: TestContext.catalog.levels['Cơ bản'],
-        instrumentIds: [TestContext.catalog.instruments.DAN_TRANH, TestContext.catalog.instruments.SAO_TRUC],
         ...overrides
       });
     if (response.status !== 201) throw new Error(`create piece failed: ${JSON.stringify(response.body)}`);

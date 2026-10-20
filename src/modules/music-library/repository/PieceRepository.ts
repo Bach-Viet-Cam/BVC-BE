@@ -18,10 +18,6 @@ export default class PieceRepository {
     return PrismaClientProvider.instance;
   }
 
-  static async runInTransaction<TResult>(callback: (transaction: MusicLibrary.DbClient) => Promise<TResult>): Promise<TResult> {
-    return PieceRepository.client.$transaction(callback);
-  }
-
   static toSearchColumns(pieceData: PieceWriteData) {
     return {
       titleNormalized: TextNormalizer.normalize(pieceData.title),
@@ -37,30 +33,22 @@ export default class PieceRepository {
     }));
   }
 
-  static async create(ownerId: string, pieceData: PieceWriteData, instrumentIds: string[]): Promise<MusicLibrary.PieceRecord> {
+  static async create(ownerId: string, pieceData: PieceWriteData): Promise<MusicLibrary.PieceRecord> {
     return PieceRepository.client.piece.create({
       data: {
         ...pieceData,
         ...PieceRepository.toSearchColumns(pieceData),
-        ownerId,
-        instruments: { create: instrumentIds.map((instrumentId) => ({ instrumentId })) }
+        ownerId
       },
       select: MusicLibraryModel.pieceSelect
     });
   }
 
-  static async update(pieceId: string, pieceData: PieceWriteData, instrumentIds: string[]): Promise<MusicLibrary.PieceRecord> {
-    return PieceRepository.runInTransaction(async (transaction) => {
-      await transaction.pieceInstrument.deleteMany({ where: { pieceId, instrumentId: { notIn: instrumentIds } } });
-      await transaction.pieceInstrument.createMany({
-        data: instrumentIds.map((instrumentId) => ({ pieceId, instrumentId })),
-        skipDuplicates: true
-      });
-      return transaction.piece.update({
-        where: { id: pieceId },
-        data: { ...pieceData, ...PieceRepository.toSearchColumns(pieceData) },
-        select: MusicLibraryModel.pieceSelect
-      });
+  static async update(pieceId: string, pieceData: PieceWriteData): Promise<MusicLibrary.PieceRecord> {
+    return PieceRepository.client.piece.update({
+      where: { id: pieceId },
+      data: { ...pieceData, ...PieceRepository.toSearchColumns(pieceData) },
+      select: MusicLibraryModel.pieceSelect
     });
   }
 

@@ -50,29 +50,25 @@ describe('UC-06 Quản lý bản nhạc (giảng viên)', () => {
     expect(explicitPublic.status).toBe(409);
   });
 
-  it('nhạc cụ không thuộc bài hát → 400; bỏ nhạc cụ đang có bản nhạc → MSG-08', async () => {
-    const wrongInstrument = await TestContext.createSheet(lecturer, pieceId, { instrumentId: TestContext.catalog.instruments.DAN_BAU });
-    expect(wrongInstrument.status).toBe(400);
-    expect(wrongInstrument.body).toMatchObject({ code: 'MSG-08', field: 'instrumentId' });
+  it('nhạc cụ của bài hát lấy từ bản nhạc; nhạc cụ ngừng hoạt động không chọn mới được', async () => {
+    const { DAN_BAU, DAN_TRANH } = TestContext.catalog.instruments;
+    const pieceUrl = `${api}/lecturer/pieces/${pieceId}`;
+    const empty = await request(app).get(pieceUrl).set(TestContext.auth(lecturer));
+    expect(empty.body.data.instruments).toHaveLength(0);
 
-    await TestContext.createSheet(lecturer, pieceId, { name: 'Bản đàn tranh' });
-    const removeInstrument = await request(app).put(`${api}/lecturer/pieces/${pieceId}`).set(TestContext.auth(lecturer)).send({
-      title: 'Lý ngựa ô',
-      genreId: TestContext.catalog.genres['Dân ca Nam Bộ'],
-      levelId: TestContext.catalog.levels['Cơ bản'],
-      instrumentIds: [TestContext.catalog.instruments.SAO_TRUC]
-    });
-    expect(removeInstrument.status).toBe(409);
-    expect(removeInstrument.body).toMatchObject({ code: 'MSG-08', message: 'Không thể bỏ nhạc cụ Đàn tranh vì nhạc cụ này vẫn còn bản nhạc.' });
+    expect((await TestContext.createSheet(lecturer, pieceId, { name: 'Bản đàn bầu', instrumentId: DAN_BAU })).status).toBe(201);
+    expect((await TestContext.createSheet(lecturer, pieceId, { name: 'Bản đàn tranh' })).status).toBe(201);
+    const detail = await request(app).get(pieceUrl).set(TestContext.auth(lecturer));
+    expect(detail.body.data.instruments.map((instrument: { id: string }) => instrument.id)).toEqual([DAN_BAU, DAN_TRANH]);
 
-    const removeUnused = await request(app).put(`${api}/lecturer/pieces/${pieceId}`).set(TestContext.auth(lecturer)).send({
-      title: 'Lý ngựa ô',
-      genreId: TestContext.catalog.genres['Dân ca Nam Bộ'],
-      levelId: TestContext.catalog.levels['Cơ bản'],
-      instrumentIds: [TestContext.catalog.instruments.DAN_TRANH]
-    });
-    expect(removeUnused.status).toBe(200);
-    expect(removeUnused.body.data.piece.instruments).toHaveLength(1);
+    const sheetList = await request(app).get(`${pieceUrl}/sheet-music`).set(TestContext.auth(lecturer));
+    const optionIds = sheetList.body.data.instrumentOptions.map((option: { id: string }) => option.id);
+    expect(optionIds).toEqual(expect.arrayContaining(Object.values(TestContext.catalog.instruments)));
+
+    await TestContext.prisma.instrument.update({ where: { id: DAN_BAU }, data: { isActive: false } });
+    const inactive = await TestContext.createSheet(lecturer, pieceId, { name: 'Bản đàn bầu 2', instrumentId: DAN_BAU });
+    expect(inactive.status).toBe(400);
+    expect(inactive.body).toMatchObject({ code: 'MSG-08', field: 'instrumentId' });
   });
 
   it('"Tên bản" trùng trong cùng bài hát → MSG-05 (không phân biệt hoa thường)', async () => {

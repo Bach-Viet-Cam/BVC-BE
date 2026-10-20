@@ -87,15 +87,6 @@ export default class SheetMusicRepository {
     return SheetMusicRepository.client.sheetMusic.count({ where: { pieceId, visibility: 'PUBLIC', moderation: 'NORMAL' } });
   }
 
-  static async findInstrumentIdsInUse(pieceId: string, instrumentIds: string[]): Promise<string[]> {
-    const sheetRows = await SheetMusicRepository.client.sheetMusic.findMany({
-      where: { pieceId, instrumentId: { in: instrumentIds } },
-      select: { instrumentId: true },
-      distinct: ['instrumentId']
-    });
-    return sheetRows.map((sheetRow) => sheetRow.instrumentId);
-  }
-
   static async findForAnalysis(sheetMusicId: string) {
     return SheetMusicRepository.client.sheetMusic.findUnique({
       where: { id: sheetMusicId },

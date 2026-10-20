@@ -15,8 +15,7 @@ describe('UC-05 Quản lý bài hát (giảng viên)', () => {
   it('thiếu "Tiêu đề" → 400 MSG-35; tiêu đề 201 ký tự → MSG-37', async () => {
     const basePayload = {
       genreId: TestContext.catalog.genres['Dân ca Nam Bộ'],
-      levelId: TestContext.catalog.levels['Cơ bản'],
-      instrumentIds: [TestContext.catalog.instruments.DAN_TRANH]
+      levelId: TestContext.catalog.levels['Cơ bản']
     };
     const missingTitle = await request(app).post(`${api}/lecturer/pieces`).set(TestContext.auth(lecturer)).send(basePayload);
     expect(missingTitle.status).toBe(400);
@@ -26,10 +25,6 @@ describe('UC-05 Quản lý bài hát (giảng viên)', () => {
       .send({ ...basePayload, title: 'a'.repeat(201) });
     expect(longTitle.status).toBe(400);
     expect(longTitle.body).toMatchObject({ code: 'MSG-37', field: 'title', message: 'Tiêu đề không được vượt quá 200 ký tự.' });
-
-    const noInstrument = await request(app).post(`${api}/lecturer/pieces`).set(TestContext.auth(lecturer))
-      .send({ ...basePayload, title: 'Bài', instrumentIds: [] });
-    expect(noInstrument.body).toMatchObject({ code: 'MSG-35', field: 'instrumentIds' });
   });
 
   it('bài hát mới mặc định "Đã ẩn" và không xuất hiện ở thư viện', async () => {
@@ -124,8 +119,7 @@ describe('UC-05 Quản lý bài hát (giảng viên)', () => {
     const keepTag = await request(app).put(`${api}/lecturer/pieces/${piece.id}`).set(TestContext.auth(lecturer)).send({
       title: 'Lý ngựa ô (sửa)',
       genreId,
-      levelId: TestContext.catalog.levels['Cơ bản'],
-      instrumentIds: [TestContext.catalog.instruments.DAN_TRANH, TestContext.catalog.instruments.SAO_TRUC]
+      levelId: TestContext.catalog.levels['Cơ bản']
     });
     expect(keepTag.status).toBe(200);
     expect(keepTag.body.data.piece.genre.id).toBe(genreId);
@@ -133,8 +127,7 @@ describe('UC-05 Quản lý bài hát (giảng viên)', () => {
     const newPiece = await request(app).post(`${api}/lecturer/pieces`).set(TestContext.auth(lecturer)).send({
       title: 'Bài mới',
       genreId,
-      levelId: TestContext.catalog.levels['Cơ bản'],
-      instrumentIds: [TestContext.catalog.instruments.DAN_TRANH]
+      levelId: TestContext.catalog.levels['Cơ bản']
     });
     expect(newPiece.status).toBe(400);
     expect(newPiece.body.field).toBe('genreId');

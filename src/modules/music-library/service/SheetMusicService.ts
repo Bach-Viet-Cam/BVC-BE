@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import AppError from '../../../utils/AppError.ts';
 import MusicLibraryConstant from '../constant/MusicLibraryConstant.ts';
 import MusicLibraryDTO from '../dto/MusicLibraryDTO.ts';
+import CatalogRepository from '../repository/CatalogRepository.ts';
 import PieceRepository from '../repository/PieceRepository.ts';
 import SheetMusicRepository from '../repository/SheetMusicRepository.ts';
 import AnalysisService from './AnalysisService.ts';
@@ -35,17 +36,22 @@ export default class SheetMusicService {
   static async listForPiece(lecturerId: string, pieceId: string) {
     const piece = await PieceService.getOwnedPiece(lecturerId, pieceId);
     const sheetMusicList = SheetMusicService.sortSheetMusic(await SheetMusicRepository.listByPiece(pieceId));
-    const pieceInstruments = piece.instruments.map(({ instrument }) => instrument);
+    // A piece's instruments come from its sheet music; the form may pick any active instrument
+    const pieceInstruments = MusicLibraryDTO.uniqueInstruments(sheetMusicList);
     const groups = await Promise.all(pieceInstruments
       .map((instrument) => ({ instrument, items: sheetMusicList.filter((sheetMusic) => sheetMusic.instrumentId === instrument.id) }))
-      .filter((group) => group.items.length > 0)
       .map(async (group) => ({
         instrument: MusicLibraryDTO.toCategoryRef(group.instrument),
         count: group.items.length,
         items: await Promise.all(group.items.map(MusicLibraryDTO.toLecturerSheetMusic))
       })));
+    const activeInstruments = await CatalogRepository.listActiveInstruments();
+    const optionInstruments = [
+      ...pieceInstruments,
+      ...activeInstruments.filter((instrument) => !pieceInstruments.some(({ id }) => id === instrument.id))
+    ];
     // GBR-55: the form defaults to "Bản chính" until the instrument has one
-    const instrumentOptions = pieceInstruments.map((instrument) => {
+    const instrumentOptions = optionInstruments.map((instrument) => {
       const hasMain = sheetMusicList.some((sheetMusic) => sheetMusic.instrumentId === instrument.id && sheetMusic.kind === 'MAIN');
       return { ...MusicLibraryDTO.toCategoryRef(instrument), hasMain, defaultKind: hasMain ? 'LEVEL' : 'MAIN' };
     });
@@ -59,11 +65,6 @@ export default class SheetMusicService {
 
   static async getSheetMusic(lecturerId: string, sheetMusicId: string): Promise<LecturerSheetMusicDTO> {
     return MusicLibraryDTO.toLecturerSheetMusic(await SheetMusicService.getOwnedSheetMusic(lecturerId, sheetMusicId));
-  }
-
-  static assertInstrumentInPiece(piece: { instruments: { instrument: { id: string } }[] }, instrumentId: string): void {
-    const isInPiece = piece.instruments.some(({ instrument }) => instrument.id === instrumentId);
-    if (!isInPiece) throw AppError.withMessage(400, 'MSG-08', MESSAGES.INSTRUMENT_NOT_IN_PIECE, 'instrumentId');
   }
 
   static async assertUniqueName(pieceId: string, name: string, excludedSheetMusicId?: string): Promise<void> {
@@ -103,8 +104,8 @@ export default class SheetMusicService {
     pieceId: string,
     sheetMusicInput: MusicLibrary.SheetMusicCreateInput
   ): Promise<LecturerSheetMusicDTO> {
-    const piece = await PieceService.getOwnedPiece(lecturerId, pieceId);
-    SheetMusicService.assertInstrumentInPiece(piece, sheetMusicInput.instrumentId);
+    await PieceService.getOwnedPiece(lecturerId, pieceId);
+    await CatalogService.assertInstrument(sheetMusicInput.instrumentId);
     await CatalogService.assertCategory('LEVEL', sheetMusicInput.levelId, 'levelId');
     const existingMain = await SheetMusicRepository.findMain(pieceId, sheetMusicInput.instrumentId);
     const kind = sheetMusicInput.kind ?? (existingMain ? 'LEVEL' : 'MAIN');
@@ -162,7 +163,7 @@ export default class SheetMusicService {
       kind: sheetMusicInput.kind ?? sheetMusic.kind,
       name: sheetMusicInput.name ?? sheetMusic.name
     };
-    await SheetMusicService.assertUpdateRules(lecturerId, sheetMusic, sheetMusicInput, nextState);
+    await SheetMusicService.assertUpdateRules(sheetMusic, sheetMusicInput, nextState);
 
     const updatedSheetMusic = await SheetMusicRepository.update(sheetMusicId, {
       instrumentId: nextState.instrumentId,
@@ -179,14 +180,11 @@ export default class SheetMusicService {
   }
 
   static async assertUpdateRules(
-    lecturerId: string,
     sheetMusic: MusicLibrary.SheetMusicWithPieceRecord,
     sheetMusicInput: MusicLibrary.SheetMusicUpdateInput,
     nextState: SheetMusicState
   ): Promise<void> {
-    if (nextState.instrumentId !== sheetMusic.instrumentId) {
-      SheetMusicService.assertInstrumentInPiece(await PieceService.getOwnedPiece(lecturerId, sheetMusic.pieceId), nextState.instrumentId);
-    }
+    if (nextState.instrumentId !== sheetMusic.instrumentId) await CatalogService.assertInstrument(nextState.instrumentId);
     if (sheetMusicInput.levelId) await CatalogService.assertCategory('LEVEL', sheetMusicInput.levelId, 'levelId', sheetMusic.level.id);
     if (nextState.name !== sheetMusic.name) await SheetMusicService.assertUniqueName(sheetMusic.pieceId, nextState.name, sheetMusic.id);
     if (nextState.kind === 'MAIN') await SheetMusicService.assertMainAvailable(sheetMusic.pieceId, nextState.instrumentId, sheetMusic.id);
