@@ -51,7 +51,7 @@ export default class AssignmentConstant {
     UPDATED_TITLE: 'Bài tập đã được cập nhật',
     COMMENTED_TITLE: 'Giảng viên đã nhận xét bài nộp',
     body: (className: string, title: string): string => `${className} · ${title}`,
-    link: (assignmentId: string): string => `/student/assignments/${assignmentId}`
+    link: (assignmentId: string): string => `/assignment/${assignmentId}`
   });
 
   static readonly auditActions = Object.freeze({

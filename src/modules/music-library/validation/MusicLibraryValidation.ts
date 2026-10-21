@@ -70,6 +70,8 @@ export default class MusicLibraryValidation {
   });
 
   static readonly confirmUploadSchema = z.object({ body: emptyObject.optional(), params: idParams, query: emptyObject });
+  // Body is the raw file stream, read by the controller
+  static readonly uploadContentSchema = z.object({ body: z.unknown(), params: idParams, query: emptyObject });
 
   // ----- Lecturer: pieces -----
   static readonly lecturerPieceListSchema = z.object({

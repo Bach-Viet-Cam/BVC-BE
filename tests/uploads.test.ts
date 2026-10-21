@@ -67,12 +67,26 @@ describe('Upload & kiểm tra file (GBR-43)', () => {
     expect(confirm.body).toMatchObject({ code: 'MSG-15', message: 'Thời lượng bản thu phải nằm trong khoảng từ 0:01 đến 0:05.' });
   });
 
-  it('URL tải lên bị sửa chữ ký → 403; giảng viên khác không xác nhận được file', async () => {
+  it('PUT nội dung: cần token của người tạo file, không vượt dung lượng khai báo, chỉ khi file còn PENDING', async () => {
     const presign = await request(app).post(`${api}/uploads/presign`).set(TestContext.auth(lecturer))
       .send({ kind: 'SHEET', fileName: 'a.pdf', mimeType: 'application/pdf', size: 10 });
-    const tamperedPath = `${new URL(presign.body.data.uploadUrl).pathname}x`;
-    expect((await request(app).put(tamperedPath).set('Content-Type', 'application/pdf').send(Buffer.from('x'))).status).toBe(403);
+    expect(presign.body.data).toMatchObject({ method: 'PUT', uploadUrl: `http://localhost:3000/api/v1/uploads/${presign.body.data.fileId}/content` });
+    const contentPath = new URL(presign.body.data.uploadUrl).pathname;
+    const put = (headers: Record<string, string>, body: Buffer) => request(app).put(contentPath).set(headers).set('Content-Type', 'application/pdf').send(body);
 
+    expect((await put({}, Buffer.from('x'))).status).toBe(401);
+    const other = await TestContext.createUser('LECTURER', 'gv2@test.local');
+    expect((await put(TestContext.auth(other), Buffer.from('x'))).status).toBe(400);
+    expect((await put(TestContext.auth(lecturer), Buffer.alloc(11))).status).toBe(413);
+    expect((await put(TestContext.auth(lecturer), Buffer.alloc(10))).status).toBe(200);
+
+    await TestContext.prisma.mediaFile.update({ where: { id: presign.body.data.fileId }, data: { status: 'READY' } });
+    expect((await put(TestContext.auth(lecturer), Buffer.alloc(10))).status).toBe(409);
+  });
+
+  it('giảng viên khác không xác nhận được file', async () => {
+    const presign = await request(app).post(`${api}/uploads/presign`).set(TestContext.auth(lecturer))
+      .send({ kind: 'SHEET', fileName: 'a.pdf', mimeType: 'application/pdf', size: 10 });
     const other = await TestContext.createUser('LECTURER', 'gv2@test.local');
     const confirm = await request(app).post(`${api}/uploads/${presign.body.data.fileId}/confirm`).set(TestContext.auth(other));
     expect(confirm.status).toBe(400);

@@ -51,7 +51,7 @@ describe('Assignment lifecycle (lecturer)', () => {
     expect(response.body.data.status).toBe('PUBLISHED');
     const deliveries = await TestDatabase.prisma.userNotification.findMany({ include: { notification: true } });
     expect(deliveries.map((item) => item.userId).sort()).toEqual([first.id, second.id].sort());
-    expect(deliveries[0].notification).toMatchObject({ title: 'Bài tập mới', body: 'TRD301 · Luyện Lý ngựa ô', link: `/student/assignments/${response.body.data.id}` });
+    expect(deliveries[0].notification).toMatchObject({ title: 'Bài tập mới', body: 'TRD301 · Luyện Lý ngựa ô', link: `/assignment/${response.body.data.id}` });
   });
 
   it('validates title, description, kind and bpm', async () => {

@@ -1,17 +1,14 @@
 import express from 'express';
 import type { Router } from 'express';
-import EnvConfig from '../../../config/EnvConfig.ts';
 import { validateRequest } from '../../../middlewares/ValidateMiddleware.ts';
 import AsyncHandler from '../../../utils/AsyncHandler.ts';
 import { attachOptionalUser, requireAuthenticatedUser, requireRoles } from '../../auth/middleware/AuthMiddleware.ts';
 import MusicLibraryConstant from '../constant/MusicLibraryConstant.ts';
-import AnalysisController from '../controller/AnalysisController.ts';
 import LecturerPieceController from '../controller/LecturerPieceController.ts';
 import LecturerSheetMusicController from '../controller/LecturerSheetMusicController.ts';
 import LibraryController from '../controller/LibraryController.ts';
 import SavedItemController from '../controller/SavedItemController.ts';
 import UploadController from '../controller/UploadController.ts';
-import { requireCallbackSecret } from '../middleware/InternalCallbackMiddleware.ts';
 import MusicLibraryValidation from '../validation/MusicLibraryValidation.ts';
 
 const ROLES = MusicLibraryConstant.roles;
@@ -23,7 +20,10 @@ export default class MusicLibraryRoute {
     router.use('/uploads', MusicLibraryRoute.createUploadRouter());
     router.use('/library', MusicLibraryRoute.createLibraryRouter());
     router.use('/me/saved', MusicLibraryRoute.createSavedRouter());
-    router.use('/internal', MusicLibraryRoute.createInternalRouter());
+    // TODO(AI): bật lại callback kết quả phân tích bản thu mẫu khi chuyển sang Rhythm service + RabbitMQ:
+    // internalRouter.post('/sheet-music/:id/analysis', validateRequest(MusicLibraryValidation.analysisCallbackSchema),
+    //   <xác thực bằng RHYTHM_SERVICE_INTERNAL_API_KEY>, wrap(AnalysisController.handleCallback));
+    // router.use('/internal', internalRouter);
   }
 
   static createLecturerRouter(): Router {
@@ -54,6 +54,7 @@ export default class MusicLibraryRoute {
     const uploadRouter = express.Router();
     const lecturerOnly = [wrap(requireAuthenticatedUser), requireRoles(ROLES.LECTURER)];
     uploadRouter.post('/presign', validateRequest(MusicLibraryValidation.presignSchema), ...lecturerOnly, wrap(UploadController.createPresignedUpload));
+    uploadRouter.put('/:id/content', validateRequest(MusicLibraryValidation.uploadContentSchema), ...lecturerOnly, wrap(UploadController.uploadContent));
     uploadRouter.post('/:id/confirm', validateRequest(MusicLibraryValidation.confirmUploadSchema), ...lecturerOnly, wrap(UploadController.confirmUpload));
     return uploadRouter;
   }
@@ -78,20 +79,5 @@ export default class MusicLibraryRoute {
     savedRouter.put('/sheet-music/:id', idSchema, ...studentOnly, wrap(SavedItemController.saveSheetMusic));
     savedRouter.delete('/sheet-music/:id', idSchema, ...studentOnly, wrap(SavedItemController.unsaveSheetMusic));
     return savedRouter;
-  }
-
-  static createInternalRouter(): Router {
-    const internalRouter = express.Router();
-    internalRouter.post(
-      '/sheet-music/:id/analysis',
-      validateRequest(MusicLibraryValidation.analysisCallbackSchema),
-      requireCallbackSecret,
-      wrap(AnalysisController.handleCallback)
-    );
-    if (EnvConfig.mockAiService) {
-      internalRouter.post('/mock-ai/jobs/reference-analysis', wrap(AnalysisController.acceptMockJob));
-      internalRouter.delete('/mock-ai/jobs/:jobId', wrap(AnalysisController.cancelMockJob));
-    }
-    return internalRouter;
   }
 }

@@ -89,7 +89,7 @@ describe('UC-07 / UC-08 Thư viện công khai', () => {
     const [tab] = detail.body.data.tabs;
     expect(tab).toMatchObject({ sheetMusicCount: 2 });
     expect(tab.main).toMatchObject({ id: mainSheet.id, isMain: true, durationSec: 6 });
-    expect(tab.main.referenceAudio.url).toContain('/storage/local/');
+    expect(tab.main.referenceAudio.url).toContain('/uploads/audio/');
     expect(tab.others.map((other: { name: string }) => other.name)).toEqual(['Nâng cao']);
   });
 

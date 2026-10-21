@@ -1,7 +1,4 @@
 import StorageService from '../../../lib/storage/StorageService.ts';
-import MusicLibraryConstant from '../constant/MusicLibraryConstant.ts';
-
-const URL_LIFETIMES = MusicLibraryConstant.urlLifetimes;
 
 type PieceSheetSummary = Pick<MusicLibrary.PieceRecord['sheetMusic'][number], 'visibility' | 'moderation'>;
 
@@ -14,13 +11,13 @@ export default class MusicLibraryDTO {
     return moderation === 'ADMIN_HIDDEN' ? 'ADMIN_HIDDEN' : visibility;
   }
 
-  static async toReadUrl(mediaFile: MusicLibrary.MediaFileRecord | null | undefined, lifetimeSec: number = URL_LIFETIMES.READ_SEC): Promise<string | null> {
+  static async toReadUrl(mediaFile: MusicLibrary.MediaFileRecord | null | undefined): Promise<string | null> {
     if (!mediaFile || mediaFile.status !== 'READY') return null;
-    return StorageService.driver.createReadUrl(mediaFile.storageKey, lifetimeSec);
+    return StorageService.driver.createReadUrl(mediaFile.storageKey);
   }
 
   static async toCoverUrl(coverFile: MusicLibrary.MediaFileRecord | null | undefined): Promise<string | null> {
-    return MusicLibraryDTO.toReadUrl(coverFile, URL_LIFETIMES.COVER_SEC);
+    return MusicLibraryDTO.toReadUrl(coverFile);
   }
 
   static async toMediaFile(mediaFile: MusicLibrary.MediaFileRecord): Promise<MusicLibrary.MediaFileDTO>;

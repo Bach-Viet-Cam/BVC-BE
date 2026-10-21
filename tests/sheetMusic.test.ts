@@ -123,12 +123,10 @@ describe('UC-06 Quản lý bản nhạc (giảng viên)', () => {
     expect(saved.body.data.items[0].sheetMusic.id).toBe(mainSheet.id);
     expect(saved.body.data.items[0].piece.id).toBe(piece.id);
 
-    const enqueuedBefore = TestContext.queue.enqueued.length;
     const newAudioId = await TestContext.uploadWav(lecturer, 9);
     const audioReplaced = await request(app).put(`${api}/lecturer/sheet-music/${mainSheet.id}/files/audio`)
       .set(TestContext.auth(lecturer)).send({ fileId: newAudioId });
     expect(audioReplaced.body.data.durationSec).toBe(9);
-    expect(TestContext.queue.enqueued.length).toBe(enqueuedBefore + 1);
   });
 
   it('thay file sai loại ô → 400; file đã dùng ở bản khác → 409', async () => {
@@ -161,6 +159,6 @@ describe('UC-06 Quản lý bản nhạc (giảng viên)', () => {
     expect(list.body.data.groups).toHaveLength(1);
     expect(list.body.data.groups[0].items.map((item: { name: string }) => item.name)).toEqual(['Chính', 'Cơ bản', 'Nâng cao']);
     expect(list.body.data.groups[0].items[1]).toMatchObject({ usesMainRecording: true, durationSec: null, analysis: null });
-    expect(list.body.data.groups[0].items[0].analysis.status).toBe('PROCESSING');
+    expect(list.body.data.groups[0].items[0].analysis.status).toBe('NONE'); // phân tích AI đang tạm tắt
   });
 });

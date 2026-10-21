@@ -23,7 +23,14 @@ export interface AssignmentRow {
   submissions: SubmissionBrief[];
 }
 
+export interface StudentSubmissionRow extends SubmissionBrief {
+  id: string;
+  createdAt: Date;
+  comment: { content: string; updatedAt: Date } | null;
+}
+
 export interface AssignmentDetailRow extends AssignmentRow {
+  submissions: StudentSubmissionRow[];
   piece: (PieceAvailability & { id: string; title: string; bpm: number; ensembleTracks: { instrumentId: string }[] }) | null;
   rubric: { criteria: { name: string; weight: number }[] } | null;
 }
@@ -51,7 +58,11 @@ export default class AssignmentRepository {
         class: { select: { id: true, name: true } },
         piece: { select: { id: true, title: true, bpm: true, visibility: true, moderation: true, deletedAt: true, ensembleTracks: { select: { instrumentId: true } } } },
         rubric: { select: { criteria: { select: { name: true, weight: true }, orderBy: { position: 'asc' } } } },
-        submissions: { where: { studentId: userId }, select: { status: true, accuracy: true } }
+        submissions: {
+          where: { studentId: userId },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, status: true, accuracy: true, createdAt: true, comment: { select: { content: true, updatedAt: true } } }
+        }
       }
     });
   }

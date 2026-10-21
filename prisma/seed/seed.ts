@@ -144,7 +144,7 @@ export default class DatabaseSeeder {
   static async storeMedia(kind: MediaKind, fileName: string, mimeType: string, content: Buffer, uploadedById: string, extra: Partial<Prisma.MediaFileUncheckedCreateInput>) {
     const extension = fileName.split('.').pop();
     const storageKey = `seed/${kind.toLowerCase()}/${crypto.randomUUID()}.${extension}`;
-    await StorageService.driver.putObject(storageKey, content, mimeType);
+    await StorageService.driver.putObject(storageKey, content);
     return prisma.mediaFile.create({
       data: { kind, status: 'READY', storageKey, originalName: fileName, mimeType, sizeBytes: content.length, uploadedById, ...extra }
     });
