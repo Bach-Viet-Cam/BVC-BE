@@ -383,6 +383,14 @@ API_KEY=your_api_key_here
 
 Current mail-related variables in this project:
 
+Current database variables:
+
+- `DATABASE_URL`: Postgres used by the app and by Prisma CLI. For local development use the
+  container from `docker-compose.dev.yml`: `postgresql://bvc:bvc_local@localhost:5433/bvc_dev`.
+- `TEST_DATABASE_URL`: Postgres used by integration tests (`npm test`). Tests truncate its
+  tables, so it must never point at a shared database. Default local value:
+  `postgresql://bvc:bvc_local@localhost:5433/bvc_test`.
+
 Current CORS variable:
 
 - `CORS_ORIGINS`: comma-separated browser origins allowed by the API, for example

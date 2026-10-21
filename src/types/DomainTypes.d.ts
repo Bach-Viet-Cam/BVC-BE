@@ -1,8 +1,11 @@
 declare namespace Backend {
   type UserRole = number;
   type MessageCode =
-    | 'MSG-01' | 'MSG-02' | 'MSG-05' | 'MSG-06' | 'MSG-07' | 'MSG-08' | 'MSG-09'
-    | 'MSG-13' | 'MSG-14' | 'MSG-15' | 'MSG-35' | 'MSG-37' | 'MSG-46' | 'MSG-47';
+    | 'MSG-01' | 'MSG-02' | 'MSG-03' | 'MSG-04' | 'MSG-05' | 'MSG-06' | 'MSG-07' | 'MSG-08' | 'MSG-09'
+    | 'MSG-13' | 'MSG-14' | 'MSG-15' | 'MSG-16' | 'MSG-35' | 'MSG-37' | 'MSG-38' | 'MSG-45' | 'MSG-46' | 'MSG-47' | 'MSG-48';
+  interface FieldError { field: string; code?: MessageCode; message: string; }
+  interface PaginationMeta { page: number; limit: number; total: number; }
+  interface InstrumentDTO { id: string; name: string; isActive: boolean; }
   type UserStatus = 'PENDING' | 'ACTIVE' | 'LOCKED';
   interface UserRecord { id: string; email: string; username: string; role: UserRole; status: UserStatus; studentCode: string | null; }
   interface UserDTO { userId: string; username: string; email: string; role: UserRole; }

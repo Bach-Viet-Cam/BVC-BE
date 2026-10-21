@@ -77,11 +77,8 @@ export default class ClassSeeder {
       create: { id: 'seed-class-trd201', name: 'TRD201 FA26', instrumentId: danTranh, ownerId: secondTeacher.id, startDate: new Date(Date.now() - 14 * ClassSeeder.dayMs) }
     });
     for (const student of students) {
-      await client.classMember.upsert({
-        where: { classId_userId: { classId: ClassSeeder.classId, userId: student.id } },
-        update: {},
-        create: { classId: ClassSeeder.classId, userId: student.id, instrumentId: danTranh }
-      });
+      const membership = await client.classMember.findFirst({ where: { classId: ClassSeeder.classId, userId: student.id, removedAt: null }, select: { id: true } });
+      if (!membership) await client.classMember.create({ data: { classId: ClassSeeder.classId, userId: student.id, instrumentId: danTranh } });
     }
 
     const genre = await client.category.upsert({ where: { type_name: { type: 'GENRE', name: 'Dân ca' } }, update: {}, create: { type: 'GENRE', name: 'Dân ca' } });

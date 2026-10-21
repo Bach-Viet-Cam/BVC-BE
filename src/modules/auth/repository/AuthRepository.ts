@@ -20,6 +20,14 @@ export default class AuthRepository {
     });
   }
 
+  static async activatePendingUser(userId: string): Promise<Backend.UserRecord> {
+    return AuthRepository.client.user.update({
+      where: { id: userId },
+      data: { status: 'ACTIVE' },
+      select: AuthModel.userSelect
+    });
+  }
+
   static async findUserById(userId: string): Promise<Backend.UserRecord | null> {
     return AuthRepository.client.user.findUnique({
       where: { id: userId },

@@ -11,9 +11,11 @@ import ProgressValidation from '../validation/ProgressValidation.ts';
 export default class ProgressRoute {
   static register(router: Router): void {
     const classRouter = express.Router();
-    classRouter.use(AsyncHandler.wrap(requireAuthenticatedUser), requireRoles(AuthConstant.roles.TEACHER));
-    classRouter.get('/', validateRequest(ProgressValidation.classListSchema), AsyncHandler.wrap(ProgressController.listClasses));
-    classRouter.get('/:classId/progress', validateRequest(ProgressValidation.progressSchema), AsyncHandler.wrap(ProgressController.getProgress));
+    // Guarded per route (not router-wide) so other modules can serve students under /classes (e.g. the class roadmap).
+    const teacherOnly = [AsyncHandler.wrap(requireAuthenticatedUser), requireRoles(AuthConstant.roles.TEACHER)];
+    // The class list proper lives in ClassRoute (GET /classes); this is the short list for the progress screen.
+    classRouter.get('/owned', ...teacherOnly, validateRequest(ProgressValidation.classListSchema), AsyncHandler.wrap(ProgressController.listClasses));
+    classRouter.get('/:classId/progress', ...teacherOnly, validateRequest(ProgressValidation.progressSchema), AsyncHandler.wrap(ProgressController.getProgress));
     router.use('/classes', classRouter);
   }
 }

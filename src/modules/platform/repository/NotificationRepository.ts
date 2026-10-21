@@ -52,6 +52,28 @@ export default class NotificationRepository {
     return result.count > 0;
   }
 
+  // In-app notification created by the system on behalf of a lecturer action (assignment published, comment added, ...)
+  static async createDelivered(actorId: string, userIds: string[], notification: Backend.UserNotification, client: Prisma.TransactionClient): Promise<number> {
+    if (userIds.length === 0) return 0;
+    const now = new Date();
+    const created = await client.notification.create({
+      data: {
+        title: notification.title,
+        body: notification.body,
+        link: notification.link ?? null,
+        type: 'ANNOUNCEMENT',
+        target: 'STUDENT',
+        status: 'SENT',
+        sentAt: now,
+        recipientCount: userIds.length,
+        createdById: actorId
+      },
+      select: { id: true }
+    });
+    await client.userNotification.createMany({ data: userIds.map((userId) => ({ notificationId: created.id, userId })) });
+    return userIds.length;
+  }
+
   static async listDueIds(now: Date, limit: number): Promise<string[]> {
     const rows = await NotificationRepository.client.notification.findMany({
       where: { status: 'SCHEDULED', scheduledAt: { lte: now } },

@@ -1,4 +1,24 @@
+import MessageConstant from '../../../constants/MessageConstant.ts';
+
+const format = MessageConstant.format;
+
 export default class PlatformConstant {
+  // Grading thresholds behind "Đạt" and the progress statuses live in system_configs (SCORING group).
+  static readonly settingKeys = Object.freeze({ MIN_ACCURACY: 'min_accuracy_default', AT_RISK_MARGIN: 'at_risk_margin' });
+  static readonly gradingLimits = Object.freeze({ MIN: 0, MAX: 100 });
+  static readonly gradingMessages = Object.freeze({
+    GRADING_SAVED: format('MSG-01', { action: 'Lưu', object: 'cấu hình chấm điểm' }),
+    MARGIN_ABOVE_MINIMUM: 'Biên có nguy cơ không được lớn hơn độ chính xác tối thiểu.',
+    GRADING_SETTINGS_MISSING: 'Thiếu cấu hình chấm điểm.',
+    minAccuracyRange: format('MSG-03', { field: 'Độ chính xác tối thiểu', min: 0, max: 100 }),
+    atRiskMarginRange: format('MSG-03', { field: 'Biên có nguy cơ', min: 0, max: 100 })
+  });
+  static readonly atRiskMarginConfig = Object.freeze({
+    group: 'SCORING' as const,
+    valueType: 'NUMBER' as const,
+    label: 'Biên có nguy cơ (%)',
+    description: 'Số điểm phần trăm dưới độ chính xác tối thiểu mà học viên được xem là có nguy cơ.'
+  });
   static readonly defaultPageSize = 20;
   static readonly maxPageSize = 100;
   static readonly userStatuses = ['PENDING', 'ACTIVE', 'LOCKED'] as const;

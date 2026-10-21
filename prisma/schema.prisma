@@ -26,29 +26,37 @@ enum ConfigGroup {
 }
 
 model User {
-  id                   String                   @id @default(uuid())
-  email                String                   @unique
-  username             String
-  role                 Int
-  status               UserStatus               @default(ACTIVE)
-  studentCode          String?                  @unique @map("student_code")
-  lastLoginAt          DateTime?                @map("last_login_at")
-  identities           AuthIdentity[]
-  sessions             AuthSession[]
-  ownedPieces          Piece[]                  @relation("PieceOwner")
-  uploadedSheetMusic   SheetMusic[]             @relation("SheetMusicUploader")
-  uploadedMediaFiles   MediaFile[]              @relation("MediaFileUploader")
-  savedItems           SavedItem[]
-  ownedClasses         Class[]
-  classMemberships     ClassMember[]
-  submissions          Submission[]
-  audioUploads         AudioUpload[]
-  audioEvaluations     AudioEvaluationRequest[]
-  ensembleSessions     EnsembleSession[]
-  createdNotifications Notification[]           @relation("NotificationCreator")
-  notifications        UserNotification[]       @relation("UserNotifications")
-  createdAt            DateTime                 @default(now()) @map("created_at")
-  updatedAt            DateTime                 @updatedAt @map("updated_at")
+  id                        String                   @id @default(uuid())
+  email                     String                   @unique
+  username                  String
+  role                      Int
+  status                    UserStatus               @default(ACTIVE)
+  studentCode               String?                  @unique @map("student_code")
+  lastLoginAt               DateTime?                @map("last_login_at")
+  identities                AuthIdentity[]
+  sessions                  AuthSession[]
+  ownedPieces               Piece[]                  @relation("PieceOwner")
+  uploadedSheetMusic        SheetMusic[]             @relation("SheetMusicUploader")
+  uploadedMediaFiles        MediaFile[]              @relation("MediaFileUploader")
+  savedItems                SavedItem[]
+  ownedClasses              Class[]
+  classMemberships          ClassMember[]
+  addedMembers              ClassMember[]            @relation("ClassMemberAddedBy")
+  removedMembers            ClassMember[]            @relation("ClassMemberRemovedBy")
+  importLogs                StudentImportLog[]
+  auditLogs                 AuditLog[]
+  roadmaps                  Roadmap[]
+  createdAssignments        Assignment[]             @relation("AssignmentCreatedBy")
+  createdAssignmentVersions AssignmentVersion[]      @relation("AssignmentVersionCreatedBy")
+  submissionComments        SubmissionComment[]
+  submissions               Submission[]
+  audioUploads              AudioUpload[]
+  audioEvaluations          AudioEvaluationRequest[]
+  ensembleSessions          EnsembleSession[]
+  createdNotifications      Notification[]           @relation("NotificationCreator")
+  notifications             UserNotification[]       @relation("UserNotifications")
+  createdAt                 DateTime                 @default(now()) @map("created_at")
+  updatedAt                 DateTime                 @updatedAt @map("updated_at")
 
   @@map("users")
 }
@@ -105,6 +113,7 @@ model Instrument {
   sheetMusic       SheetMusic[]
   classes          Class[]
   classMembers     ClassMember[]
+  roadmaps         Roadmap[]
   ensembleTracks   EnsembleTrack[]
   ensembleSessions EnsembleSession[]
   createdAt        DateTime          @default(now()) @map("created_at")
@@ -145,6 +154,11 @@ model SystemConfig {
 }
 
 // ---------- M02: Music content & sheet library ----------
+
+enum PieceKind {
+  FINGER_EXERCISE
+  SONG
+}
 
 enum Visibility {
   PUBLIC
@@ -209,39 +223,43 @@ model MediaFile {
 }
 
 model Piece {
-  id                 String            @id @default(uuid())
-  ownerId            String            @map("owner_id")
-  owner              User              @relation("PieceOwner", fields: [ownerId], references: [id])
-  title              String            @db.VarChar(200)
-  composer           String?           @db.VarChar(200)
-  description        String?           @db.VarChar(1000)
+  id                 String                @id @default(uuid())
+  ownerId            String                @map("owner_id")
+  owner              User                  @relation("PieceOwner", fields: [ownerId], references: [id])
+  title              String                @db.VarChar(200)
+  composer           String?               @db.VarChar(200)
+  description        String?               @db.VarChar(1000)
   // Default tempo for assignments and ensemble practice
-  bpm                Int               @default(90)
-  coverFileId        String?           @map("cover_file_id")
-  coverFile          MediaFile?        @relation("PieceCover", fields: [coverFileId], references: [id], onDelete: SetNull)
-  genreId            String            @map("genre_id")
-  genre              Category          @relation("PieceGenre", fields: [genreId], references: [id])
-  levelId            String            @map("level_id")
-  level              Category          @relation("PieceLevel", fields: [levelId], references: [id])
+  bpm                Int                   @default(90)
+  coverFileId        String?               @map("cover_file_id")
+  coverFile          MediaFile?            @relation("PieceCover", fields: [coverFileId], references: [id], onDelete: SetNull)
+  genreId            String                @map("genre_id")
+  genre              Category              @relation("PieceGenre", fields: [genreId], references: [id])
+  levelId            String                @map("level_id")
+  level              Category              @relation("PieceLevel", fields: [levelId], references: [id])
   // Node in the admin content-category tree
-  categoryId         String?           @map("category_id")
-  category           ContentCategory?  @relation(fields: [categoryId], references: [id])
-  visibility         Visibility        @default(HIDDEN)
-  moderation         Moderation        @default(NORMAL)
-  moderationReason   String?           @map("moderation_reason")
+  categoryId         String?               @map("category_id")
+  category           ContentCategory?      @relation(fields: [categoryId], references: [id])
+  visibility         Visibility            @default(HIDDEN)
+  moderation         Moderation            @default(NORMAL)
+  moderationReason   String?               @map("moderation_reason")
   // Lowercase, diacritic-free copies for accent-insensitive search and A→Z sorting
-  titleNormalized    String            @default("") @map("title_normalized")
-  composerNormalized String            @default("") @map("composer_normalized")
-  searchText         String            @default("") @map("search_text")
+  titleNormalized    String                @default("") @map("title_normalized")
+  composerNormalized String                @default("") @map("composer_normalized")
+  searchText         String                @default("") @map("search_text")
   instruments        PieceInstrument[]
   sheetMusic         SheetMusic[]
   savedItems         SavedItem[]
   assignments        Assignment[]
   ensembleTracks     EnsembleTrack[]
   ensembleSessions   EnsembleSession[]
-  deletedAt          DateTime?         @map("deleted_at")
-  createdAt          DateTime          @default(now()) @map("created_at")
-  updatedAt          DateTime          @default(now()) @updatedAt @map("updated_at")
+  // Roadmap exercises are FINGER_EXERCISE pieces; everything else is a SONG
+  kind               PieceKind             @default(SONG)
+  roadmapUses        RoadmapWeekExercise[]
+  assignmentVersions AssignmentVersion[]
+  deletedAt          DateTime?             @map("deleted_at")
+  createdAt          DateTime              @default(now()) @map("created_at")
+  updatedAt          DateTime              @default(now()) @updatedAt @map("updated_at")
 
   @@index([ownerId, updatedAt])
   @@index([visibility, moderation, createdAt])
@@ -362,61 +380,225 @@ model ContentCategory {
   @@map("content_categories")
 }
 
+// Class name is unique per cohort, case-insensitive (DBR-02): enforced in ClassService.
 model Class {
-  id           String        @id @default(uuid())
+  id           String             @id @default(uuid())
   name         String
-  instrumentId String        @map("instrument_id")
-  ownerId      String        @map("owner_id")
-  startDate    DateTime      @map("start_date")
-  status       ClassStatus   @default(ACTIVE)
-  createdAt    DateTime      @default(now()) @map("created_at")
-  instrument   Instrument    @relation(fields: [instrumentId], references: [id])
-  owner        User          @relation(fields: [ownerId], references: [id])
+  cohort       String             @default("") @db.VarChar(50)
+  description  String?            @db.VarChar(500)
+  instrumentId String             @map("instrument_id")
+  ownerId      String             @map("owner_id")
+  startDate    DateTime           @map("start_date")
+  endDate      DateTime           @default(now()) @map("end_date")
+  status       ClassStatus        @default(ACTIVE)
+  endedAt      DateTime?          @map("ended_at")
+  roadmapId    String?            @map("roadmap_id")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @default(now()) @updatedAt @map("updated_at")
+  instrument   Instrument         @relation(fields: [instrumentId], references: [id])
+  owner        User               @relation(fields: [ownerId], references: [id])
+  roadmap      Roadmap?           @relation(fields: [roadmapId], references: [id])
   members      ClassMember[]
   assignments  Assignment[]
+  importLogs   StudentImportLog[]
 
-  @@index([ownerId])
+  @@index([ownerId, status])
+  @@index([roadmapId])
   @@map("classes")
 }
 
-model ClassMember {
-  id           String     @id @default(uuid())
-  classId      String     @map("class_id")
-  userId       String     @map("user_id")
-  instrumentId String     @map("instrument_id")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  class        Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
-  user         User       @relation(fields: [userId], references: [id])
-  instrument   Instrument @relation(fields: [instrumentId], references: [id])
+enum ClassMemberSource {
+  IMPORT
+  MANUAL
+}
 
-  @@unique([classId, userId])
+// Removal is soft (GBR-39): removedAt is set and re-adding creates a new row, so there is no unique (classId, userId).
+// "One active membership per student" is enforced in MemberService.
+model ClassMember {
+  id           String            @id @default(uuid())
+  classId      String            @map("class_id")
+  userId       String            @map("user_id")
+  instrumentId String            @map("instrument_id")
+  source       ClassMemberSource @default(MANUAL)
+  importLogId  String?           @map("import_log_id")
+  addedById    String?           @map("added_by")
+  joinedAt     DateTime          @default(now()) @map("joined_at")
+  removedAt    DateTime?         @map("removed_at")
+  removedById  String?           @map("removed_by")
+  createdAt    DateTime          @default(now()) @map("created_at")
+  class        Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
+  user         User              @relation(fields: [userId], references: [id])
+  instrument   Instrument        @relation(fields: [instrumentId], references: [id])
+  importLog    StudentImportLog? @relation(fields: [importLogId], references: [id])
+  addedBy      User?             @relation("ClassMemberAddedBy", fields: [addedById], references: [id])
+  removedBy    User?             @relation("ClassMemberRemovedBy", fields: [removedById], references: [id])
+
+  @@index([classId, removedAt])
+  @@index([importLogId])
   @@index([userId])
   @@map("class_members")
 }
 
+enum ImportLogStatus {
+  PREVIEW
+  CONFIRMED
+  CANCELLED
+}
+
+model StudentImportLog {
+  id          String          @id @default(uuid())
+  classId     String          @map("class_id")
+  lecturerId  String          @map("lecturer_id")
+  fileName    String          @map("file_name") @db.VarChar(255)
+  fileType    String          @map("file_type") @db.VarChar(10)
+  totalRows   Int             @map("total_rows")
+  validRows   Int             @map("valid_rows")
+  errorRows   Int             @map("error_rows")
+  rows        Json
+  status      ImportLogStatus @default(PREVIEW)
+  createdAt   DateTime        @default(now()) @map("created_at")
+  confirmedAt DateTime?       @map("confirmed_at")
+  class       Class           @relation(fields: [classId], references: [id])
+  lecturer    User            @relation(fields: [lecturerId], references: [id])
+  members     ClassMember[]
+
+  @@index([classId])
+  @@index([lecturerId])
+  @@map("student_import_logs")
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String   @map("actor_id")
+  action     String   @db.VarChar(100)
+  entityType String   @map("entity_type") @db.VarChar(50)
+  entityId   String   @map("entity_id")
+  payload    Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  actor      User     @relation(fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@map("audit_logs")
+}
+
+// One row = one immutable roadmap version of an instrument (UC-11). Never updated after insert.
+model Roadmap {
+  id           String        @id @default(uuid())
+  instrumentId String        @map("instrument_id")
+  version      Int
+  createdById  String        @map("created_by")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  instrument   Instrument    @relation(fields: [instrumentId], references: [id])
+  createdBy    User          @relation(fields: [createdById], references: [id])
+  weeks        RoadmapWeek[]
+  classes      Class[]
+
+  @@unique([instrumentId, version])
+  @@index([createdById])
+  @@map("roadmaps")
+}
+
+// week_number 1..6 is validated in RoadmapValidator.
+model RoadmapWeek {
+  id         String                @id @default(uuid())
+  roadmapId  String                @map("roadmap_id")
+  weekNumber Int                   @map("week_number") @db.SmallInt
+  title      String                @db.VarChar(100)
+  content    String                @db.VarChar(1000)
+  roadmap    Roadmap               @relation(fields: [roadmapId], references: [id])
+  exercises  RoadmapWeekExercise[]
+
+  @@unique([roadmapId, weekNumber])
+  @@map("roadmap_weeks")
+}
+
+model RoadmapWeekExercise {
+  id            String      @id @default(uuid())
+  roadmapWeekId String      @map("roadmap_week_id")
+  pieceId       String      @map("piece_id")
+  sortOrder     Int         @map("sort_order")
+  roadmapWeek   RoadmapWeek @relation(fields: [roadmapWeekId], references: [id])
+  piece         Piece       @relation(fields: [pieceId], references: [id])
+
+  @@unique([roadmapWeekId, sortOrder])
+  @@unique([roadmapWeekId, pieceId])
+  @@index([pieceId])
+  @@map("roadmap_week_exercises")
+}
+
 model Assignment {
-  id               String            @id @default(uuid())
-  classId          String            @map("class_id")
-  pieceId          String?           @map("piece_id")
+  id               String              @id @default(uuid())
+  classId          String              @map("class_id")
+  pieceId          String?             @map("piece_id")
   title            String
   type             AssignmentType
-  description      String            @default("")
-  weekNo           Int?              @map("week_no")
+  description      String              @default("")
+  weekNo           Int?                @map("week_no")
   deadline         DateTime
-  targetBpm        Int?              @map("target_bpm")
-  minAccuracy      Int?              @map("min_accuracy")
-  maxSubmissions   Int               @default(3) @map("max_submissions")
-  isPublished      Boolean           @default(false) @map("is_published")
-  bonusPoints      Int?              @map("bonus_points")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  class            Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
-  piece            Piece?            @relation(fields: [pieceId], references: [id])
+  targetBpm        Int?                @map("target_bpm")
+  minAccuracy      Int?                @map("min_accuracy")
+  maxSubmissions   Int                 @default(3) @map("max_submissions")
+  isPublished      Boolean             @default(false) @map("is_published")
+  bonusPoints      Int?                @map("bonus_points")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  // Lecturer lifecycle (M03). title / type / description / pieceId / targetBpm / isPublished mirror the current version
+  // so the student-side readers keep working; deadline mirrors the class end date.
+  status           AssignmentStatus    @default(PUBLISHED)
+  createdById      String?             @map("created_by")
+  currentVersionId String?             @unique @map("current_version_id")
+  publishedAt      DateTime?           @map("published_at")
+  closedAt         DateTime?           @map("closed_at")
+  deletedAt        DateTime?           @map("deleted_at")
+  updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at")
+  class            Class               @relation(fields: [classId], references: [id], onDelete: Cascade)
+  piece            Piece?              @relation(fields: [pieceId], references: [id])
+  createdBy        User?               @relation("AssignmentCreatedBy", fields: [createdById], references: [id])
+  currentVersion   AssignmentVersion?  @relation("AssignmentCurrentVersion", fields: [currentVersionId], references: [id])
+  versions         AssignmentVersion[] @relation("AssignmentVersions")
   rubric           Rubric?
   submissions      Submission[]
   ensembleSessions EnsembleSession[]
 
-  @@index([classId])
+  @@index([classId, status])
   @@map("assignments")
+}
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum AssignmentKind {
+  SOLO
+  ENSEMBLE
+  BONUS
+  OTHER
+}
+
+// Immutable content versions of a lecturer assignment (edit = new version).
+model AssignmentVersion {
+  id           String         @id @default(uuid())
+  assignmentId String         @map("assignment_id")
+  version      Int
+  title        String         @db.VarChar(200)
+  description  String?        @db.VarChar(1000)
+  kind         AssignmentKind
+  pieceId      String?        @map("piece_id")
+  requiredBpm  Int?           @map("required_bpm")
+  createdById  String         @map("created_by")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  assignment   Assignment     @relation("AssignmentVersions", fields: [assignmentId], references: [id], onDelete: Cascade)
+  currentOf    Assignment?    @relation("AssignmentCurrentVersion")
+  piece        Piece?         @relation(fields: [pieceId], references: [id])
+  createdBy    User           @relation("AssignmentVersionCreatedBy", fields: [createdById], references: [id])
+  submissions  Submission[]
+
+  @@unique([assignmentId, version])
+  @@index([pieceId])
+  @@index([createdById])
+  @@map("assignment_versions")
 }
 
 model Rubric {
@@ -441,18 +623,39 @@ model RubricCriterion {
 }
 
 model Submission {
-  id           String           @id @default(uuid())
-  assignmentId String           @map("assignment_id")
-  studentId    String           @map("student_id")
-  status       SubmissionStatus @default(PROCESSING)
-  accuracy     Float?
-  fileUrl      String?          @map("file_url")
-  createdAt    DateTime         @default(now()) @map("created_at")
-  assignment   Assignment       @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  student      User             @relation(fields: [studentId], references: [id])
+  id                  String             @id @default(uuid())
+  assignmentId        String             @map("assignment_id")
+  studentId           String             @map("student_id")
+  status              SubmissionStatus   @default(PROCESSING)
+  accuracy            Float?
+  fileUrl             String?            @map("file_url")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  assignmentVersionId String?            @map("assignment_version_id")
+  tempoDeviation      Float?             @map("tempo_deviation")
+  analyzedAt          DateTime?          @map("analyzed_at")
+  assignment          Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  assignmentVersion   AssignmentVersion? @relation(fields: [assignmentVersionId], references: [id])
+  student             User               @relation(fields: [studentId], references: [id])
+  comment             SubmissionComment?
 
   @@index([assignmentId, studentId])
+  @@index([assignmentVersionId])
   @@map("submissions")
+}
+
+// One lecturer comment per submission; editing overwrites it (no history).
+model SubmissionComment {
+  id           String     @id @default(uuid())
+  submissionId String     @unique @map("submission_id")
+  lecturerId   String     @map("lecturer_id")
+  content      String     @db.VarChar(2000)
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  lecturer     User       @relation(fields: [lecturerId], references: [id])
+
+  @@index([lecturerId])
+  @@map("submission_comments")
 }
 
 model EnsembleTrack {
@@ -520,6 +723,7 @@ model Notification {
   scheduledAt    DateTime?          @map("scheduled_at")
   sentAt         DateTime?          @map("sent_at")
   recipientCount Int                @default(0) @map("recipient_count")
+  link           String?
   createdById    String             @map("created_by_id")
   createdAt      DateTime           @default(now()) @map("created_at")
   updatedAt      DateTime           @updatedAt @map("updated_at")

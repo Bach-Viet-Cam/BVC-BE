@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import AppError from '../../../utils/AppError.ts';
 import PlatformConstant from '../constant/PlatformConstant.ts';
 import NotificationDTO from '../dto/NotificationDTO.ts';
@@ -5,6 +6,11 @@ import NotificationRepository from '../repository/NotificationRepository.ts';
 import NotificationPolicyService from './NotificationPolicyService.ts';
 
 export default class NotificationService {
+  // Sends one in-app notification to the given users inside the caller's transaction.
+  static async notifyUsers(actorId: string, userIds: string[], notification: Backend.UserNotification, client: Prisma.TransactionClient): Promise<number> {
+    return NotificationRepository.createDelivered(actorId, [...new Set(userIds)], notification, client);
+  }
+
   static async list(query: Backend.NotificationListQuery): Promise<Backend.PaginatedResult<Backend.NotificationItem>> {
     const { items, total } = await NotificationRepository.list(query);
     return { items: items.map(NotificationDTO.toItem), total, page: query.page, pageSize: query.pageSize };

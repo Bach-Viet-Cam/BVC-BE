@@ -12,6 +12,10 @@ import ContentCategoryRoute from '../modules/platform/route/ContentCategoryRoute
 import NotificationRoute from '../modules/platform/route/NotificationRoute.ts';
 import ProgressRoute from '../modules/classes/route/ProgressRoute.ts';
 import AssignmentRoute from '../modules/classes/route/AssignmentRoute.ts';
+import ClassRoute from '../modules/classes/route/ClassRoute.ts';
+import LecturerAssignmentRoute from '../modules/assignments/route/AssignmentRoute.ts';
+import PlatformRoute from '../modules/platform/route/PlatformRoute.ts';
+import RoadmapRoute from '../modules/roadmaps/route/RoadmapRoute.ts';
 import EnsembleRoute from '../modules/ensemble/route/EnsembleRoute.ts';
 
 export default class ApiRoute {
@@ -29,6 +33,10 @@ export default class ApiRoute {
     NotificationRoute.register(v1Router);
     ProgressRoute.register(v1Router);
     AssignmentRoute.register(v1Router);
+    ClassRoute.register(v1Router);
+    LecturerAssignmentRoute.register(v1Router);
+    RoadmapRoute.register(v1Router);
+    PlatformRoute.register(v1Router);
     EnsembleRoute.register(v1Router);
     new AudioRoute().register(v1Router);
     apiRouter.use('/v1', v1Router);
