@@ -3,11 +3,11 @@ import RoadmapValidator from '../../src/modules/roadmaps/service/RoadmapValidato
 
 const INSTRUMENT = 'i1';
 const pieces = new Map<string, Backend.PieceSnapshot>([
-  ['p1', { id: 'p1', title: 'Gẩy đơn', instrumentId: INSTRUMENT, kind: 'FINGER_EXERCISE', isVisible: true }],
-  ['p2', { id: 'p2', title: 'Vê', instrumentId: INSTRUMENT, kind: 'FINGER_EXERCISE', isVisible: true }],
-  ['song', { id: 'song', title: 'Lý ngựa ô', instrumentId: INSTRUMENT, kind: 'SONG', isVisible: true }],
-  ['otherInstrument', { id: 'otherInstrument', title: 'Bầu', instrumentId: 'i2', kind: 'FINGER_EXERCISE', isVisible: true }],
-  ['hidden', { id: 'hidden', title: 'Cũ', instrumentId: INSTRUMENT, kind: 'FINGER_EXERCISE', isVisible: false }]
+  ['p1', { id: 'p1', title: 'Gẩy đơn', instrumentIds: [INSTRUMENT], kind: 'FINGER_EXERCISE', isAvailable: true }],
+  ['p2', { id: 'p2', title: 'Vê', instrumentIds: [INSTRUMENT], kind: 'FINGER_EXERCISE', isAvailable: true }],
+  ['song', { id: 'song', title: 'Lý ngựa ô', instrumentIds: [INSTRUMENT], kind: 'SONG', isAvailable: true }],
+  ['otherInstrument', { id: 'otherInstrument', title: 'Bầu', instrumentIds: ['i2'], kind: 'FINGER_EXERCISE', isAvailable: true }],
+  ['hidden', { id: 'hidden', title: 'Cũ', instrumentIds: [INSTRUMENT], kind: 'FINGER_EXERCISE', isAvailable: false }]
 ]);
 
 function validWeeks(): Backend.RoadmapWeekInput[] {

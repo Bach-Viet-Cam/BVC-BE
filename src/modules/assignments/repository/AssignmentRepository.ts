@@ -1,5 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
+import AssignmentConstant from '../constant/AssignmentConstant.ts';
+import PieceUtil from '../../../utils/PieceUtil.ts';
 import AssignmentModel from '../model/AssignmentModel.ts';
 
 export default class AssignmentRepository {
@@ -15,7 +17,7 @@ export default class AssignmentRepository {
   static async findLecturerAssignments(lecturerId: string, query: Backend.AssignmentListQuery): Promise<{ records: Backend.AssignmentRecord[]; total: number }> {
     const where: Prisma.AssignmentWhereInput = {
       deletedAt: null,
-      class: { lecturerId },
+      class: { ownerId: lecturerId },
       ...(query.classId ? { classId: query.classId } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.kind || query.q
@@ -40,15 +42,33 @@ export default class AssignmentRepository {
     return { records: records as Backend.AssignmentRecord[], total };
   }
 
-  static async findPiece(pieceId: string): Promise<{ id: string; instrumentId: string; isVisible: boolean } | null> {
-    return AssignmentRepository.client.piece.findUnique({ where: { id: pieceId }, select: { id: true, instrumentId: true, isVisible: true } });
+  // The piece is selectable when it is available and played on the class instrument.
+  static async isPieceSelectable(pieceId: string, instrumentId: string): Promise<boolean> {
+    const piece = await AssignmentRepository.client.piece.findUnique({
+      where: { id: pieceId },
+      select: { visibility: true, moderation: true, deletedAt: true, instruments: { where: { instrumentId }, select: { instrumentId: true } } }
+    });
+    return piece !== null && PieceUtil.isAvailable(piece) && piece.instruments.length > 0;
   }
 
   static async createAssignment(
-    data: { classId: string; createdById: string; status: Backend.AssignmentStatus; publishedAt: Date | null },
+    data: { classId: string; createdById: string; status: Backend.AssignmentStatus; publishedAt: Date | null; deadline: Date },
+    content: Backend.AssignmentContentInput,
     client: Prisma.TransactionClient
   ): Promise<{ id: string }> {
-    return client.assignment.create({ data, select: { id: true } });
+    return client.assignment.create({ data: { ...data, ...AssignmentRepository.toMirror(content, data.status) }, select: { id: true } });
+  }
+
+  // Columns the student-side readers use; always written together with the version.
+  static toMirror(content: Backend.AssignmentContentInput, status: Backend.AssignmentStatus) {
+    return {
+      title: content.title,
+      description: content.description || '',
+      type: AssignmentConstant.typeByKind[content.kind],
+      pieceId: content.pieceId || null,
+      targetBpm: content.requiredBpm ?? null,
+      isPublished: status !== 'DRAFT'
+    };
   }
 
   static async findMaxVersion(assignmentId: string, client: Prisma.TransactionClient): Promise<number> {
@@ -76,7 +96,11 @@ export default class AssignmentRepository {
       },
       select: { id: true }
     });
-    await client.assignment.update({ where: { id: assignmentId }, data: { currentVersionId: created.id } });
+    const current = await client.assignment.findUniqueOrThrow({ where: { id: assignmentId }, select: { status: true } });
+    await client.assignment.update({
+      where: { id: assignmentId },
+      data: { currentVersionId: created.id, ...AssignmentRepository.toMirror(content, current.status) }
+    });
   }
 
   static async updateAssignment(
@@ -84,7 +108,13 @@ export default class AssignmentRepository {
     data: Partial<{ status: Backend.AssignmentStatus; publishedAt: Date | null; closedAt: Date | null; deletedAt: Date | null }>,
     client: Prisma.TransactionClient
   ): Promise<void> {
-    await client.assignment.update({ where: { id: assignmentId }, data });
+    const isPublished = data.status ? { isPublished: data.status !== 'DRAFT' } : {};
+    await client.assignment.update({ where: { id: assignmentId }, data: { ...data, ...isPublished } });
+  }
+
+  // The class end date is the deadline of every assignment of the class.
+  static async syncDeadlines(classId: string, deadline: Date, client: Prisma.TransactionClient): Promise<void> {
+    await client.assignment.updateMany({ where: { classId, deletedAt: null }, data: { deadline } });
   }
 
   // A17: ending a class closes its published assignments.

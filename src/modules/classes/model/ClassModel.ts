@@ -7,7 +7,7 @@ export default class ClassModel {
     cohort: true,
     description: true,
     instrumentId: true,
-    lecturerId: true,
+    ownerId: true,
     startDate: true,
     endDate: true,
     status: true,
@@ -21,7 +21,7 @@ export default class ClassModel {
   static readonly memberSelect = {
     id: true,
     joinedAt: true,
-    student: { select: { id: true, username: true, email: true, studentCode: true, status: true } }
+    user: { select: { id: true, username: true, email: true, studentCode: true, status: true } }
   };
 
   static readonly existingUserSelect = { id: true, email: true, studentCode: true, role: true };

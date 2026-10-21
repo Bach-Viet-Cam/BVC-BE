@@ -5,6 +5,7 @@ import DateTimeUtil from '../../../utils/DateTimeUtil.ts';
 import ClassConstant from '../constant/ClassConstant.ts';
 import ClassDTO from '../dto/ClassDTO.ts';
 import AssignmentService from '../../assignments/service/AssignmentService.ts';
+import AssignmentRepository from '../../assignments/repository/AssignmentRepository.ts';
 import RoadmapRepository from '../../roadmaps/repository/RoadmapRepository.ts';
 import ClassRepository from '../repository/ClassRepository.ts';
 import ClassAccessService from './ClassAccessService.ts';
@@ -76,6 +77,7 @@ export default class ClassService {
     const updatedClass = await ClassService.runUniqueGuarded(() =>
       PrismaClientProvider.instance.$transaction(async (transaction) => {
         const classRecord = await ClassRepository.updateClass(classId, changes, transaction);
+        if (changes.endDate) await AssignmentRepository.syncDeadlines(classId, changes.endDate, transaction);
         await AuditLogger.record({
           actorId: lecturerId,
           action: auditActions.CLASS_UPDATE,

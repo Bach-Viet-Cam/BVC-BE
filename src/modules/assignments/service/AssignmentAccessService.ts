@@ -7,10 +7,10 @@ import AssignmentRepository from '../repository/AssignmentRepository.ts';
 export default class AssignmentAccessService {
   static async assertOwnedAssignment(assignmentId: string, lecturerId: string, options: { requireActiveClass?: boolean } = {}): Promise<Backend.AssignmentRecord> {
     const record = await AssignmentRepository.findById(assignmentId);
-    if (!record || record.deletedAt || record.class.lecturerId !== lecturerId) {
+    if (!record || record.deletedAt || record.class.ownerId !== lecturerId) {
       throw AppError.notFound(AssignmentConstant.messages.ASSIGNMENT_NOT_FOUND);
     }
-    if (options.requireActiveClass && record.class.status === 'FINISHED') {
+    if (options.requireActiveClass && record.class.status === 'ENDED') {
       throw AppError.conflict(ClassConstant.messages.CLASS_FINISHED, { code: 'MSG-08' });
     }
     return record;

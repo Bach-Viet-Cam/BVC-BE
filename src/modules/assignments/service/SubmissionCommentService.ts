@@ -12,7 +12,7 @@ const notifications = AssignmentConstant.notifications;
 export default class SubmissionCommentService {
   static async saveComment(submissionId: string, lecturerId: string, content: string): Promise<{ comment: Backend.SubmissionCommentDTO; message: string }> {
     const context = await SubmissionRepository.findSubmissionContext(submissionId);
-    if (!context || context.assignment.deletedAt || context.assignment.class.lecturerId !== lecturerId) {
+    if (!context || context.assignment.deletedAt || context.assignment.class.ownerId !== lecturerId) {
       throw AppError.notFound(messages.SUBMISSION_NOT_FOUND);
     }
     const membership = await MemberRepository.findActiveMembership(context.assignment.class.id, context.studentId);
@@ -25,6 +25,7 @@ export default class SubmissionCommentService {
       const comment = await SubmissionRepository.upsertComment(submissionId, lecturerId, content, transaction);
       if (isFirstComment) {
         await NotificationService.notifyUsers(
+          lecturerId,
           [context.studentId],
           {
             title: notifications.COMMENTED_TITLE,

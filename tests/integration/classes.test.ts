@@ -84,7 +84,7 @@ describe('Classes API (UC-09)', () => {
     const bau = await TestDatabase.createInstrument('Đàn bầu');
     await TestDatabase.createClass(lecturer.id, instrument.id, { name: 'TRD301 — Sáng', cohort: 'FA26' });
     await TestDatabase.createClass(lecturer.id, bau.id, { name: 'TRD301 — Tối', cohort: 'FA26' });
-    await TestDatabase.createClass(lecturer.id, instrument.id, { name: 'TRD201', cohort: 'SP26', status: 'FINISHED' });
+    await TestDatabase.createClass(lecturer.id, instrument.id, { name: 'TRD201', cohort: 'SP26', status: 'ENDED' });
     await TestDatabase.createClass(otherLecturer.id, instrument.id, { name: 'Không phải của tôi' });
 
     const defaultList = await request(app).get('/api/v1/classes').set('Authorization', lecturerToken);
@@ -97,7 +97,7 @@ describe('Classes API (UC-09)', () => {
       .set('Authorization', lecturerToken);
     expect(filtered.body.data.items).toHaveLength(1);
 
-    const finished = await request(app).get('/api/v1/classes').query({ status: 'FINISHED', cohort: 'SP26' }).set('Authorization', lecturerToken);
+    const finished = await request(app).get('/api/v1/classes').query({ status: 'ENDED', cohort: 'SP26' }).set('Authorization', lecturerToken);
     expect(finished.body.data.items.map((item: { name: string }) => item.name)).toEqual(['TRD201']);
   });
 
@@ -152,7 +152,7 @@ describe('Classes API (UC-09)', () => {
 
     const ended = await request(app).post(`/api/v1/classes/${classRecord.id}/end`).set('Authorization', lecturerToken);
     expect(ended.status).toBe(200);
-    expect(ended.body.data).toMatchObject({ status: 'FINISHED', isReadOnly: true });
+    expect(ended.body.data).toMatchObject({ status: 'ENDED', isReadOnly: true });
     expect(ended.body.message).toBe('Kết thúc lớp thành công.');
 
     const writes = await Promise.all([

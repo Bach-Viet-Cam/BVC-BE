@@ -5,9 +5,9 @@ import PlatformConstant from '../constant/PlatformConstant.ts';
 import SettingsRepository from '../repository/SettingsRepository.ts';
 
 const keys = PlatformConstant.settingKeys;
-const messages = PlatformConstant.messages;
+const messages = PlatformConstant.gradingMessages;
 
-// Thresholds behind "Đạt" and the progress statuses. Values come only from system_settings:
+// Thresholds behind "Đạt" and the progress statuses. Values come only from system_configs:
 // there is deliberately no hardcoded fallback (user decision 16/10).
 export default class GradingSettingsService {
   static async getGradingSettings(client?: Prisma.TransactionClient): Promise<Backend.GradingSettings> {

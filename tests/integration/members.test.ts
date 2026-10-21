@@ -229,7 +229,7 @@ describe('Class members & import API (UC-10)', () => {
     const removed = await request(app).delete(`/api/v1/classes/${classId}/members/${student.id}`).set('Authorization', lecturerToken);
     expect(removed.status).toBe(200);
     expect(removed.body.message).toBe('Xóa sinh viên thành công.');
-    const rows = await TestDatabase.prisma.classMember.findMany({ where: { classId, studentId: student.id } });
+    const rows = await TestDatabase.prisma.classMember.findMany({ where: { classId, userId: student.id } });
     expect(rows).toHaveLength(1);
     expect(rows[0].removedAt).not.toBeNull();
     expect(rows[0].removedById).toBe(lecturer.id);
@@ -240,8 +240,8 @@ describe('Class members & import API (UC-10)', () => {
     const readded = await request(app).post(`/api/v1/classes/${classId}/members`).set('Authorization', lecturerToken)
       .send({ studentCode: 'SE5', fullName: 'SV', email: 'sv@fpt.edu.vn' });
     expect(readded.status).toBe(201);
-    expect(await TestDatabase.prisma.classMember.count({ where: { classId, studentId: student.id, removedAt: null } })).toBe(1);
-    expect(await TestDatabase.prisma.classMember.count({ where: { classId, studentId: student.id } })).toBe(2);
+    expect(await TestDatabase.prisma.classMember.count({ where: { classId, userId: student.id, removedAt: null } })).toBe(1);
+    expect(await TestDatabase.prisma.classMember.count({ where: { classId, userId: student.id } })).toBe(2);
   });
 
   it('activates a Pending imported account on its first Google sign-in (GBR-38) and refuses Locked accounts', async () => {
@@ -257,7 +257,7 @@ describe('Class members & import API (UC-10)', () => {
 
     verifySpy.mockResolvedValueOnce({ providerId: 'google-locked', email: 'locked@fpt.edu.vn', username: 'Locked' });
     const locked = await request(app).post('/api/v1/auth/google').send({ credential: 'fake' });
-    expect(locked.status).toBe(401);
+    expect(locked.status).toBe(403);
     verifySpy.mockRestore();
   });
 });

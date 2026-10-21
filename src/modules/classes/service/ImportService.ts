@@ -28,7 +28,7 @@ export default class ImportService {
   }
 
   static async confirmImport(classId: string, lecturerId: string, logId: string): Promise<Backend.ImportConfirmResult & { message: string }> {
-    await ClassAccessService.assertOwnedClass(classId, lecturerId, { requireActive: true });
+    const classRecord = await ClassAccessService.assertOwnedClass(classId, lecturerId, { requireActive: true });
     const log = await ImportService.findOwnedLog(classId, lecturerId, logId);
     if (log.status !== 'PREVIEW') throw AppError.conflict(messages.IMPORT_ALREADY_PROCESSED, { code: 'MSG-08' });
 
@@ -42,7 +42,7 @@ export default class ImportService {
 
         const isMarked = await ImportRepository.markConfirmed(logId, rows, transaction);
         if (!isMarked) throw AppError.conflict(messages.IMPORT_ALREADY_PROCESSED, { code: 'MSG-08' });
-        await MemberService.enrollValidRows(classId, lecturerId, rows, context, { source: 'IMPORT', importLogId: logId }, transaction);
+        await MemberService.enrollValidRows(classId, lecturerId, rows, context, { source: 'IMPORT', instrumentId: classRecord.instrumentId, importLogId: logId }, transaction);
         await AuditLogger.record({
           actorId: lecturerId,
           action: ClassConstant.auditActions.IMPORT_CONFIRM,

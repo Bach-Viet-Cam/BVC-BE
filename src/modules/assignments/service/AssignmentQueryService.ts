@@ -24,7 +24,7 @@ export default class AssignmentQueryService {
     const membersByClass = new Map<string, Set<string>>();
     for (const member of members) {
       const classMembers = membersByClass.get(member.classId) ?? new Set<string>();
-      classMembers.add(member.student.id);
+      classMembers.add(member.user.id);
       membersByClass.set(member.classId, classMembers);
     }
 
@@ -55,7 +55,7 @@ export default class AssignmentQueryService {
       SubmissionRepository.findActiveMembers([record.classId]),
       SubmissionRepository.findSnapshotsByStudent(assignmentId)
     ]);
-    const students = members.map(({ student }) => {
+    const students = members.map(({ user: student }) => {
       const summary = AssignmentProgressCalculator.summarize(snapshotsByStudent.get(student.id) ?? [], settings.minAccuracy);
       return {
         studentId: student.id,

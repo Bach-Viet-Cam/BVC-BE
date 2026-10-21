@@ -20,18 +20,18 @@ export default class ClassDTO {
       ...summary,
       description: classRecord.description,
       hasStarted: DateTimeUtil.hasStarted(summary.startDate, now),
-      isReadOnly: classRecord.status === 'FINISHED',
+      isReadOnly: classRecord.status === 'ENDED',
       endedAt: classRecord.endedAt ? classRecord.endedAt.toISOString() : null
     };
   }
 
   static toMemberDTO(member: Backend.MemberRecord): Backend.MemberDTO {
     return {
-      studentId: member.student.id,
-      fullName: member.student.username,
-      studentCode: member.student.studentCode,
-      email: member.student.email,
-      accountStatus: member.student.status,
+      studentId: member.user.id,
+      fullName: member.user.username,
+      studentCode: member.user.studentCode,
+      email: member.user.email,
+      accountStatus: member.user.status,
       joinedAt: member.joinedAt.toISOString()
     };
   }

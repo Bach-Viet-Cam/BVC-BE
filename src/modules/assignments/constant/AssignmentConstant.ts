@@ -10,6 +10,9 @@ export default class AssignmentConstant {
   static readonly kinds = ['SOLO', 'ENSEMBLE', 'BONUS', 'OTHER'] as const;
   static readonly statuses = ['DRAFT', 'PUBLISHED', 'CLOSED'] as const;
 
+  // Student-facing assignments (uat) are typed; the lecturer's kind is mirrored onto the closest type.
+  static readonly typeByKind = Object.freeze({ SOLO: 'PRACTICE', ENSEMBLE: 'RHYTHM', BONUS: 'BONUS', OTHER: 'SHEET' } as const);
+
   // GBR-13: rejected / failed submissions are not counted.
   static readonly uncountedSubmissionStatuses: readonly Backend.SubmissionStatus[] = Object.freeze(['REJECTED', 'FAILED']);
 

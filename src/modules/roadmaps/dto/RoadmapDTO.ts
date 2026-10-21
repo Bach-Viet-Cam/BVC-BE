@@ -1,3 +1,4 @@
+import PieceUtil from '../../../utils/PieceUtil.ts';
 import RoadmapConstant from '../constant/RoadmapConstant.ts';
 
 export default class RoadmapDTO {
@@ -6,7 +7,7 @@ export default class RoadmapDTO {
       weekNumber: week.weekNumber,
       title: week.title,
       content: week.content,
-      exercises: week.exercises.map(({ piece }) => ({ pieceId: piece.id, title: piece.title, isAvailable: piece.isVisible }))
+      exercises: week.exercises.map(({ piece }) => ({ pieceId: piece.id, title: piece.title, isAvailable: PieceUtil.isAvailable(piece) }))
     }));
   }
 

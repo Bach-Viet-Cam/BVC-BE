@@ -1,9 +1,11 @@
+import PieceUtil from '../../../utils/PieceUtil.ts';
+
 export default class AssignmentDTO {
   static toBaseDTO(record: Backend.AssignmentRecord): Backend.AssignmentBaseDTO {
     const version = record.currentVersion;
     if (!version) throw new Error(`Assignment ${record.id} has no current version`);
     const piece = version.piece
-      ? { id: version.piece.id, title: version.piece.title, defaultBpm: version.piece.defaultBpm, isAvailable: version.piece.isVisible }
+      ? { id: version.piece.id, title: version.piece.title, defaultBpm: version.piece.bpm, isAvailable: PieceUtil.isAvailable(version.piece) }
       : null;
     return {
       id: record.id,

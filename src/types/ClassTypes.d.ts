@@ -1,5 +1,5 @@
 declare namespace Backend {
-  type ClassStatus = 'ACTIVE' | 'FINISHED';
+  type ClassStatus = 'ACTIVE' | 'ENDED';
   type ClassStatusFilter = ClassStatus | 'ALL';
   type AccountStatusFilter = 'ALL' | 'ACTIVE' | 'PENDING';
   type ImportLogStatus = 'PREVIEW' | 'CONFIRMED' | 'CANCELLED';
@@ -12,7 +12,7 @@ declare namespace Backend {
     cohort: string;
     description: string | null;
     instrumentId: string;
-    lecturerId: string;
+    ownerId: string;
     startDate: Date;
     endDate: Date;
     status: ClassStatus;
@@ -80,7 +80,7 @@ declare namespace Backend {
   interface MemberRecord {
     id: string;
     joinedAt: Date;
-    student: { id: string; username: string; email: string; studentCode: string | null; status: UserStatus };
+    user: { id: string; username: string; email: string; studentCode: string | null; status: UserStatus };
   }
 
   interface MemberDTO {

@@ -34,7 +34,7 @@ describe('Grading settings (admin)', () => {
     expect(response.body.message).toBe('Lưu cấu hình chấm điểm thành công.');
     expect(response.body.data).toMatchObject({ minAccuracy: 60, atRiskMargin: 30 });
     expect(await GradingSettingsService.getGradingSettings()).toMatchObject({ minAccuracy: 60, atRiskMargin: 30 });
-    const row = await TestDatabase.prisma.systemSetting.findUniqueOrThrow({ where: { key: 'grading.minAccuracy' } });
+    const row = await TestDatabase.prisma.systemConfig.findUniqueOrThrow({ where: { key: 'min_accuracy_default' } });
     expect(row.updatedById).toBe(admin.id);
   });
 
@@ -60,7 +60,7 @@ describe('Grading settings (admin)', () => {
   });
 
   it('missing key makes getGradingSettings throw 500', async () => {
-    await TestDatabase.prisma.systemSetting.delete({ where: { key: 'grading.atRiskMargin' } });
+    await TestDatabase.prisma.systemConfig.delete({ where: { key: 'at_risk_margin' } });
     await expect(GradingSettingsService.getGradingSettings()).rejects.toMatchObject({ statusCode: 500 });
   });
 });

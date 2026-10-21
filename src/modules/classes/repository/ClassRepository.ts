@@ -9,7 +9,7 @@ export default class ClassRepository {
 
   static buildListWhere(lecturerId: string, query: Backend.ClassListQuery): Prisma.ClassWhereInput {
     return {
-      lecturerId,
+      ownerId: lecturerId,
       ...(query.status !== 'ALL' ? { status: query.status } : {}),
       ...(query.cohort ? { cohort: query.cohort } : {}),
       ...(query.instrumentId ? { instrumentId: query.instrumentId } : {}),
@@ -33,12 +33,12 @@ export default class ClassRepository {
   }
 
   static async countActiveClasses(lecturerId: string): Promise<number> {
-    return ClassRepository.client.class.count({ where: { lecturerId, status: 'ACTIVE' } });
+    return ClassRepository.client.class.count({ where: { ownerId: lecturerId, status: 'ACTIVE' } });
   }
 
   static async findCohorts(lecturerId: string): Promise<string[]> {
     const cohorts = await ClassRepository.client.class.findMany({
-      where: { lecturerId },
+      where: { ownerId: lecturerId },
       distinct: ['cohort'],
       select: { cohort: true },
       orderBy: { cohort: 'desc' }
@@ -62,7 +62,7 @@ export default class ClassRepository {
     });
   }
 
-  static async findInstrumentById(instrumentId: string): Promise<Backend.InstrumentRecord | null> {
+  static async findInstrumentById(instrumentId: string): Promise<Backend.InstrumentDTO | null> {
     return ClassRepository.client.instrument.findUnique({
       where: { id: instrumentId },
       select: { id: true, name: true, isActive: true }
@@ -70,7 +70,7 @@ export default class ClassRepository {
   }
 
   static async createClass(lecturerId: string, data: Backend.ClassWriteData, client: Prisma.TransactionClient = ClassRepository.client): Promise<Backend.ClassRecord> {
-    const classRecord = await client.class.create({ data: { ...data, lecturerId }, select: ClassModel.classSelect });
+    const classRecord = await client.class.create({ data: { ...data, ownerId: lecturerId }, select: ClassModel.classSelect });
     return classRecord as Backend.ClassRecord;
   }
 
@@ -82,7 +82,7 @@ export default class ClassRepository {
   static async markClassFinished(classId: string, endedAt: Date, client: Prisma.TransactionClient = ClassRepository.client): Promise<Backend.ClassRecord> {
     const classRecord = await client.class.update({
       where: { id: classId },
-      data: { status: 'FINISHED', endedAt },
+      data: { status: 'ENDED', endedAt },
       select: ClassModel.classSelect
     });
     return classRecord as Backend.ClassRecord;

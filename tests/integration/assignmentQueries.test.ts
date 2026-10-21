@@ -58,7 +58,7 @@ describe('Assignment queries (lecturer) + canSubmit', () => {
 
   it('detail lists active members with status, counts, best accuracy and effective bpm', async () => {
     const piece = await TestDatabase.createPiece(tranh.id, { title: 'Lý ngựa ô' });
-    await TestDatabase.prisma.piece.update({ where: { id: piece.id }, data: { defaultBpm: 96 } });
+    await TestDatabase.prisma.piece.update({ where: { id: piece.id }, data: { bpm: 96 } });
     const assignment = await TestDatabase.createAssignment(classRecord.id, lecturer.id, { pieceId: piece.id });
     const anh = await member('Trần Minh Anh', 'SE1');
     const han = await member('Phạm Gia Hân', 'SE2');
@@ -150,7 +150,7 @@ describe('Assignment queries (lecturer) + canSubmit', () => {
       expect(await SubmissionPolicyService.canSubmit(anh.id, assignmentId)).toEqual({ allowed: false, reason });
     }
     expect(await SubmissionPolicyService.canSubmit(outsider.id, published.id)).toEqual({ allowed: false, reason });
-    await TestDatabase.prisma.class.update({ where: { id: classRecord.id }, data: { status: 'FINISHED' } });
+    await TestDatabase.prisma.class.update({ where: { id: classRecord.id }, data: { status: 'ENDED' } });
     expect(await SubmissionPolicyService.canSubmit(anh.id, published.id)).toEqual({ allowed: false, reason });
   });
 });

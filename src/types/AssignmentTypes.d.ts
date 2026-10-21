@@ -34,7 +34,7 @@ declare namespace Backend {
     publishedAt: Date | null;
     closedAt: Date | null;
     updatedAt: Date;
-    class: { id: string; name: string; status: ClassStatus; instrumentId: string; lecturerId: string };
+    class: { id: string; name: string; status: ClassStatus; instrumentId: string; ownerId: string };
     currentVersion: {
       id: string;
       version: number;
@@ -42,7 +42,7 @@ declare namespace Backend {
       description: string | null;
       kind: AssignmentKind;
       requiredBpm: number | null;
-      piece: { id: string; title: string; defaultBpm: number | null; isVisible: boolean } | null;
+      piece: { id: string; title: string; bpm: number; visibility: 'PUBLIC' | 'HIDDEN'; moderation: 'NORMAL' | 'ADMIN_HIDDEN'; deletedAt: Date | null } | null;
     } | null;
   }
 

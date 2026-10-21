@@ -2,19 +2,17 @@ import type { Prisma } from '@prisma/client';
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
 import AssignmentConstant from '../constant/AssignmentConstant.ts';
 
-const toNumber = (value: Prisma.Decimal | null): number | null => (value === null ? null : Number(value));
-
-// TODO(M01): reads (and, for comments, writes next to) the minimal submissions table that M01 will fill.
+// Reads submissions (written by the audio flow) and writes the lecturer comment next to them.
 export default class SubmissionRepository {
   static get client() {
     return PrismaClientProvider.instance;
   }
 
-  static async findActiveMembers(classIds: string[]): Promise<Array<{ classId: string; student: { id: string; username: string; studentCode: string | null } }>> {
+  static async findActiveMembers(classIds: string[]): Promise<Array<{ classId: string; user: { id: string; username: string; studentCode: string | null } }>> {
     return SubmissionRepository.client.classMember.findMany({
       where: { classId: { in: classIds }, removedAt: null },
-      orderBy: { student: { username: 'asc' } },
-      select: { classId: true, student: { select: { id: true, username: true, studentCode: true } } }
+      orderBy: { user: { username: 'asc' } },
+      select: { classId: true, user: { select: { id: true, username: true, studentCode: true } } }
     });
   }
 
@@ -34,12 +32,12 @@ export default class SubmissionRepository {
   static async findSnapshotsByStudent(assignmentId: string): Promise<Map<string, Backend.SubmissionSnapshot[]>> {
     const rows = await SubmissionRepository.client.submission.findMany({
       where: { assignmentId },
-      select: { studentId: true, status: true, accuracy: true, submittedAt: true }
+      select: { studentId: true, status: true, accuracy: true, createdAt: true }
     });
     const byStudent = new Map<string, Backend.SubmissionSnapshot[]>();
     for (const row of rows) {
       const snapshots = byStudent.get(row.studentId) ?? [];
-      snapshots.push({ status: row.status, accuracy: toNumber(row.accuracy), submittedAt: row.submittedAt });
+      snapshots.push({ status: row.status, accuracy: row.accuracy, submittedAt: row.createdAt });
       byStudent.set(row.studentId, snapshots);
     }
     return byStudent;
@@ -48,26 +46,26 @@ export default class SubmissionRepository {
   static async findStudentSubmissions(assignmentId: string, studentId: string): Promise<Array<Omit<Backend.StudentSubmissionDTO, 'attemptNumber' | 'submittedAt' | 'comment'> & { submittedAt: Date; comment: { content: string; updatedAt: Date } | null }>> {
     const rows = await SubmissionRepository.client.submission.findMany({
       where: { assignmentId, studentId },
-      orderBy: { submittedAt: 'asc' },
+      orderBy: { createdAt: 'asc' },
       select: {
         id: true,
         status: true,
         accuracy: true,
         tempoDeviation: true,
-        audioUrl: true,
-        submittedAt: true,
+        fileUrl: true,
+        createdAt: true,
         assignmentVersion: { select: { version: true } },
         comment: { select: { content: true, updatedAt: true } }
       }
     });
     return rows.map((row) => ({
       id: row.id,
-      version: row.assignmentVersion.version,
+      version: row.assignmentVersion?.version ?? 1,
       status: row.status,
-      accuracy: toNumber(row.accuracy),
-      tempoDeviation: toNumber(row.tempoDeviation),
-      audioUrl: row.audioUrl,
-      submittedAt: row.submittedAt,
+      accuracy: row.accuracy,
+      tempoDeviation: row.tempoDeviation,
+      audioUrl: row.fileUrl ?? '',
+      submittedAt: row.createdAt,
       comment: row.comment
     }));
   }
@@ -77,7 +75,7 @@ export default class SubmissionRepository {
     studentId: string;
     assignmentId: string;
     comment: { id: string } | null;
-    assignment: { deletedAt: Date | null; currentVersion: { title: string } | null; class: { id: string; name: string; status: Backend.ClassStatus; lecturerId: string } };
+    assignment: { deletedAt: Date | null; currentVersion: { title: string } | null; class: { id: string; name: string; status: Backend.ClassStatus; ownerId: string } };
   } | null> {
     return SubmissionRepository.client.submission.findUnique({
       where: { id: submissionId },
@@ -90,7 +88,7 @@ export default class SubmissionRepository {
           select: {
             deletedAt: true,
             currentVersion: { select: { title: true } },
-            class: { select: { id: true, name: true, status: true, lecturerId: true } }
+            class: { select: { id: true, name: true, status: true, ownerId: true } }
           }
         }
       }
@@ -107,10 +105,11 @@ export default class SubmissionRepository {
   }
 
   static async findClassPieces(instrumentId: string): Promise<Backend.ClassPieceDTO[]> {
-    return SubmissionRepository.client.piece.findMany({
-      where: { instrumentId, isVisible: true },
+    const pieces = await SubmissionRepository.client.piece.findMany({
+      where: { instruments: { some: { instrumentId } }, visibility: 'PUBLIC', moderation: 'NORMAL', deletedAt: null },
       orderBy: { title: 'asc' },
-      select: { id: true, title: true, kind: true, defaultBpm: true }
+      select: { id: true, title: true, kind: true, bpm: true }
     });
+    return pieces.map((piece) => ({ id: piece.id, title: piece.title, kind: piece.kind, defaultBpm: piece.bpm }));
   }
 }

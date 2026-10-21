@@ -25,7 +25,7 @@ describe('Assignment lifecycle (lecturer)', () => {
 
   const create = (body: object, token: string = lecturerToken) => request(app).post('/api/v1/assignments').set('Authorization', token).send(body);
   const base = () => ({ classId: classRecord.id, title: 'Luyện Lý ngựa ô', kind: 'SOLO', publish: false });
-  const countNotifications = () => TestDatabase.prisma.notification.count();
+  const countNotifications = () => TestDatabase.prisma.userNotification.count();
 
   it('creates a draft without notifications', async () => {
     const member = await TestDatabase.createUser();
@@ -49,9 +49,9 @@ describe('Assignment lifecycle (lecturer)', () => {
     const response = await create({ ...base(), publish: true });
     expect(response.status).toBe(201);
     expect(response.body.data.status).toBe('PUBLISHED');
-    const notifications = await TestDatabase.prisma.notification.findMany();
-    expect(notifications.map((item) => item.userId).sort()).toEqual([first.id, second.id].sort());
-    expect(notifications[0]).toMatchObject({ title: 'Bài tập mới', body: 'TRD301 · Luyện Lý ngựa ô', link: `/student/assignments/${response.body.data.id}` });
+    const deliveries = await TestDatabase.prisma.userNotification.findMany({ include: { notification: true } });
+    expect(deliveries.map((item) => item.userId).sort()).toEqual([first.id, second.id].sort());
+    expect(deliveries[0].notification).toMatchObject({ title: 'Bài tập mới', body: 'TRD301 · Luyện Lý ngựa ô', link: `/student/assignments/${response.body.data.id}` });
   });
 
   it('validates title, description, kind and bpm', async () => {
@@ -102,7 +102,7 @@ describe('Assignment lifecycle (lecturer)', () => {
   it('editing with a hidden piece returns MSG-48', async () => {
     const piece = await TestDatabase.createPiece(tranh.id);
     const created = (await create({ ...base(), pieceId: piece.id })).body.data;
-    await TestDatabase.prisma.piece.update({ where: { id: piece.id }, data: { isVisible: false } });
+    await TestDatabase.prisma.piece.update({ where: { id: piece.id }, data: { visibility: 'HIDDEN' } });
     const response = await request(app).put(`/api/v1/assignments/${created.id}`).set('Authorization', lecturerToken).send({ title: 'Sửa', kind: 'SOLO', pieceId: piece.id });
     expect(response.status).toBe(400);
     expect(response.body.errors[0]).toMatchObject({ field: 'pieceId', code: 'MSG-48' });

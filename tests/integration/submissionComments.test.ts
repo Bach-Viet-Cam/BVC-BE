@@ -39,13 +39,14 @@ describe('Submission comments (lecturer)', () => {
     expect(first.status).toBe(200);
     expect(first.body.message).toBe('Gửi nhận xét thành công.');
     expect(first.body.data).toMatchObject({ content: 'Nhịp tuần này ổn, chú ý ngón vê.' });
-    const notifications = await TestDatabase.prisma.notification.findMany({ where: { userId: student.id } });
+    const deliveries = await TestDatabase.prisma.userNotification.findMany({ where: { userId: student.id }, include: { notification: true } });
+    const notifications = deliveries.map((delivery) => delivery.notification);
     expect(notifications).toHaveLength(1);
     expect(notifications[0]).toMatchObject({ title: 'Giảng viên đã nhận xét bài nộp', body: 'TRD301 · Độc tấu', link: `/student/assignments/${assignmentId}` });
 
     const update = await comment('Đã sửa nhận xét');
     expect(update.body.message).toBe('Cập nhật nhận xét thành công.');
-    expect(await TestDatabase.prisma.notification.count()).toBe(1);
+    expect(await TestDatabase.prisma.userNotification.count()).toBe(1);
     expect(await TestDatabase.prisma.submissionComment.count()).toBe(1);
 
     const submissions = await request(app).get(`/api/v1/assignments/${assignmentId}/students/${student.id}/submissions`).set('Authorization', lecturerToken);
@@ -67,7 +68,7 @@ describe('Submission comments (lecturer)', () => {
     expect(removed.body.message).toBe('Không thể nhận xét vì lớp đã kết thúc hoặc sinh viên không còn trong lớp.');
 
     await TestDatabase.prisma.classMember.update({ where: { id: membershipId }, data: { removedAt: null } });
-    await TestDatabase.prisma.class.update({ where: { id: classRecord.id }, data: { status: 'FINISHED' } });
+    await TestDatabase.prisma.class.update({ where: { id: classRecord.id }, data: { status: 'ENDED' } });
     expect((await comment('Không gửi được')).status).toBe(409);
     expect(await TestDatabase.prisma.submissionComment.count()).toBe(0);
   });

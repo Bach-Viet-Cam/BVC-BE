@@ -8,6 +8,7 @@ import EnvConfig from '../../../config/EnvConfig.ts';
 import AppError from '../../../utils/AppError.ts';
 import AuthConstant from '../constant/AuthConstant.ts';
 import AuthDTO from '../dto/AuthDTO.ts';
+import AuthPolicyService from './AuthPolicyService.ts';
 import AuthRepository from '../repository/AuthRepository.ts';
 
 const envConfig = EnvConfig;
@@ -19,12 +20,6 @@ const toUserDTO = AuthDTO.toUserDTO;
 
 export default class AuthService {
   static readonly googleClient = new OAuth2Client(EnvConfig.googleClientId);
-
-  static getSafeRole(role: Backend.UserRole | undefined): Backend.UserRole {
-    return role !== undefined && AuthConstant.selfRegisterableRoles.has(role)
-      ? role
-      : AuthConstant.roles.STUDENT;
-  }
 
   static createAccessToken(user: Backend.UserRecord): string {
     return jwt.sign(
@@ -53,7 +48,7 @@ export default class AuthService {
       httpOnly: true,
       secure: EnvConfig.nodeEnv === 'production',
       sameSite: 'lax' as const,
-      path: '/api/auth',
+      path: '/api/v1/auth',
       maxAge: EnvConfig.refreshTokenExpiresInDays * 24 * 60 * 60
     };
   }
@@ -95,36 +90,36 @@ export default class AuthService {
     throw AppError.unauthorized(AUTH_MESSAGES.GOOGLE_TOKEN_INVALID);
   }
 }
-  static assertUserCanSignIn(user: Backend.UserRecord): Backend.UserRecord {
-    if (user.status === 'LOCKED') throw AppError.unauthorized(AUTH_MESSAGES.ACCOUNT_LOCKED);
-    return user;
-  }
-
-  static async findOrCreateUser(googleProfile: Backend.GoogleProfile, requestedRole?: Backend.UserRole): Promise<Backend.UserRecord> {
+  static async findUserForGoogleLogin(googleProfile: Backend.GoogleProfile): Promise<Backend.UserRecord> {
     const existingIdentity = await authRepository.findIdentityByProvider(
       AUTH_PROVIDERS.GOOGLE,
       googleProfile.providerId
     );
 
-    if (existingIdentity) return AuthService.assertUserCanSignIn(existingIdentity.user);
+    if (existingIdentity) return existingIdentity.user;
 
     const existingUser = await authRepository.findUserByEmail(googleProfile.email);
-    if (existingUser) {
-      AuthService.assertUserCanSignIn(existingUser);
-      await authRepository.createIdentity({
-        userId: existingUser.id,
-        provider: AUTH_PROVIDERS.GOOGLE,
-        providerId: googleProfile.providerId
-      });
-      // GBR-38: an imported Pending student becomes Active on the first Google sign-in with that email.
-      return existingUser.status === 'PENDING' ? authRepository.activatePendingUser(existingUser.id) : existingUser;
-    }
-
-    return authRepository.createUserWithIdentity({
-      ...googleProfile,
-      role: AuthService.getSafeRole(requestedRole),
-      provider: AUTH_PROVIDERS.GOOGLE
+    if (!existingUser) throw AppError.unauthorized(AUTH_MESSAGES.ACCOUNT_NOT_PROVISIONED);
+    AuthService.assertNotLocked(existingUser);
+    await authRepository.createIdentity({
+      userId: existingUser.id,
+      provider: AUTH_PROVIDERS.GOOGLE,
+      providerId: googleProfile.providerId
     });
+    return existingUser;
+  }
+
+  static assertNotLocked(user: Backend.UserRecord): void {
+    if (!AuthPolicyService.resolveLogin(user.status).isAllowed) {
+      throw AppError.forbidden(AUTH_MESSAGES.ACCOUNT_LOCKED);
+    }
+  }
+
+  static async activateOnLogin(user: Backend.UserRecord): Promise<Backend.UserRecord> {
+    const { isAllowed, nextStatus } = AuthPolicyService.resolveLogin(user.status);
+    if (!isAllowed) throw AppError.forbidden(AUTH_MESSAGES.ACCOUNT_LOCKED);
+    await authRepository.markLoggedIn(user.id, nextStatus);
+    return { ...user, status: nextStatus };
   }
 
   static async createSessionForUser(user: Backend.UserRecord): Promise<Backend.AuthTokens> {
@@ -141,9 +136,10 @@ export default class AuthService {
     };
   }
 
-  static async authenticateWithGoogle({ credential, role }: Backend.GoogleAuthRequest): Promise<Backend.AuthResult> {
+  static async authenticateWithGoogle({ credential }: Backend.GoogleAuthRequest): Promise<Backend.AuthResult> {
     const googleProfile = await AuthService.verifyGoogleCredential(credential);
-    const user = await AuthService.findOrCreateUser(googleProfile, role);
+    const foundUser = await AuthService.findUserForGoogleLogin(googleProfile);
+    const user = await AuthService.activateOnLogin(foundUser);
     const tokens = await AuthService.createSessionForUser(user);
 
     return { ...tokens, user: toUserDTO(user) };
@@ -154,6 +150,7 @@ export default class AuthService {
 
     const session = await authRepository.findActiveSessionByHash(AuthService.hashToken(refreshToken));
     if (!session) throw AppError.unauthorized(AUTH_MESSAGES.REFRESH_TOKEN_INVALID);
+    AuthService.assertNotLocked(session.user);
 
     const nextRefreshToken = AuthService.createRefreshToken();
     await authRepository.rotateSession({
@@ -190,7 +187,8 @@ export default class AuthService {
   static async getAuthenticatedUser(userId: string): Promise<Backend.UserDTO> {
     const user = await authRepository.findUserById(userId);
     if (!user) throw AppError.unauthorized(AUTH_MESSAGES.JWT_INVALID);
-    return toUserDTO(AuthService.assertUserCanSignIn(user));
+    AuthService.assertNotLocked(user);
+    return toUserDTO(user);
   }
 
   static getRefreshTokenCookieName(): string {

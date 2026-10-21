@@ -25,13 +25,13 @@ export default class MemberService {
   }
 
   static async addMember(classId: string, lecturerId: string, input: Backend.StudentRowInput): Promise<Backend.MemberDTO> {
-    await ClassAccessService.assertOwnedClass(classId, lecturerId, { requireActive: true });
+    const classRecord = await ClassAccessService.assertOwnedClass(classId, lecturerId, { requireActive: true });
 
     const member = await MemberService.runEnrollmentGuarded(() =>
       PrismaClientProvider.instance.$transaction(async (transaction) => {
         const { rows: [row], context } = await MemberService.validateAgainstDatabase(classId, [{ ...input, rowNumber: 1 }], transaction);
         if (!row.isValid) throw MemberService.rowError(row);
-        const studentIds = await MemberService.enrollValidRows(classId, lecturerId, [row], context, { source: 'MANUAL' }, transaction);
+        const studentIds = await MemberService.enrollValidRows(classId, lecturerId, [row], context, { source: 'MANUAL', instrumentId: classRecord.instrumentId }, transaction);
         await AuditLogger.record({
           actorId: lecturerId,
           action: ClassConstant.auditActions.MEMBER_ADD,
@@ -103,7 +103,7 @@ export default class MemberService {
     actorId: string,
     rows: Backend.ValidatedStudentRow[],
     context: Backend.StudentValidationContext,
-    options: { source: 'IMPORT' | 'MANUAL'; importLogId?: string },
+    options: { source: 'IMPORT' | 'MANUAL'; instrumentId: string; importLogId?: string },
     client: Prisma.TransactionClient
   ): Promise<string[]> {
     const studentIds: string[] = [];
@@ -119,7 +119,7 @@ export default class MemberService {
     }
 
     await MemberRepository.createMembers(
-      studentIds.map((studentId) => ({ classId, studentId, source: options.source, addedById: actorId, importLogId: options.importLogId })),
+      studentIds.map((studentId) => ({ classId, studentId, instrumentId: options.instrumentId, source: options.source, addedById: actorId, importLogId: options.importLogId })),
       client
     );
     return studentIds;

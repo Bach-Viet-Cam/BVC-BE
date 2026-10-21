@@ -81,7 +81,7 @@ describe('Admin roadmaps API (UC-11)', () => {
     expect(all.body.data.map((item: { title: string }) => item.title)).toEqual(['Luyện ngón — Gẩy đơn', 'Luyện ngón — Vê']);
     const filtered = await request(app).get(`/api/v1/admin/roadmaps/${tranh.id}/exercises`).query({ q: 'vê' }).set('Authorization', adminToken);
     expect(filtered.body.data).toHaveLength(1);
-    expect(filtered.body.data[0]).toMatchObject({ title: 'Luyện ngón — Vê', defaultBpm: null });
+    expect(filtered.body.data[0]).toMatchObject({ title: 'Luyện ngón — Vê', defaultBpm: 90 });
   });
 
   it('saves v1 then v2 with exercises in submitted order', async () => {
@@ -115,7 +115,7 @@ describe('Admin roadmaps API (UC-11)', () => {
   it('backfills only ACTIVE classes without a roadmap on save', async () => {
     const lecturer = await TestDatabase.createLecturer();
     const activeWithout = await TestDatabase.createClass(lecturer.id, tranh.id);
-    const finishedWithout = await TestDatabase.createClass(lecturer.id, tranh.id, { status: 'FINISHED' });
+    const finishedWithout = await TestDatabase.createClass(lecturer.id, tranh.id, { status: 'ENDED' });
     const v1 = await save(tranh.id, weeksPayload());
     const pinnedToV1 = await TestDatabase.createClass(lecturer.id, tranh.id);
     await TestDatabase.prisma.class.update({ where: { id: pinnedToV1.id }, data: { roadmapId: v1.body.data.id } });

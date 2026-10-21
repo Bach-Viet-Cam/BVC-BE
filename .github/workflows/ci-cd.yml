@@ -3,9 +3,9 @@ name: CI/CD
 on:
   workflow_dispatch:
   pull_request:
-    branches: [main]
+    branches: [uat]
   push:
-    branches: [main]
+    branches: [uat]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -93,9 +93,17 @@ jobs:
             }
           }
 
-      - name: Rebuild and restart with Docker Compose
+      - name: Build, migrate, and restart with Docker Compose
         run: |
-          docker compose up -d --build --remove-orphans
+          docker compose build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          docker compose run --rm --no-deps backend npx prisma migrate deploy
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+          docker compose up -d --no-build --remove-orphans
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
           docker image prune -f
 
       - name: Smoke test health endpoint

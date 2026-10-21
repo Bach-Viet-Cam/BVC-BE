@@ -7,8 +7,8 @@ import ClassRepository from '../repository/ClassRepository.ts';
 export default class ClassAccessService {
   static async assertOwnedClass(classId: string, lecturerId: string, options: { requireActive?: boolean } = {}): Promise<Backend.ClassRecord> {
     const classRecord = await ClassRepository.findClassById(classId);
-    if (!classRecord || classRecord.lecturerId !== lecturerId) throw AppError.notFound(ClassConstant.messages.CLASS_NOT_FOUND);
-    if (options.requireActive && classRecord.status === 'FINISHED') {
+    if (!classRecord || classRecord.ownerId !== lecturerId) throw AppError.notFound(ClassConstant.messages.CLASS_NOT_FOUND);
+    if (options.requireActive && classRecord.status === 'ENDED') {
       throw AppError.conflict(ClassConstant.messages.CLASS_FINISHED, { code: 'MSG-08' });
     }
     return classRecord;

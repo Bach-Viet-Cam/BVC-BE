@@ -12,9 +12,9 @@ declare namespace Backend {
   interface PieceSnapshot {
     id: string;
     title: string;
-    instrumentId: string;
+    instrumentIds: string[];
     kind: PieceKind;
-    isVisible: boolean;
+    isAvailable: boolean;
   }
 }
 
@@ -71,7 +71,7 @@ declare namespace Backend {
       weekNumber: number;
       title: string;
       content: string;
-      exercises: Array<{ piece: { id: string; title: string; isVisible: boolean } }>;
+      exercises: Array<{ piece: { id: string; title: string; visibility: string; moderation: string; deletedAt: Date | null } }>;
     }>;
   }
 }

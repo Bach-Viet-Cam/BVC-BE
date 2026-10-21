@@ -22,9 +22,13 @@ logs/
 *.log
 npm-debug.log*
 
-# Prisma — migrations are versioned (team switched from db push to prisma migrate in M03)
-
 # Build
 dist/
 build/
-coverage/
+
+# Local object storage (STORAGE_DRIVER=local)
+/storage/
+/storage-test/
+
+# Uploaded files (generated at runtime / by seed)
+/uploads/

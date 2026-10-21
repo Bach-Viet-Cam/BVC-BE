@@ -1,5 +1,7 @@
 import PrismaClientProvider from '../../src/config/PrismaClient.ts';
 import AuthService from '../../src/modules/auth/service/AuthService.ts';
+import AssignmentRepository from '../../src/modules/assignments/repository/AssignmentRepository.ts';
+import PlatformConstant from '../../src/modules/platform/constant/PlatformConstant.ts';
 import DateTimeUtil from '../../src/utils/DateTimeUtil.ts';
 
 const ROLES = { STUDENT: 1, TEACHER: 2, SYSTEM_ADMIN: 3 } as const;
@@ -16,18 +18,25 @@ export default class TestDatabase {
   static async reset(): Promise<void> {
     const databaseUrl = process.env.DATABASE_URL ?? '';
     if (!databaseUrl.includes('test')) throw new Error(`Refusing to truncate a non-test database: ${databaseUrl}`);
-    await TestDatabase.prisma.$executeRawUnsafe(
-      'TRUNCATE TABLE submission_comments, submissions, notifications, assignment_versions, assignments, audit_logs, class_members, student_import_logs, roadmap_week_exercises, roadmap_weeks, classes, roadmaps, pieces, instruments, system_settings, auth_sessions, auth_identities, users CASCADE'
-    );
+    const tables = await TestDatabase.prisma.$queryRaw<Array<{ tablename: string }>>`
+      SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename NOT LIKE '%prisma%'
+    `;
+    const tableList = tables.map(({ tablename }) => `"${tablename}"`).join(', ');
+    await TestDatabase.prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tableList} CASCADE`);
     await TestDatabase.resetGradingSettings();
   }
 
-  // Same initial values as migration 20261017000000_m03_assignments.
+  // Grading thresholds live in system_configs (SCORING group); there is no code fallback.
   static async resetGradingSettings(minAccuracy: number = 70, atRiskMargin: number = 40): Promise<void> {
-    await TestDatabase.prisma.$executeRawUnsafe(
-      `INSERT INTO system_settings (key, value, updated_at) VALUES ('grading.minAccuracy', '${minAccuracy}', NOW()), ('grading.atRiskMargin', '${atRiskMargin}', NOW())
-       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`
-    );
+    const { MIN_ACCURACY, AT_RISK_MARGIN } = PlatformConstant.settingKeys;
+    const { group, valueType, label } = PlatformConstant.atRiskMarginConfig;
+    for (const [key, value] of [[MIN_ACCURACY, minAccuracy], [AT_RISK_MARGIN, atRiskMargin]] as const) {
+      await TestDatabase.prisma.systemConfig.upsert({
+        where: { key },
+        update: { value: String(value) },
+        create: { key, value: String(value), valueType, group, label: `${label} ${key}` }
+      });
+    }
   }
 
   static nextId(): number {
@@ -53,28 +62,35 @@ export default class TestDatabase {
   }
 
   static async createInstrument(name: string = `Đàn ${TestDatabase.nextId()}`, isActive: boolean = true) {
-    return TestDatabase.prisma.instrument.create({ data: { name, isActive } });
+    return TestDatabase.prisma.instrument.create({ data: { name, code: `INS_${TestDatabase.nextId()}_${Date.now()}`, isActive } });
   }
 
-  static async createPiece(instrumentId: string, overrides: Partial<{ title: string; kind: 'FINGER_EXERCISE' | 'SONG'; isVisible: boolean }> = {}) {
+  static async createPiece(instrumentId: string, overrides: Partial<{ title: string; kind: 'FINGER_EXERCISE' | 'SONG'; isVisible: boolean; bpm: number }> = {}) {
+    const owner = await TestDatabase.createUser({ role: ROLES.SYSTEM_ADMIN });
+    const genre = await TestDatabase.prisma.category.upsert({ where: { type_name: { type: 'GENRE', name: 'Thể loại test' } }, update: {}, create: { type: 'GENRE', name: 'Thể loại test' } });
+    const level = await TestDatabase.prisma.category.upsert({ where: { type_name: { type: 'LEVEL', name: 'Trình độ test' } }, update: {}, create: { type: 'LEVEL', name: 'Trình độ test' } });
     return TestDatabase.prisma.piece.create({
       data: {
         title: overrides.title ?? `Luyện ngón ${TestDatabase.nextId()}`,
-        instrumentId,
+        ownerId: owner.id,
+        genreId: genre.id,
+        levelId: level.id,
         kind: overrides.kind ?? 'FINGER_EXERCISE',
-        isVisible: overrides.isVisible ?? true
+        bpm: overrides.bpm ?? 90,
+        visibility: (overrides.isVisible ?? true) ? 'PUBLIC' : 'HIDDEN',
+        instruments: { create: [{ instrumentId }] }
       }
     });
   }
 
-  static async createClass(lecturerId: string, instrumentId: string, overrides: Partial<{ name: string; cohort: string; startDate: string; status: 'ACTIVE' | 'FINISHED' }> = {}) {
+  static async createClass(lecturerId: string, instrumentId: string, overrides: Partial<{ name: string; cohort: string; startDate: string; status: 'ACTIVE' | 'ENDED' }> = {}) {
     const startDate = overrides.startDate ?? DateTimeUtil.addDays(DateTimeUtil.todayInVietnam(), 7);
     return TestDatabase.prisma.class.create({
       data: {
         name: overrides.name ?? `Lớp ${TestDatabase.nextId()}`,
         cohort: overrides.cohort ?? 'FA26',
         instrumentId,
-        lecturerId,
+        ownerId: lecturerId,
         startDate: DateTimeUtil.toDateOnly(startDate),
         endDate: DateTimeUtil.toDateOnly(DateTimeUtil.addDays(startDate, 42)),
         status: overrides.status ?? 'ACTIVE'
@@ -87,21 +103,25 @@ export default class TestDatabase {
     lecturerId: string,
     overrides: Partial<{ title: string; kind: 'SOLO' | 'ENSEMBLE' | 'BONUS' | 'OTHER'; status: 'DRAFT' | 'PUBLISHED' | 'CLOSED'; pieceId: string | null; requiredBpm: number | null; deletedAt: Date | null }> = {}
   ) {
-    const assignment = await TestDatabase.prisma.assignment.create({
-      data: { classId, createdById: lecturerId, status: overrides.status ?? 'PUBLISHED', deletedAt: overrides.deletedAt ?? null }
+    const classRecord = await TestDatabase.prisma.class.findUniqueOrThrow({ where: { id: classId }, select: { endDate: true } });
+    const status = overrides.status ?? 'PUBLISHED';
+    const content = {
+      title: overrides.title ?? `Bài tập ${TestDatabase.nextId()}`,
+      kind: overrides.kind ?? 'SOLO',
+      pieceId: overrides.pieceId ?? null,
+      requiredBpm: overrides.requiredBpm ?? null
+    };
+    const assignment = await AssignmentRepository.createAssignment(
+      { classId, createdById: lecturerId, status, publishedAt: status === 'DRAFT' ? null : new Date(), deadline: classRecord.endDate },
+      content,
+      TestDatabase.prisma
+    );
+    await AssignmentRepository.createVersionAndMakeCurrent(assignment.id, 1, content, lecturerId, TestDatabase.prisma);
+    return TestDatabase.prisma.assignment.update({
+      where: { id: assignment.id },
+      data: { deletedAt: overrides.deletedAt ?? null },
+      include: { currentVersion: true }
     });
-    const version = await TestDatabase.prisma.assignmentVersion.create({
-      data: {
-        assignmentId: assignment.id,
-        version: 1,
-        title: overrides.title ?? `Bài tập ${TestDatabase.nextId()}`,
-        kind: overrides.kind ?? 'SOLO',
-        pieceId: overrides.pieceId ?? null,
-        requiredBpm: overrides.requiredBpm ?? null,
-        createdById: lecturerId
-      }
-    });
-    return TestDatabase.prisma.assignment.update({ where: { id: assignment.id }, data: { currentVersionId: version.id }, include: { currentVersion: true } });
   }
 
   static async createSubmission(
@@ -115,22 +135,22 @@ export default class TestDatabase {
       data: {
         assignmentId,
         assignmentVersionId: overrides.versionId ?? (assignment.currentVersionId as string),
-        classId: assignment.classId,
         studentId,
-        audioUrl: '/samples/bvc-sample.wav',
+        fileUrl: '/samples/bvc-sample.wav',
         status,
         accuracy: overrides.accuracy === undefined ? (status === 'COMPLETED' ? 80 : null) : overrides.accuracy,
-        submittedAt: overrides.submittedAt ?? new Date()
+        createdAt: overrides.submittedAt ?? new Date()
       }
     });
   }
 
   static async addMember(classId: string, studentId: string, addedById: string) {
-    return TestDatabase.prisma.classMember.create({ data: { classId, studentId, addedById, source: 'MANUAL' } });
+    const classRecord = await TestDatabase.prisma.class.findUniqueOrThrow({ where: { id: classId }, select: { instrumentId: true } });
+    return TestDatabase.prisma.classMember.create({ data: { classId, userId: studentId, instrumentId: classRecord.instrumentId, addedById, source: 'MANUAL' } });
   }
 
-  static tokenFor(user: { id: string; email: string; username: string; role: number; status: Backend.UserStatus }): string {
-    return `Bearer ${AuthService.createAccessToken(user)}`;
+  static tokenFor(user: { id: string; email: string; username: string; role: number; status: Backend.UserStatus; studentCode?: string | null }): string {
+    return `Bearer ${AuthService.createAccessToken({ ...user, studentCode: user.studentCode ?? null })}`;
   }
 
   static futureDate(days: number = 7): string {

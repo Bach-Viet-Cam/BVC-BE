@@ -23,13 +23,14 @@ export default class AssignmentService {
     const assignmentId = await PrismaClientProvider.instance.$transaction(async (transaction) => {
       const status: Backend.AssignmentStatus = input.publish ? 'PUBLISHED' : 'DRAFT';
       const created = await AssignmentRepository.createAssignment(
-        { classId: input.classId, createdById: lecturerId, status, publishedAt: input.publish ? new Date() : null },
+        { classId: input.classId, createdById: lecturerId, status, publishedAt: input.publish ? new Date() : null, deadline: classRecord.endDate },
+        input,
         transaction
       );
       await AssignmentRepository.createVersionAndMakeCurrent(created.id, 1, input, lecturerId, transaction);
       await AssignmentService.audit(lecturerId, auditActions.CREATE, created.id, transaction, { status });
       if (input.publish) {
-        await AssignmentService.notifyMembers(input.classId, classRecord.name, input.title, created.id, notifications.PUBLISHED_TITLE, transaction);
+        await AssignmentService.notifyMembers(lecturerId, input.classId, classRecord.name, input.title, created.id, notifications.PUBLISHED_TITLE, transaction);
       }
       return created.id;
     });
@@ -45,7 +46,7 @@ export default class AssignmentService {
       await AssignmentRepository.createVersionAndMakeCurrent(assignmentId, version, input, lecturerId, transaction);
       await AssignmentService.audit(lecturerId, auditActions.UPDATE, assignmentId, transaction, { version });
       if (record.status === 'PUBLISHED') {
-        await AssignmentService.notifyMembers(record.classId, record.class.name, input.title, assignmentId, notifications.UPDATED_TITLE, transaction);
+        await AssignmentService.notifyMembers(lecturerId, record.classId, record.class.name, input.title, assignmentId, notifications.UPDATED_TITLE, transaction);
       }
     });
     return AssignmentService.loadBaseDTO(assignmentId);
@@ -57,7 +58,7 @@ export default class AssignmentService {
       await AssignmentRepository.updateAssignment(assignmentId, { status: 'PUBLISHED', publishedAt: new Date() }, transaction);
       await AssignmentService.audit(lecturerId, auditActions.PUBLISH, assignmentId, transaction);
       const title = record.currentVersion?.title ?? '';
-      await AssignmentService.notifyMembers(record.classId, record.class.name, title, assignmentId, notifications.PUBLISHED_TITLE, transaction);
+      await AssignmentService.notifyMembers(lecturerId, record.classId, record.class.name, title, assignmentId, notifications.PUBLISHED_TITLE, transaction);
     });
     return AssignmentService.loadBaseDTO(assignmentId);
   }
@@ -107,13 +108,13 @@ export default class AssignmentService {
   // A15: any visible piece of the class instrument (songs and finger exercises).
   static async assertPieceSelectable(pieceId: string | null | undefined, instrumentId: string): Promise<void> {
     if (!pieceId) return;
-    const piece = await AssignmentRepository.findPiece(pieceId);
-    if (!piece || !piece.isVisible || piece.instrumentId !== instrumentId) {
+    if (!(await AssignmentRepository.isPieceSelectable(pieceId, instrumentId))) {
       throw AppError.fieldError(400, { field: 'pieceId', code: 'MSG-48', message: messages.PIECE_UNAVAILABLE });
     }
   }
 
   static async notifyMembers(
+    actorId: string,
     classId: string,
     className: string,
     title: string,
@@ -123,6 +124,7 @@ export default class AssignmentService {
   ): Promise<void> {
     const memberIds = await MemberRepository.findActiveMemberIds(classId, client);
     await NotificationService.notifyUsers(
+      actorId,
       [...memberIds],
       { title: notificationTitle, body: notifications.body(className, title), link: notifications.link(assignmentId) },
       client

@@ -4,10 +4,4 @@ declare namespace Backend {
     atRiskMargin: number;
     updatedAt: string | null;
   }
-
-  interface NotificationInput {
-    title: string;
-    body: string;
-    link: string;
-  }
 }

@@ -106,7 +106,7 @@ describe('Class roadmap (UC-11 pinning + read-only tab)', () => {
     const piece = await TestDatabase.createPiece(tranh.id);
     await saveRoadmap(tranh.id, [piece.id]);
     const classId = await createClassViaApi(tranh.id);
-    await TestDatabase.prisma.piece.update({ where: { id: piece.id }, data: { isVisible: false } });
+    await TestDatabase.prisma.piece.update({ where: { id: piece.id }, data: { visibility: 'HIDDEN' } });
 
     const response = await request(app).get(`/api/v1/classes/${classId}/roadmap`).set('Authorization', lecturerToken);
     expect(response.body.data.roadmap.weeks[0].exercises).toEqual([{ pieceId: piece.id, title: piece.title, isAvailable: false }]);

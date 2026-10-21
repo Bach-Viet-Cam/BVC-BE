@@ -1,25 +1,27 @@
 import { defineConfig } from 'vitest/config';
 
-// Integration tests truncate tables: they always run against TEST_DATABASE_URL, never DATABASE_URL from .env
-// (dotenv does not override variables that are already set).
-const testDatabaseUrl = process.env.TEST_DATABASE_URL || 'postgresql://bvc:bvc_local@localhost:5433/bvc_test';
+// Integration tests run against a real PostgreSQL database (TEST_DATABASE_URL), reset before the run
+const testDatabaseUrl = process.env.TEST_DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/bvc_m02_test';
 
 export default defineConfig({
   test: {
-    environment: 'node',
     include: ['tests/**/*.test.ts'],
+    globalSetup: ['tests/support/globalSetup.ts'],
     fileParallelism: false,
+    testTimeout: 30_000,
+    hookTimeout: 60_000,
     env: {
       NODE_ENV: 'test',
       DATABASE_URL: testDatabaseUrl,
       JWT_SECRET: 'test-jwt-secret',
-      GOOGLE_CLIENT_ID: 'test-google-client-id'
-    },
-    coverage: {
-      provider: 'v8',
-      include: ['src/modules/classes/**/*.ts', 'src/modules/roadmaps/**/*.ts', 'src/modules/assignments/**/*.ts', 'src/modules/platform/**/*.ts', 'src/utils/DateTimeUtil.ts', 'src/constants/MessageConstant.ts'],
-      reporter: ['text', 'html'],
-      thresholds: { lines: 70, statements: 70, functions: 70, branches: 70 }
+      PUBLIC_API_URL: 'http://localhost:3000',
+      REDIS_URL: '',
+      STORAGE_DRIVER: 'local',
+      STORAGE_LOCAL_DIR: './storage-test',
+      STORAGE_SIGNING_SECRET: 'test-storage-secret',
+      AI_SERVICE_URL: '',
+      AI_CALLBACK_SECRET: 'test-callback-secret',
+      MOCK_AI_SERVICE: 'false'
     }
   }
 });

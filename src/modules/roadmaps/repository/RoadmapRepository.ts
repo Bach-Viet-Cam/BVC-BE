@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
+import PieceUtil from '../../../utils/PieceUtil.ts';
 import RoadmapModel from '../model/RoadmapModel.ts';
 
 export default class RoadmapRepository {
@@ -38,20 +39,30 @@ export default class RoadmapRepository {
 
   static async findPiecesByIds(pieceIds: string[]): Promise<Backend.PieceSnapshot[]> {
     if (pieceIds.length === 0) return [];
-    return RoadmapRepository.client.piece.findMany({ where: { id: { in: pieceIds } }, select: RoadmapModel.pieceSnapshotSelect });
+    const pieces = await RoadmapRepository.client.piece.findMany({ where: { id: { in: pieceIds } }, select: RoadmapModel.pieceSnapshotSelect });
+    return pieces.map((piece) => ({
+      id: piece.id,
+      title: piece.title,
+      kind: piece.kind,
+      instrumentIds: piece.instruments.map((instrument) => instrument.instrumentId),
+      isAvailable: PieceUtil.isAvailable(piece)
+    }));
   }
 
   static async findFingerExercises(instrumentId: string, query?: string): Promise<Backend.FingerExerciseDTO[]> {
-    return RoadmapRepository.client.piece.findMany({
+    const exercises = await RoadmapRepository.client.piece.findMany({
       where: {
-        instrumentId,
+        instruments: { some: { instrumentId } },
         kind: 'FINGER_EXERCISE',
-        isVisible: true,
+        visibility: 'PUBLIC',
+        moderation: 'NORMAL',
+        deletedAt: null,
         ...(query ? { title: { contains: query, mode: 'insensitive' as const } } : {})
       },
       orderBy: { title: 'asc' },
       select: RoadmapModel.fingerExerciseSelect
     });
+    return exercises.map((exercise) => ({ id: exercise.id, title: exercise.title, defaultBpm: exercise.bpm }));
   }
 
   static async findMaxVersion(instrumentId: string, client: Prisma.TransactionClient): Promise<number> {

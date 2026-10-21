@@ -21,7 +21,7 @@ export default class MemberRepository {
     return {
       classId,
       ...ClassModel.activeMemberFilter,
-      ...(studentFilters.length ? { student: { AND: studentFilters } } : {})
+      ...(studentFilters.length ? { user: { AND: studentFilters } } : {})
     };
   }
 
@@ -31,7 +31,7 @@ export default class MemberRepository {
       MemberRepository.client.classMember.findMany({
         where,
         select: ClassModel.memberSelect,
-        orderBy: [{ student: { username: 'asc' } }],
+        orderBy: [{ user: { username: 'asc' } }],
         skip: (query.page - 1) * query.limit,
         take: query.limit
       }),
@@ -43,7 +43,7 @@ export default class MemberRepository {
 
   static async findActiveMembership(classId: string, studentId: string, client: Prisma.TransactionClient = MemberRepository.client): Promise<Backend.MemberRecord | null> {
     const member = await client.classMember.findFirst({
-      where: { classId, studentId, ...ClassModel.activeMemberFilter },
+      where: { classId, userId: studentId, ...ClassModel.activeMemberFilter },
       select: ClassModel.memberSelect
     });
     return member as Backend.MemberRecord | null;
@@ -52,9 +52,9 @@ export default class MemberRepository {
   static async findActiveMemberIds(classId: string, client: Prisma.TransactionClient = MemberRepository.client): Promise<Set<string>> {
     const members = await client.classMember.findMany({
       where: { classId, ...ClassModel.activeMemberFilter },
-      select: { studentId: true }
+      select: { userId: true }
     });
-    return new Set(members.map((member) => member.studentId));
+    return new Set(members.map((member) => member.userId));
   }
 
   static async findUsersByEmailsOrCodes(
@@ -85,10 +85,12 @@ export default class MemberRepository {
   }
 
   static async createMembers(
-    memberships: Array<{ classId: string; studentId: string; source: 'IMPORT' | 'MANUAL'; addedById: string; importLogId?: string }>,
+    memberships: Array<{ classId: string; studentId: string; instrumentId: string; source: 'IMPORT' | 'MANUAL'; addedById: string; importLogId?: string }>,
     client: Prisma.TransactionClient
   ): Promise<number> {
-    const result = await client.classMember.createMany({ data: memberships });
+    const result = await client.classMember.createMany({
+      data: memberships.map(({ studentId, ...membership }) => ({ ...membership, userId: studentId }))
+    });
     return result.count;
   }
 

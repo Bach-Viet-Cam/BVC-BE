@@ -51,7 +51,7 @@ export default class ClassValidation {
       q: optionalSearch(),
       cohort: z.string().trim().max(limits.COHORT_MAX).optional().transform((value) => value || undefined),
       instrumentId: z.uuid().optional(),
-      status: z.enum(['ACTIVE', 'FINISHED', 'ALL']).default('ACTIVE'),
+      status: z.enum(['ACTIVE', 'ENDED', 'ALL']).default('ACTIVE'),
       ...pagination
     })
   });
