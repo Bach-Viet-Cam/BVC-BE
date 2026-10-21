@@ -29,4 +29,15 @@ export default class NotificationValidation {
   static readonly createSchema = z.object({ body: bodySchema, params: noParams, query: noQuery });
   static readonly updateSchema = z.object({ body: bodySchema, params: idParams, query: noQuery });
   static readonly idSchema = z.object({ body: z.unknown(), params: idParams, query: noQuery });
+  static readonly emptySchema = z.object({ body: z.unknown(), params: noParams, query: noQuery });
+  static readonly myListSchema = z.object({
+    body: z.unknown(),
+    params: noParams,
+    query: z.object({
+      unreadOnly: z.enum(['true', 'false']).default('false').transform((flag) => flag === 'true'),
+      type: z.enum(['DEADLINE', 'ANNOUNCEMENT', 'SYSTEM', 'BONUS']).optional(),
+      page: z.coerce.number().int().min(1).default(1),
+      pageSize: z.coerce.number().int().min(1).max(PlatformConstant.notification.maxPageSize).default(PlatformConstant.defaultPageSize)
+    })
+  });
 }

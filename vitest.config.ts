@@ -14,14 +14,10 @@ export default defineConfig({
       NODE_ENV: 'test',
       DATABASE_URL: testDatabaseUrl,
       JWT_SECRET: 'test-jwt-secret',
-      PUBLIC_API_URL: 'http://localhost:3000',
-      REDIS_URL: '',
-      STORAGE_DRIVER: 'local',
-      STORAGE_LOCAL_DIR: './storage-test',
-      STORAGE_SIGNING_SECRET: 'test-storage-secret',
-      AI_SERVICE_URL: '',
-      AI_CALLBACK_SECRET: 'test-callback-secret',
-      MOCK_AI_SERVICE: 'false'
+      FILE_STORAGE_PROVIDER: 'local',
+      FILE_STORAGE_LOCAL_ROOT: './storage-test',
+      FILE_STORAGE_PUBLIC_BASE_URL: 'http://localhost:3000',
+      RABBITMQ_URL: ''
     }
   }
 });

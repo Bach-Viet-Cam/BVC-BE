@@ -38,15 +38,15 @@ and every test file truncates the tables, so never point it at a database with r
 
 | Area | Endpoints |
 |---|---|
-| Uploads (lecturer) | `POST /uploads/presign` → PUT the file to `uploadUrl` → `POST /uploads/:id/confirm` (attaching a file also confirms it) |
+| Uploads (lecturer) | `POST /uploads/presign` → `PUT /uploads/:id/content` (Bearer, raw body) → `POST /uploads/:id/confirm` (attaching a file also confirms it) |
 | Pieces (lecturer) | `GET/POST /lecturer/pieces`, `GET/PUT /lecturer/pieces/:id`, `PATCH /lecturer/pieces/:id/visibility`, `PUT/DELETE /lecturer/pieces/:id/cover` |
 | Sheet music (lecturer) | `GET/POST /lecturer/pieces/:id/sheet-music`, `GET/PUT /lecturer/sheet-music/:id`, `PUT /lecturer/sheet-music/:id/files/:slot` (`sheet`/`audio`/`video`), `PATCH /lecturer/sheet-music/:id/visibility` |
 | Library (public) | `GET /library/filters`, `GET /library/pieces`, `GET /library/pieces/:id`, `GET /library/sheet-music/:id` |
 | Saved (student) | `GET /me/saved?type=PIECE\|SHEET_MUSIC`, `PUT/DELETE /me/saved/pieces/:id`, `PUT/DELETE /me/saved/sheet-music/:id` |
-| AI callback | `POST /internal/sheet-music/:id/analysis` (header `X-Callback-Secret`) |
+| Files | Served statically at `{FILE_STORAGE_PUBLIC_BASE_URL}/uploads/<storageKey>` |
 
 Errors carry the system message code: `{ success: false, code: 'MSG-xx', field?, message }`.
 Lists return `{ items, total, page, pageSize, totalPages }` inside `data`.
 
-Setting `MOCK_AI_SERVICE=true` and `AI_SERVICE_URL=http://localhost:3000/api/v1/internal/mock-ai` lets the
-analysis flow complete locally without the Python service.
+Reference-recording analysis is temporarily disabled (`TODO(AI)` in `AnalysisService`); it will move to the
+Rhythm service with a RabbitMQ queue.

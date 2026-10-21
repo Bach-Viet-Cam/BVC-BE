@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import EnvConfig from '../../../config/EnvConfig.ts';
 import StorageService from '../../../lib/storage/StorageService.ts';
 import AppError from '../../../utils/AppError.ts';
 import MusicLibraryConstant from '../constant/MusicLibraryConstant.ts';
@@ -9,7 +10,7 @@ import MediaInspectionService from './MediaInspectionService.ts';
 
 const MESSAGES = MusicLibraryConstant.messages;
 
-// Upload flow: presign → browser PUTs to storage → confirm (or attach, which confirms implicitly)
+// Upload flow: presign → browser PUTs the bytes to /uploads/:id/content (Bearer) → confirm (or attach, which confirms implicitly)
 export default class UploadService {
   static buildStorageKey(kind: MusicLibrary.MediaKind, fileName: string): string {
     const extension = MediaInspectionService.getExtension(fileName);
@@ -28,12 +29,31 @@ export default class UploadService {
       sizeBytes: presignRequest.size,
       uploadedById: uploaderId
     });
-    const presignedUpload = await StorageService.driver.createUploadUrl(
-      mediaFile.storageKey,
-      mediaFile.mimeType,
-      MusicLibraryConstant.urlLifetimes.UPLOAD_SEC
-    );
+    const presignedUpload: Backend.PresignedUpload = {
+      uploadUrl: `${EnvConfig.fileStoragePublicBaseUrl}/api/v1/uploads/${mediaFile.id}/content`,
+      method: 'PUT',
+      headers: { 'Content-Type': mediaFile.mimeType },
+      expiresAt: UploadService.getUploadDeadline(mediaFile).toISOString()
+    };
     return { fileId: mediaFile.id, ...presignedUpload, maxSizeBytes: fileRules.maxBytes };
+  }
+
+  static getUploadDeadline(mediaFile: MusicLibrary.MediaFileRecord): Date {
+    return new Date(mediaFile.createdAt.getTime() + MusicLibraryConstant.upload.WINDOW_SEC * 1000);
+  }
+
+  // Step 2 of the upload flow: the uploader streams the bytes of a still-pending file (no signed URL)
+  static async storeContent(uploaderId: string, mediaFileId: string, content: NodeJS.ReadableStream): Promise<void> {
+    const mediaFile = await UploadService.findOwnedFile(mediaFileId, uploaderId);
+    if (mediaFile.status !== 'PENDING' || UploadService.getUploadDeadline(mediaFile).getTime() < Date.now()) {
+      throw AppError.withMessage(409, 'MSG-08', MESSAGES.UPLOAD_CLOSED, 'fileId');
+    }
+    const maxBytes = Math.min(mediaFile.sizeBytes, MusicLibraryConstant.upload.MAX_BYTES);
+    try {
+      await StorageService.driver.writeStream(mediaFile.storageKey, content, maxBytes);
+    } catch {
+      throw AppError.withMessage(413, 'MSG-08', MESSAGES.UPLOAD_TOO_LARGE, 'file');
+    }
   }
 
   static async findOwnedFile(mediaFileId: string, uploaderId: string): Promise<MusicLibrary.MediaFileRecord> {

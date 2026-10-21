@@ -11,6 +11,12 @@ export default class UploadController {
     });
   }
 
+  static async uploadContent(request: Request, response: Response): Promise<Response> {
+    const { id } = request.validated!.params as { id: string };
+    await UploadService.storeContent(request.auth!.user.userId, id, request);
+    return ApiResponse.sendSuccessResponse(response, { data: { fileId: id } });
+  }
+
   static async confirmUpload(request: Request, response: Response): Promise<Response> {
     const { id } = request.validated!.params as { id: string };
     return ApiResponse.sendSuccessResponse(response, { data: await UploadService.confirmUpload(request.auth!.user.userId, id) });

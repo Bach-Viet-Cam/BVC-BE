@@ -69,6 +69,7 @@ export default class PlatformConstant {
     NOTIFICATION_ALREADY_SENT: 'Thông báo này đã được gửi.',
     NOTIFICATION_SCHEDULE_PAST: 'Thời điểm hẹn giờ phải ở tương lai.',
     NOTIFICATION_DELETED: 'Đã xóa thông báo.',
+    NOTIFICATIONS_ALL_READ: 'Đã đánh dấu tất cả thông báo là đã đọc.',
     IMPORT_NO_ACTIONABLE_ROWS: 'Không có dòng hợp lệ để import.',
     IMPORT_CONFLICT: 'Dữ liệu vừa thay đổi trong lúc import. Vui lòng kiểm tra lại bản xem trước.',
     IMPORT_DONE: 'Import hoàn tất.'

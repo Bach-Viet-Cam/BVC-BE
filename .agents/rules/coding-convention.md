@@ -377,7 +377,6 @@ Store in `.env` only when:
 ```js
 // .env.example
 DATABASE_URL=postgresql://user:password@localhost:5432/dbname
-REDIS_URL=redis://localhost:6379
 API_KEY=your_api_key_here
 ```
 
@@ -411,14 +410,13 @@ Current CORS variable:
 - `SEPAY_WEBHOOK_SECRET`: secret key used to verify SePay webhook HMAC-SHA256 signatures
 - `SEPAY_WEBHOOK_TOLERANCE_SECONDS`: allowed timestamp drift in seconds for SePay webhook replay protection
 
-Music library (M02) variables:
+File storage and audio analysis variables:
 
-- `PUBLIC_API_URL`: public base URL of this API; local signed URLs and the AI callback URL are built from it
-- `STORAGE_DRIVER`: `local` (files on disk served by the API, dev/test) or `s3` (S3 / MinIO)
-- `STORAGE_LOCAL_DIR`, `STORAGE_SIGNING_SECRET`: folder and HMAC secret of the local driver
-- `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE`: S3 driver
-- `AI_SERVICE_URL`, `AI_CALLBACK_SECRET`, `AI_RETRY_DELAY_MS`: Python analysis service, callback shared secret, retry delay
-- `MOCK_AI_SERVICE`, `MOCK_AI_DELAY_MS`: dev-only fake AI service mounted at `/api/v1/internal/mock-ai`
+- `FILE_STORAGE_PROVIDER`: only `local` is supported; files are written under `FILE_STORAGE_LOCAL_ROOT`
+- `FILE_STORAGE_LOCAL_ROOT`: folder for every uploaded file (default `uploads`), served statically at `/uploads`
+- `FILE_STORAGE_PUBLIC_BASE_URL`: origin of this API (no `/uploads` suffix); file and upload URLs are built from it
+- `RABBITMQ_URL`: broker for the Rhythm evaluation queue
+- `RHYTHM_SERVICE_BASE_URL`, `RHYTHM_SERVICE_INTERNAL_API_KEY`: Rhythm service API and its shared internal key
 - `TEST_DATABASE_URL`: database used by `npm test` (integration tests truncate it)
 
 ### 7.3 Reading Environment Variables
@@ -437,8 +435,7 @@ import 'dotenv/config';
 const envConfig = {
   port: Number(process.env.PORT) || 3000,
   appOrigin: process.env.APP_ORIGIN || '*',
-  databaseUrl: process.env.DATABASE_URL || '',
-  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379'
+  databaseUrl: process.env.DATABASE_URL || ''
 };
 
 export default envConfig;
