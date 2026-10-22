@@ -16,6 +16,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed/seed.ts",
     "db:seed:classes": "tsx prisma/seed/ClassRoadmapSeed.ts",
+    "leaderboard:refresh": "tsx --eval \"import LeaderboardSnapshotService from './src/modules/leaderboard/service/LeaderboardSnapshotService.ts'; LeaderboardSnapshotService.build().then(() => process.exit(0)).catch(() => { console.error('Không thể làm mới bảng xếp hạng.'); process.exit(1); });\"",
     "audio:cleanup": "tsx --eval \"import AudioCleanupService from './src/modules/audio/service/AudioCleanupService.ts'; AudioCleanupService.execute().catch(() => { console.error('Không thể dọn file audio.'); process.exitCode = 1; });\""
   },
   "keywords": [],
