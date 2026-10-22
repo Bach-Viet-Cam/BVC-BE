@@ -68,6 +68,23 @@ describe('Assignment lifecycle (lecturer)', () => {
     expect((await create({ ...base(), requiredBpm: 300, title: 'x'.repeat(200) })).status).toBe(201);
   });
 
+  it('allows one solo and one ensemble assignment per class', async () => {
+    const solo = (await create(base())).body.data;
+    const ensemble = (await create({ ...base(), kind: 'ENSEMBLE' })).body.data;
+    const secondSolo = await create(base());
+    expect(secondSolo.status).toBe(409);
+    expect(secondSolo.body.errors[0]).toMatchObject({ field: 'kind', code: 'MSG-08', message: 'Không thể lưu bài tập vì lớp đã có bài Độc tấu.' });
+    expect((await create({ ...base(), kind: 'BONUS' })).status).toBe(201);
+    expect((await create({ ...base(), kind: 'BONUS' })).status).toBe(201);
+
+    const edit = (id: string, kind: string) => request(app).put(`/api/v1/assignments/${id}`).set('Authorization', lecturerToken).send({ title: 'Sửa', kind });
+    expect((await edit(solo.id, 'SOLO')).status).toBe(200);
+    expect((await edit(ensemble.id, 'SOLO')).status).toBe(409);
+
+    await request(app).delete(`/api/v1/assignments/${solo.id}`).set('Authorization', lecturerToken).expect(200);
+    expect((await create(base())).status).toBe(201);
+  });
+
   it('rejects a piece of another instrument or hidden piece with MSG-48', async () => {
     const bau = await TestDatabase.createInstrument('Đàn bầu');
     const otherPiece = await TestDatabase.createPiece(bau.id);

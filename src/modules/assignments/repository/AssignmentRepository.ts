@@ -42,6 +42,20 @@ export default class AssignmentRepository {
     return { records: records as Backend.AssignmentRecord[], total };
   }
 
+  // Any non-deleted assignment of the class whose current version has this kind (drafts and closed ones included).
+  static async existsKindInClass(classId: string, kind: Backend.AssignmentKind, excludeAssignmentId?: string): Promise<boolean> {
+    const found = await AssignmentRepository.client.assignment.findFirst({
+      where: {
+        classId,
+        deletedAt: null,
+        currentVersion: { kind },
+        ...(excludeAssignmentId ? { id: { not: excludeAssignmentId } } : {})
+      },
+      select: { id: true }
+    });
+    return found !== null;
+  }
+
   // The piece is selectable when it is available and played on the class instrument.
   static async isPieceSelectable(pieceId: string, instrumentId: string): Promise<boolean> {
     const piece = await AssignmentRepository.client.piece.findUnique({

@@ -19,6 +19,7 @@ export default class AssignmentService {
   static async createAssignment(lecturerId: string, input: Backend.CreateAssignmentInput): Promise<Backend.AssignmentBaseDTO> {
     const classRecord = await ClassAccessService.assertOwnedClass(input.classId, lecturerId, { requireActive: true });
     await AssignmentService.assertPieceSelectable(input.pieceId, classRecord.instrumentId);
+    await AssignmentService.assertKindAvailable(input.classId, input.kind);
 
     const assignmentId = await PrismaClientProvider.instance.$transaction(async (transaction) => {
       const status: Backend.AssignmentStatus = input.publish ? 'PUBLISHED' : 'DRAFT';
@@ -42,6 +43,7 @@ export default class AssignmentService {
     // User decision 19/10: saving without any change creates no version and sends no notification.
     if (AssignmentService.isUnchanged(record, input)) return AssignmentService.loadBaseDTO(assignmentId);
     await AssignmentService.assertPieceSelectable(input.pieceId, record.class.instrumentId);
+    await AssignmentService.assertKindAvailable(record.classId, input.kind, assignmentId);
 
     await PrismaClientProvider.instance.$transaction(async (transaction) => {
       const version = (await AssignmentRepository.findMaxVersion(assignmentId, transaction)) + 1;
@@ -125,6 +127,13 @@ export default class AssignmentService {
       (current.piece?.id ?? null) === (input.pieceId ?? null) &&
       current.requiredBpm === (input.requiredBpm ?? null)
     );
+  }
+
+  static async assertKindAvailable(classId: string, kind: Backend.AssignmentKind, excludeAssignmentId?: string): Promise<void> {
+    if (!AssignmentConstant.singleKinds.includes(kind)) return;
+    if (await AssignmentRepository.existsKindInClass(classId, kind, excludeAssignmentId)) {
+      throw AppError.fieldError(409, { field: 'kind', code: 'MSG-08', message: messages.KIND_TAKEN(kind) });
+    }
   }
 
   // A15: any visible piece of the class instrument (songs and finger exercises).
