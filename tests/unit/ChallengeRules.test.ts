@@ -7,7 +7,7 @@ const valid = {
   instrumentId: 'i1',
   pieceId: 'p1',
   classIds: ['c1'],
-  weekMonday: '2026-12-28',
+  weekStart: '2026-12-28',
   requiredBpm: 90,
   minAccuracy: 80,
   maxSubmissions: 3
@@ -21,7 +21,7 @@ describe('ChallengeRules.validatePublish', () => {
   });
 
   it('requires instrument, piece, classes and week with MSG-35', () => {
-    for (const field of ['instrumentId', 'pieceId', 'weekMonday']) {
+    for (const field of ['instrumentId', 'pieceId', 'weekStart']) {
       expect(codes({ [field]: null })).toEqual(['MSG-35']);
       expect(fields({ [field]: null })).toEqual([field]);
     }

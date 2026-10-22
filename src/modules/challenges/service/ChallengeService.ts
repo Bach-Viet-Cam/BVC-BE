@@ -92,7 +92,7 @@ export default class ChallengeService {
   }
 
   static assertValid(fields: ChallengeFields, isPublishing: boolean): void {
-    const rulesInput = { ...fields, weekMonday: fields.weekStart };
+    const rulesInput = { ...fields, weekStart: fields.weekStart };
     const errors = isPublishing ? ChallengeRules.validatePublish(rulesInput) : ChallengeRules.validateDraft(rulesInput);
     if (errors.length > 0) {
       throw new AppError(errors[0].message, 400, { code: errors[0].code, field: errors[0].field, fieldErrors: errors });
@@ -121,7 +121,7 @@ export default class ChallengeService {
     } catch (error) {
       if (error instanceof AppError) throw error;
       console.error(error);
-      throw new AppError(messages.PUBLISH_FAILED, 500, { code: 'MSG-09' });
+      throw new AppError(plan.publish ? messages.PUBLISH_FAILED : messages.SAVE_DRAFT_FAILED, 500, { code: 'MSG-09' });
     }
     const saved = await ChallengeRepository.findById(challengeId);
     if (!saved) throw AppError.notFound(messages.CHALLENGE_NOT_FOUND);

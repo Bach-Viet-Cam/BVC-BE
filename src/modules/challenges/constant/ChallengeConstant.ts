@@ -23,7 +23,7 @@ export default class ChallengeConstant {
     instrumentId: 'Nhạc cụ',
     pieceId: 'Bài nhạc',
     classIds: 'Lớp',
-    weekMonday: 'Tuần',
+    weekStart: 'Tuần',
     requiredBpm: 'BPM yêu cầu',
     minAccuracy: 'Độ chính xác tối thiểu',
     maxSubmissions: 'Số lần nộp tối đa'
@@ -44,6 +44,7 @@ export default class ChallengeConstant {
     CLASS_INSTRUMENT_MISMATCH: 'Lớp đã chọn không học nhạc cụ của thử thách.',
     NOT_DRAFT: (action: string): string => format('MSG-08', { action, reason: 'thử thách đã được đăng' }),
     PUBLISH_FAILED: format('MSG-09', { action: 'Đăng thử thách' }),
+    SAVE_DRAFT_FAILED: format('MSG-09', { action: 'Lưu nháp thử thách' }),
     required: (field: string): string => format('MSG-35', { field }),
     tooLong: (field: string, max: number): string => format('MSG-37', { field, max }),
     outOfRange: (field: string, min: number, max: number): string => format('MSG-03', { field, min, max })
@@ -56,6 +57,6 @@ export default class ChallengeConstant {
   static readonly notifications = Object.freeze({
     PUBLISHED_TITLE: 'Thử thách mới',
     body: (className: string, title: string): string => `${className} · ${title}`,
-    link: (challengeId: string): string => `/challenge/${challengeId}`
+    link: (challengeId: string): string => `/community/challenges/${challengeId}`
   });
 }

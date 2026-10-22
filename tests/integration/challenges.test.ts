@@ -197,7 +197,7 @@ describe('Weekly challenges (lecturer)', () => {
       const response = await post({ title: 'Thiếu dữ liệu', publish: true });
       expect(response.status).toBe(400);
       const errors = response.body.errors as Array<{ field: string; code: string }>;
-      expect(errors.map((error) => error.field).sort()).toEqual(['classIds', 'instrumentId', 'pieceId', 'weekMonday'].sort());
+      expect(errors.map((error) => error.field).sort()).toEqual(['classIds', 'instrumentId', 'pieceId', 'weekStart'].sort());
       expect(errors.every((error) => error.code === 'MSG-35')).toBe(true);
       expect(await TestDatabase.prisma.challenge.count()).toBe(0);
     });
@@ -265,7 +265,7 @@ describe('Weekly challenges (lecturer)', () => {
       expect(response.status).toBe(201);
       const deliveries = await TestDatabase.prisma.userNotification.findMany({ include: { notification: true } });
       expect(deliveries.map((item) => item.userId).sort()).toEqual([shared.id, onlyB.id].sort());
-      expect(deliveries[0].notification).toMatchObject({ title: 'Thử thách mới', link: `/challenge/${response.body.data.id}` });
+      expect(deliveries[0].notification).toMatchObject({ title: 'Thử thách mới', link: `/community/challenges/${response.body.data.id}` });
     });
   });
 

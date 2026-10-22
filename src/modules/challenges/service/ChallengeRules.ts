@@ -6,7 +6,7 @@ interface PublishInput extends DraftInput {
   instrumentId?: string | null;
   pieceId?: string | null;
   classIds?: string[] | null;
-  weekMonday?: string | null;
+  weekStart?: string | null;
   requiredBpm?: number | null;
   minAccuracy?: number | null;
   maxSubmissions?: number | null;
@@ -14,7 +14,7 @@ interface PublishInput extends DraftInput {
 interface PieceState { visibility: string; moderation: string; deletedAt: Date | null }
 interface SheetState { visibility: string; moderation: string; referenceAudioId: string | null; analysisStatus: string }
 type DisplayStatus = 'DRAFT' | 'UPCOMING' | 'ACTIVE' | 'ENDED';
-type RequiredField = 'instrumentId' | 'pieceId' | 'classIds' | 'weekMonday';
+type RequiredField = 'instrumentId' | 'pieceId' | 'classIds' | 'weekStart';
 
 export default class ChallengeRules {
   static validateDraft(input: DraftInput): Backend.FieldError[] {
@@ -29,7 +29,7 @@ export default class ChallengeRules {
       ...ChallengeRules.requireValue('instrumentId', Boolean(input.instrumentId)),
       ...ChallengeRules.requireValue('pieceId', Boolean(input.pieceId)),
       ...ChallengeRules.requireValue('classIds', Boolean(input.classIds && input.classIds.length > 0)),
-      ...ChallengeRules.requireValue('weekMonday', Boolean(input.weekMonday)),
+      ...ChallengeRules.requireValue('weekStart', Boolean(input.weekStart)),
       ...ChallengeRules.checkRange('requiredBpm', labels.requiredBpm, input.requiredBpm, limits.BPM_MIN, limits.BPM_MAX),
       ...ChallengeRules.checkRange('minAccuracy', labels.minAccuracy, input.minAccuracy, limits.ACCURACY_MIN, limits.ACCURACY_MAX),
       ...ChallengeRules.checkRange('maxSubmissions', labels.maxSubmissions, input.maxSubmissions, 1, ChallengeConstant.maxSubmissionsCap)

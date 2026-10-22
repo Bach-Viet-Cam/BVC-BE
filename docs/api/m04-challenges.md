@@ -91,7 +91,7 @@ Publishes a saved draft with the same transaction as above, re-reading the store
 
 ## Notification on publish (D8)
 
-On publish, active members of all selected classes receive one in-app notification (a student in several classes gets one): title "Thử thách mới", body `<class names> · <challenge title>`, link `/challenge/<id>`. It is written in the publish transaction through `NotificationService.notifyUsers`. Reminders are deferred.
+On publish, active members of all selected classes receive one in-app notification (a student in several classes gets one): title "Thử thách mới", body `<class names> · <challenge title>`, link `/community/challenges/<id>`. It is written in the publish transaction through `NotificationService.notifyUsers`. Reminders are deferred.
 
 ## Decisions (D1-D15)
 
