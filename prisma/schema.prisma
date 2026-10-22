@@ -37,6 +37,7 @@ model User {
   sessions                  AuthSession[]
   ownedPieces               Piece[]                  @relation("PieceOwner")
   uploadedSheetMusic        SheetMusic[]             @relation("SheetMusicUploader")
+  createdChallenges         Challenge[]              @relation("ChallengeCreatedBy")
   uploadedMediaFiles        MediaFile[]              @relation("MediaFileUploader")
   savedItems                SavedItem[]
   ownedClasses              Class[]
@@ -112,6 +113,7 @@ model Instrument {
   isActive         Boolean           @default(true) @map("is_active")
   pieces           PieceInstrument[]
   sheetMusic       SheetMusic[]
+  challenges       Challenge[]
   classes          Class[]
   classMembers     ClassMember[]
   roadmaps         Roadmap[]
@@ -262,6 +264,7 @@ model Piece {
   createdAt          DateTime              @default(now()) @map("created_at")
   updatedAt          DateTime              @default(now()) @updatedAt @map("updated_at")
 
+  challenges Challenge[]
   @@index([ownerId, updatedAt])
   @@index([visibility, moderation, createdAt])
   @@map("pieces")
@@ -312,6 +315,7 @@ model SheetMusic {
   createdAt            DateTime       @default(now()) @map("created_at")
   updatedAt            DateTime       @updatedAt @map("updated_at")
 
+  challenges Challenge[]
   @@unique([pieceId, name])
   @@unique([pieceId, mainInstrumentId])
   @@index([pieceId, instrumentId])
@@ -401,6 +405,7 @@ model Class {
   roadmap            Roadmap?           @relation(fields: [roadmapId], references: [id])
   members            ClassMember[]
   assignments        Assignment[]
+  challengeClasses   ChallengeClass[]
   importLogs         StudentImportLog[]
   leaderboardEntries LeaderboardEntry[]
 
@@ -824,4 +829,48 @@ model LeaderboardEntry {
   @@unique([snapshotId, category, studentId])
   @@index([snapshotId, category, position])
   @@map("leaderboard_entries")
+}
+
+enum ChallengeStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Challenge {
+  id             String          @id @default(uuid())
+  title          String
+  description    String?
+  instrumentId   String?         @map("instrument_id")
+  pieceId        String?         @map("piece_id")
+  sheetMusicId   String?         @map("sheet_music_id")
+  createdById    String          @map("created_by")
+  status         ChallengeStatus @default(DRAFT)
+  startsAt       DateTime?       @map("starts_at")
+  endsAt         DateTime?       @map("ends_at")
+  minAccuracy    Int?            @map("min_accuracy")
+  requiredBpm    Int?            @map("required_bpm")
+  maxSubmissions Int             @default(3) @map("max_submissions")
+  pausedAt       DateTime?       @map("paused_at")
+  publishedAt    DateTime?       @map("published_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
+  instrument     Instrument?     @relation(fields: [instrumentId], references: [id])
+  piece          Piece?          @relation(fields: [pieceId], references: [id])
+  sheetMusic     SheetMusic?     @relation(fields: [sheetMusicId], references: [id])
+  createdBy      User            @relation("ChallengeCreatedBy", fields: [createdById], references: [id])
+  classes        ChallengeClass[]
+
+  @@index([createdById, startsAt])
+  @@index([status, startsAt, endsAt])
+  @@map("challenges")
+}
+
+model ChallengeClass {
+  challengeId String    @map("challenge_id")
+  classId     String    @map("class_id")
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  class       Class     @relation(fields: [classId], references: [id])
+
+  @@id([challengeId, classId])
+  @@map("challenge_classes")
 }
