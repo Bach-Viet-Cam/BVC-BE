@@ -13,6 +13,10 @@ export default class RhythmClientService {
   async get(evaluationId: string): Promise<Audio.EvaluationResponse | null> {
     if (!this.apiKey) throw new AppError('Chưa cấu hình kết nối dịch vụ phân tích.', 503);
     try {
+      console.log(
+        this.baseUrl+"/api/v1/evaluations/${encodeURIComponent(evaluationId)}",
+        this.apiKey
+      )
       const response = await this.request(`${this.baseUrl}/api/v1/evaluations/${encodeURIComponent(evaluationId)}`, {
         headers: { Authorization: `Bearer ${this.apiKey}` },
         signal: AbortSignal.timeout(AudioConstant.requestTimeoutMs), redirect: 'error'
