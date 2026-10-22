@@ -49,15 +49,29 @@ export default class ChallengeRepository {
     });
   }
 
-  static async update(challengeId: string, data: ChallengeWriteData, classIds: string[] | undefined, client: Prisma.TransactionClient): Promise<void> {
-    await client.challenge.update({
-      where: { id: challengeId },
-      data: { ...data, ...(classIds ? { classes: { deleteMany: {}, create: classIds.map((classId) => ({ classId })) } } : {}) }
-    });
+  // Writes only while the row is still a DRAFT; false means it was published (or removed) meanwhile.
+  static async update(challengeId: string, data: ChallengeWriteData, classIds: string[] | undefined, client: Prisma.TransactionClient): Promise<boolean> {
+    const result = await client.challenge.updateMany({ where: { id: challengeId, status: 'DRAFT' }, data });
+    if (result.count === 0) return false;
+    if (classIds) {
+      await client.challengeClass.deleteMany({ where: { challengeId } });
+      await client.challengeClass.createMany({ data: classIds.map((classId) => ({ challengeId, classId })) });
+    }
+    return true;
   }
 
-  static async delete(challengeId: string, client: Prisma.TransactionClient): Promise<void> {
-    await client.challenge.delete({ where: { id: challengeId } });
+  static async delete(challengeId: string, client: Prisma.TransactionClient): Promise<boolean> {
+    const result = await client.challenge.deleteMany({ where: { id: challengeId, status: 'DRAFT' } });
+    return result.count > 0;
+  }
+
+  // Row lock so a concurrent PATCH / DELETE waits for this publish and then sees PUBLISHED.
+  static async lockChallenge(challengeId: string, client: Prisma.TransactionClient): Promise<void> {
+    await client.$queryRaw`SELECT id FROM challenges WHERE id = ${challengeId} FOR UPDATE`;
+  }
+
+  static async findClassForChallenge(classId: string, client: Prisma.TransactionClient | typeof PrismaClientProvider.instance) {
+    return client.class.findUnique({ where: { id: classId }, select: { id: true, name: true, instrumentId: true, ownerId: true, status: true } });
   }
 
   // Serialises publishes of one lecturer so the overlap check cannot race with a concurrent publish.
@@ -87,7 +101,7 @@ export default class ChallengeRepository {
     return rows.map((row) => row.classId);
   }
 
-  static async findPieceForChallenge(pieceId: string, instrumentId: string | null, client: Prisma.TransactionClient = ChallengeRepository.client) {
+  static async findPieceForChallenge(pieceId: string, instrumentId: string | null, client: Prisma.TransactionClient | typeof PrismaClientProvider.instance = ChallengeRepository.client) {
     return client.piece.findUnique({
       where: { id: pieceId },
       select: {

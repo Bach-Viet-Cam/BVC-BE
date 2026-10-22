@@ -1,6 +1,7 @@
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
 import AppError from '../../../utils/AppError.ts';
-import ClassAccessService from '../../classes/service/ClassAccessService.ts';
+import type { Prisma } from '@prisma/client';
+import ClassConstant from '../../classes/constant/ClassConstant.ts';
 import MemberRepository from '../../classes/repository/MemberRepository.ts';
 import ChallengeConstant from '../constant/ChallengeConstant.ts';
 import ChallengeRepository from '../repository/ChallengeRepository.ts';
@@ -26,15 +27,18 @@ export default class ChallengeReferenceService {
     classIds: string[],
     instrumentId: string | null,
     lecturerId: string,
-    options: { requireStudents: boolean }
-  ): Promise<Backend.ClassRecord[]> {
-    const classes: Backend.ClassRecord[] = [];
+    options: { requireStudents: boolean },
+    client: Prisma.TransactionClient | typeof PrismaClientProvider.instance = PrismaClientProvider.instance
+  ): Promise<Array<{ id: string; name: string }>> {
+    const classes: Array<{ id: string; name: string }> = [];
     for (const classId of classIds) {
-      const classRecord = await ClassAccessService.assertOwnedClass(classId, lecturerId, { requireActive: true });
+      const classRecord = await ChallengeRepository.findClassForChallenge(classId, client);
+      if (!classRecord || classRecord.ownerId !== lecturerId) throw AppError.notFound(ClassConstant.messages.CLASS_NOT_FOUND);
+      if (classRecord.status === 'ENDED') throw AppError.conflict(ClassConstant.messages.CLASS_FINISHED, { code: 'MSG-08' });
       if (instrumentId && classRecord.instrumentId !== instrumentId) {
         throw AppError.fieldError(400, { field: 'classIds', message: messages.CLASS_INSTRUMENT_MISMATCH });
       }
-      if (options.requireStudents && (await MemberRepository.findActiveMemberIds(classId, PrismaClientProvider.instance)).size === 0) {
+      if (options.requireStudents && (await MemberRepository.findActiveMemberIds(classId, client)).size === 0) {
         throw AppError.conflict(messages.CLASS_EMPTY, { code: 'MSG-08' });
       }
       classes.push(classRecord);
@@ -43,9 +47,9 @@ export default class ChallengeReferenceService {
   }
 
   // Returns the main sheet used by the challenge, or null for a draft that has no instrument yet.
-  static async assertPiece(pieceId: string | null, instrumentId: string | null, options: { requireReady: boolean }): Promise<string | null> {
+  static async assertPiece(pieceId: string | null, instrumentId: string | null, options: { requireReady: boolean }, client: Prisma.TransactionClient | typeof PrismaClientProvider.instance = PrismaClientProvider.instance): Promise<string | null> {
     if (!pieceId) return null;
-    const piece = await ChallengeRepository.findPieceForChallenge(pieceId, instrumentId);
+    const piece = await ChallengeRepository.findPieceForChallenge(pieceId, instrumentId, client);
     const isPlayable = piece !== null && piece.deletedAt === null && piece.visibility === 'PUBLIC' && piece.moderation === 'NORMAL';
     if (!piece || !isPlayable || (instrumentId && !piece.instruments.some((item) => item.instrumentId === instrumentId))) {
       throw AppError.fieldError(400, { field: 'pieceId', code: 'MSG-48', message: messages.PIECE_UNAVAILABLE });

@@ -1,6 +1,7 @@
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../../src/app.ts';
+import ChallengeRepository from '../../src/modules/challenges/repository/ChallengeRepository.ts';
 import DateTimeUtil from '../../src/utils/DateTimeUtil.ts';
 import TestDatabase from './TestDatabase.ts';
 
@@ -255,6 +256,50 @@ describe('Weekly challenges (lecturer)', () => {
       const deliveries = await TestDatabase.prisma.userNotification.findMany({ include: { notification: true } });
       expect(deliveries.map((item) => item.userId).sort()).toEqual([shared.id, onlyB.id].sort());
       expect(deliveries[0].notification).toMatchObject({ title: 'Thử thách mới', link: `/challenge/${response.body.data.id}` });
+    });
+  });
+
+  describe('publish transaction guards', () => {
+    it('lets exactly one of two concurrent publishes of the same draft succeed', async () => {
+      const draft = (await post(publishBody({ publish: false }))).body.data;
+      const publishRequest = () => request(app).post(`${base}/${draft.id}/publish`).set('Authorization', token);
+      const responses = await Promise.all([publishRequest(), publishRequest()]);
+      const statuses = responses.map((response) => response.status).sort();
+      expect(statuses).toEqual([200, 409]);
+      const rejected = responses.find((response) => response.status === 409);
+      expect(rejected?.body.code).toBe('MSG-08');
+      expect(await TestDatabase.prisma.auditLog.count({ where: { action: 'CHALLENGE_PUBLISH' } })).toBe(1);
+      expect(await TestDatabase.prisma.userNotification.count()).toBe(1);
+    });
+
+    it('does not write to or delete a challenge that is already published', async () => {
+      const draft = (await post(publishBody({ publish: false }))).body.data;
+      await request(app).post(`${base}/${draft.id}/publish`).set('Authorization', token);
+      const before = await TestDatabase.prisma.challenge.findUniqueOrThrow({ where: { id: draft.id } });
+      const updated = await TestDatabase.prisma.$transaction((transaction) => ChallengeRepository.update(draft.id, { title: 'Bị ghi đè' }, [], transaction));
+      const deleted = await TestDatabase.prisma.$transaction((transaction) => ChallengeRepository.delete(draft.id, transaction));
+      expect([updated, deleted]).toEqual([false, false]);
+      const after = await TestDatabase.prisma.challenge.findUniqueOrThrow({ where: { id: draft.id }, include: { classes: true } });
+      expect(after.title).toBe(before.title);
+      expect(after.classes).toHaveLength(1);
+    });
+
+    it('re-checks the class at publish time when it ended after the draft was saved', async () => {
+      const draft = (await post(publishBody({ publish: false }))).body.data;
+      await TestDatabase.prisma.class.update({ where: { id: classA.id }, data: { status: 'ENDED' } });
+      const response = await request(app).post(`${base}/${draft.id}/publish`).set('Authorization', token);
+      expect(response.status).toBe(409);
+      expect(response.body.code).toBe('MSG-08');
+      expect((await TestDatabase.prisma.challenge.findUniqueOrThrow({ where: { id: draft.id } })).status).toBe('DRAFT');
+    });
+
+    it('re-checks piece readiness at publish time when analysis was lost after the draft was saved', async () => {
+      const draft = (await post(publishBody({ publish: false }))).body.data;
+      await TestDatabase.prisma.sheetMusic.updateMany({ where: { pieceId: readyPiece.id }, data: { analysisStatus: 'NONE' } });
+      const response = await request(app).post(`${base}/${draft.id}/publish`).set('Authorization', token);
+      expect(response.status).toBe(400);
+      expect(response.body.errors[0]).toMatchObject({ field: 'pieceId', code: 'MSG-48' });
+      expect((await TestDatabase.prisma.challenge.findUniqueOrThrow({ where: { id: draft.id } })).status).toBe('DRAFT');
     });
   });
 

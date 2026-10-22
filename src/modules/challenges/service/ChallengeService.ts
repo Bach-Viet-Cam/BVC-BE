@@ -20,9 +20,9 @@ interface SavePlan {
   fields: ChallengeFields;
   // undefined keeps the stored classes (PATCH without classIds)
   classIds: string[] | undefined;
-  classNames: string[];
-  sheetMusicId: string | null;
   publish: boolean;
+  // publish endpoint: re-read the draft fields inside the transaction instead of trusting the earlier read
+  reloadFields: boolean;
 }
 
 // Lifecycle of a weekly challenge: draft -> publish (one transaction), edit / delete only while DRAFT.
@@ -50,7 +50,8 @@ export default class ChallengeService {
   static async remove(lecturerId: string, challengeId: string): Promise<void> {
     const record = await ChallengeAccessService.assertOwnedChallenge(challengeId, lecturerId);
     ChallengeAccessService.assertDraft(record, 'xóa thử thách');
-    await PrismaClientProvider.instance.$transaction((transaction) => ChallengeRepository.delete(challengeId, transaction));
+    const isDeleted = await PrismaClientProvider.instance.$transaction((transaction) => ChallengeRepository.delete(challengeId, transaction));
+    if (!isDeleted) throw AppError.conflict(messages.NOT_DRAFT('xóa thử thách'), { code: 'MSG-08' });
   }
 
   static async publish(lecturerId: string, challengeId: string): Promise<Backend.ChallengeDTO> {
@@ -59,7 +60,7 @@ export default class ChallengeService {
     const fields = ChallengeService.toFields(record);
     ChallengeService.assertValid(fields, true);
     const plan = await ChallengeService.buildPlan(lecturerId, challengeId, fields, undefined, true, { checkClasses: true, checkPiece: true });
-    return ChallengeService.save(lecturerId, plan);
+    return ChallengeService.save(lecturerId, { ...plan, reloadFields: true });
   }
 
   static toFields(record: Backend.ChallengeRecord): ChallengeFields {
@@ -98,6 +99,7 @@ export default class ChallengeService {
     }
   }
 
+  // Drafts are checked here; a publish repeats every reference check inside its transaction (see persist).
   static async buildPlan(
     lecturerId: string,
     challengeId: string | null,
@@ -107,13 +109,9 @@ export default class ChallengeService {
     checks: { checkClasses: boolean; checkPiece: boolean }
   ): Promise<SavePlan> {
     ChallengeReferenceService.assertWeek(fields.weekStart, new Date());
-    const classes = checks.checkClasses || publish
-      ? await ChallengeReferenceService.assertClasses(fields.classIds, fields.instrumentId, lecturerId, { requireStudents: publish })
-      : [];
-    const sheetMusicId = checks.checkPiece || publish
-      ? await ChallengeReferenceService.assertPiece(fields.pieceId, fields.instrumentId, { requireReady: publish })
-      : null;
-    return { challengeId, fields, classIds, classNames: classes.map((item) => item.name), sheetMusicId: publish ? sheetMusicId : null, publish };
+    if (!publish && checks.checkClasses) await ChallengeReferenceService.assertClasses(fields.classIds, fields.instrumentId, lecturerId, { requireStudents: false });
+    if (!publish && checks.checkPiece) await ChallengeReferenceService.assertPiece(fields.pieceId, fields.instrumentId, { requireReady: false });
+    return { challengeId, fields, classIds, publish, reloadFields: false };
   }
 
   static async save(lecturerId: string, plan: SavePlan): Promise<Backend.ChallengeDTO> {
@@ -131,13 +129,34 @@ export default class ChallengeService {
   }
 
   static async persist(lecturerId: string, plan: SavePlan, transaction: Prisma.TransactionClient): Promise<string> {
-    const { fields } = plan;
     const now = new Date();
+    let fields = plan.fields;
+    let classNames: string[] = [];
+    let sheetMusicId: string | null = null;
+
+    if (plan.publish) {
+      // Serialise this lecturer's publishes, then validate everything against the state this transaction sees.
+      await ChallengeRepository.lockLecturer(lecturerId, transaction);
+      if (plan.challengeId) {
+        await ChallengeRepository.lockChallenge(plan.challengeId, transaction);
+        const current = await ChallengeRepository.findById(plan.challengeId, transaction);
+        if (!current || current.createdById !== lecturerId) throw AppError.notFound(messages.CHALLENGE_NOT_FOUND);
+        ChallengeAccessService.assertDraft(current, 'đăng thử thách');
+        if (plan.reloadFields) {
+          fields = ChallengeService.toFields(current);
+          ChallengeService.assertValid(fields, true);
+        }
+      }
+      ChallengeReferenceService.assertWeek(fields.weekStart, now);
+      const classes = await ChallengeReferenceService.assertClasses(fields.classIds, fields.instrumentId, lecturerId, { requireStudents: true }, transaction);
+      classNames = classes.map((item) => item.name);
+      sheetMusicId = await ChallengeReferenceService.assertPiece(fields.pieceId, fields.instrumentId, { requireReady: true }, transaction);
+    }
+
     const bounds = fields.weekStart ? ChallengeWeekCalculator.weekBounds(fields.weekStart) : null;
     const period = plan.publish && fields.weekStart ? ChallengeWeekCalculator.resolvePeriod(fields.weekStart, now) : bounds;
 
     if (plan.publish && period && fields.instrumentId) {
-      await ChallengeRepository.lockLecturer(lecturerId, transaction);
       const overlapping = await ChallengeRepository.findOverlappingClassIds(
         { lecturerId, instrumentId: fields.instrumentId, classIds: fields.classIds, startsAt: period.startsAt, endsAt: period.endsAt, excludeChallengeId: plan.challengeId ?? undefined },
         transaction
@@ -150,7 +169,7 @@ export default class ChallengeService {
       description: fields.description,
       instrumentId: fields.instrumentId,
       pieceId: fields.pieceId,
-      sheetMusicId: plan.sheetMusicId,
+      sheetMusicId,
       minAccuracy: fields.minAccuracy,
       requiredBpm: fields.requiredBpm,
       maxSubmissions: fields.maxSubmissions,
@@ -160,15 +179,18 @@ export default class ChallengeService {
       publishedAt: plan.publish ? now : null
     };
     let challengeId = plan.challengeId;
-    if (challengeId) await ChallengeRepository.update(challengeId, data, plan.classIds ?? (plan.publish ? fields.classIds : undefined), transaction);
-    else challengeId = (await ChallengeRepository.create(lecturerId, data, fields.classIds, transaction)).id;
+    if (challengeId) {
+      const isUpdated = await ChallengeRepository.update(challengeId, data, plan.classIds ?? (plan.publish ? fields.classIds : undefined), transaction);
+      if (!isUpdated) throw AppError.conflict(messages.NOT_DRAFT(plan.publish ? 'đăng thử thách' : 'sửa thử thách'), { code: 'MSG-08' });
+    } else {
+      challengeId = (await ChallengeRepository.create(lecturerId, data, fields.classIds, transaction)).id;
+    }
 
-    if (plan.publish) await ChallengeService.recordPublish(lecturerId, challengeId, plan, transaction);
+    if (plan.publish) await ChallengeService.recordPublish(lecturerId, challengeId, fields, classNames, transaction);
     return challengeId;
   }
 
-  static async recordPublish(lecturerId: string, challengeId: string, plan: SavePlan, transaction: Prisma.TransactionClient): Promise<void> {
-    const { fields } = plan;
+  static async recordPublish(lecturerId: string, challengeId: string, fields: ChallengeFields, classNames: string[], transaction: Prisma.TransactionClient): Promise<void> {
     await AuditLogger.record(
       {
         actorId: lecturerId,
@@ -188,7 +210,7 @@ export default class ChallengeService {
     await NotificationService.notifyUsers(
       lecturerId,
       [...memberIds],
-      { title: notifications.PUBLISHED_TITLE, body: notifications.body(plan.classNames.join(', '), fields.title), link: notifications.link(challengeId) },
+      { title: notifications.PUBLISHED_TITLE, body: notifications.body(classNames.join(', '), fields.title), link: notifications.link(challengeId) },
       transaction
     );
   }
