@@ -146,22 +146,23 @@ class SeedRunner {
         data: { closedAt: item.status === 'CLOSED' ? new Date() : null, deletedAt: item.deleted ? new Date() : null }
       });
       const version = await prisma.assignmentVersion.findFirstOrThrow({ where: { assignmentId: assignment.id }, select: { id: true } });
-      if (item.status !== 'DRAFT') await SeedRunner.seedSubmissions(assignment.id, version.id, lecturerId, members.map((member) => member.userId), index);
+      // Submissions always belong to a piece; the class song stands in for assignments without one
+      if (item.status !== 'DRAFT' && pieceId) await SeedRunner.seedSubmissions(assignment.id, version.id, pieceId, lecturerId, members.map((member) => member.userId), index);
     }
   }
 
-  static async seedSubmissions(assignmentId: string, versionId: string, lecturerId: string, studentIds: string[], offset: number): Promise<void> {
+  static async seedSubmissions(assignmentId: string, versionId: string, pieceId: string, lecturerId: string, studentIds: string[], offset: number): Promise<void> {
     for (const [index, studentId] of studentIds.slice(0, 10).entries()) {
       const accuracy = SEED_ACCURACIES[(index + offset) % SEED_ACCURACIES.length];
       const submittedAt = new Date(Date.now() - (index + 1) * 3600 * 1000);
       const submission = await prisma.submission.create({
-        data: { assignmentId, assignmentVersionId: versionId, studentId, fileUrl: SAMPLE_AUDIO_URL, status: 'COMPLETED', accuracy, tempoDeviation: (index % 4) * 2.5, createdAt: submittedAt, analyzedAt: submittedAt }
+        data: { assignmentId, assignmentVersionId: versionId, pieceId, studentId, fileUrl: SAMPLE_AUDIO_URL, status: 'COMPLETED', accuracy, tempoDeviation: (index % 4) * 2.5, createdAt: submittedAt, analyzedAt: submittedAt }
       });
       if (index === 1) {
-        await prisma.submission.create({ data: { assignmentId, assignmentVersionId: versionId, studentId, fileUrl: SAMPLE_AUDIO_URL, status: 'REJECTED', createdAt: submittedAt } });
+        await prisma.submission.create({ data: { assignmentId, assignmentVersionId: versionId, pieceId, studentId, fileUrl: SAMPLE_AUDIO_URL, status: 'REJECTED', createdAt: submittedAt } });
       }
       if (index === 2) {
-        await prisma.submission.create({ data: { assignmentId, assignmentVersionId: versionId, studentId, fileUrl: SAMPLE_AUDIO_URL, status: 'FAILED', createdAt: submittedAt } });
+        await prisma.submission.create({ data: { assignmentId, assignmentVersionId: versionId, pieceId, studentId, fileUrl: SAMPLE_AUDIO_URL, status: 'FAILED', createdAt: submittedAt } });
       }
       if (offset === 0 && index < SEED_COMMENTS.length) {
         await prisma.submissionComment.create({ data: { submissionId: submission.id, lecturerId, content: SEED_COMMENTS[index] } });
