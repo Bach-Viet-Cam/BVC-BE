@@ -164,6 +164,16 @@ describe('Weekly challenges (lecturer)', () => {
       expect(logs[0]).toMatchObject({ entityId: data.id, actorId: lecturer.id });
     });
 
+    it('stores the week of 2026-12-28 as 2026-12-27T17:00:00Z to 2027-01-03T16:59:59.999Z', async () => {
+      const response = await post(publishBody({ weekStart: '2026-12-28' }));
+      expect(response.status).toBe(201);
+      expect(response.body.data.startsAt).toBe('2026-12-27T17:00:00.000Z');
+      expect(response.body.data.endsAt).toBe('2027-01-03T16:59:59.999Z');
+      const stored = await TestDatabase.prisma.challenge.findUniqueOrThrow({ where: { id: response.body.data.id } });
+      expect(stored.startsAt?.toISOString()).toBe('2026-12-27T17:00:00.000Z');
+      expect(stored.endsAt?.toISOString()).toBe('2027-01-03T16:59:59.999Z');
+    });
+
     it('publishes the current week immediately as ACTIVE', async () => {
       const response = await post(publishBody({ weekStart: currentMonday() }));
       expect(response.status).toBe(201);
