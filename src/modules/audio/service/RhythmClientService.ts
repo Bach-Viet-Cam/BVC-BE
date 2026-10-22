@@ -22,7 +22,8 @@ export default class RhythmClientService {
       const parsed = new AudioValidation().resultSchema.safeParse(await response.json());
       if (!parsed.success || parsed.data.evaluationId !== evaluationId) throw new Error('Kết quả phân tích không hợp lệ.');
       return parsed.data;
-    } catch {
+    } catch (error: any) {
+      console.log(error.message);
       throw new AppError('Chưa thể lấy kết quả phân tích. Vui lòng thử kiểm tra lại.', 503);
     }
   }
