@@ -44,6 +44,7 @@ declare namespace Backend {
   type ConfigValueType = 'STRING' | 'NUMBER' | 'BOOLEAN' | 'JSON';
   type ConfigGroup = 'FILE_LIMIT' | 'SCORING' | 'PRACTICE_RULE';
   interface SystemConfigRecord { id: string; key: string; value: string; valueType: ConfigValueType; group: ConfigGroup; label: string; description: string | null; }
+  interface Semester { name: string; startDate: string; endDate: string; }
   interface SystemConfigListQuery { group?: ConfigGroup; q?: string; sortBy: 'label' | 'group'; sortDir: 'asc' | 'desc'; }
   type SubmissionStatusName = 'PROCESSING' | 'COMPLETED' | 'REJECTED' | 'FAILED';
   interface DirectoryUsage { usedBytes: number; fileCount: number; }

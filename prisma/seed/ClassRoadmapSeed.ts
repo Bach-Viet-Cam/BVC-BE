@@ -36,6 +36,12 @@ const WEEK_CONTENTS = [
 
 // Practice assignments for TRD301 (sub-project 3a). Accuracy values spread from 20 % to 95 %.
 const SAMPLE_AUDIO_URL = '/samples/bvc-sample.wav';
+const SEED_SEMESTERS = [
+  { name: 'SP26', startDate: '2026-01-05', endDate: '2026-04-26' },
+  { name: 'SU26', startDate: '2026-05-04', endDate: '2026-08-23' },
+  { name: 'FA26', startDate: '2026-09-07', endDate: '2026-12-27' },
+  { name: 'SP27', startDate: '2027-01-04', endDate: '2027-04-25' }
+];
 const SEED_ASSIGNMENTS: Array<{ title: string; kind: 'SOLO' | 'ENSEMBLE' | 'BONUS' | 'OTHER'; status: 'DRAFT' | 'PUBLISHED' | 'CLOSED'; deleted?: boolean; description: string }> = [
   { title: 'Độc tấu — Lý ngựa ô', kind: 'SOLO', status: 'PUBLISHED', description: 'Tập chậm ở 70 BPM rồi tăng dần lên tempo mẫu.' },
   { title: 'Hòa tấu cùng track mẫu', kind: 'ENSEMBLE', status: 'PUBLISHED', description: 'Thu âm cùng track hòa tấu, chú ý vào nhịp đúng phách.' },
@@ -116,6 +122,17 @@ class SeedRunner {
     await prisma.systemConfig.upsert({ where: { key: AT_RISK_MARGIN }, update: {}, create: { key: AT_RISK_MARGIN, value: '10', valueType, group, label, description } });
   }
 
+  // Semesters offered on the create-class form; class start/end dates are copied from them.
+  static async seedSemesters(): Promise<void> {
+    const { SEMESTERS } = PlatformConstant.settingKeys;
+    const { group, valueType, label, description } = PlatformConstant.semesterConfig;
+    await prisma.systemConfig.upsert({
+      where: { key: SEMESTERS },
+      update: {},
+      create: { key: SEMESTERS, value: JSON.stringify(SEED_SEMESTERS), valueType, group, label, description }
+    });
+  }
+
   // Uses the real save path so the version, immutability and backfill rules match the app.
   static async seedRoadmap(instrumentId: string, adminId: string, exerciseIds: string[]): Promise<void> {
     if (await prisma.roadmap.findFirst({ where: { instrumentId } })) return;
@@ -176,6 +193,48 @@ class SeedRunner {
     }
   }
 
+  // Sub-project 4: spread earlier attempts over weeks 1–3 so the weekly chart has data.
+  static async seedWeeklyHistory(classId: string): Promise<void> {
+    const members = await prisma.classMember.findMany({ where: { classId, removedAt: null }, orderBy: { joinedAt: 'asc' }, take: 6, select: { userId: true } });
+    const assignments = await prisma.assignment.findMany({
+      where: { classId, status: 'PUBLISHED', deletedAt: null },
+      select: { id: true, currentVersionId: true }
+    });
+    if (members.length === 0 || assignments.length === 0) return;
+    const marker = await prisma.submission.findFirst({
+      where: { assignment: { classId }, studentId: members[0].userId, createdAt: { lt: new Date(Date.now() - 15 * 24 * 3600 * 1000) } }
+    });
+    if (marker) return;
+    const weeklyAccuracy = [
+      [62, 70, 78],
+      [55, 60, 66],
+      [40, 45, 52],
+      [30, 35, 38],
+      [15, 22, 28],
+      [10, 12, 18]
+    ];
+    for (const [memberIndex, member] of members.entries()) {
+      for (const [weekIndex, daysAgo] of [19, 12, 5].entries()) {
+        for (const assignment of assignments) {
+          const submittedAt = new Date(Date.now() - daysAgo * 24 * 3600 * 1000);
+          await prisma.submission.create({
+            data: {
+              assignmentId: assignment.id,
+              assignmentVersionId: assignment.currentVersionId as string,
+              studentId: member.userId,
+              fileUrl: SAMPLE_AUDIO_URL,
+              status: 'COMPLETED',
+              accuracy: weeklyAccuracy[memberIndex][weekIndex],
+              tempoDeviation: 3,
+              createdAt: submittedAt,
+              analyzedAt: submittedAt
+            }
+          });
+        }
+      }
+    }
+  }
+
   static async run(): Promise<void> {
     SeedRunner.assertSafeTarget();
     const today = DateTimeUtil.todayInVietnam();
@@ -185,6 +244,7 @@ class SeedRunner {
     const otherLecturer = await SeedRunner.upsertUser('baotq@bvc.local', 'Trương Quốc Bảo', ROLES.TEACHER);
 
     await SeedRunner.seedGradingSettings();
+    await SeedRunner.seedSemesters();
     const instruments = [];
     for (const name of INSTRUMENTS) {
       const existing = await prisma.instrument.findFirst({ where: { name } });
@@ -227,6 +287,7 @@ class SeedRunner {
 
     const tranhSong = await prisma.piece.findFirst({ where: { instruments: { some: { instrumentId: runningClass.instrumentId } }, kind: 'SONG' } });
     await SeedRunner.seedAssignments(runningClass.id, lecturer.id, tranhSong?.id ?? null);
+    await SeedRunner.seedWeeklyHistory(runningClass.id);
 
     console.log(`Seeded: 3 users (admin/lecturers), ${students.length} students, ${instruments.length} instruments, 3 classes, library pieces, roadmaps v1 for ${ROADMAP_INSTRUMENTS.join(', ')}, TRD301 assignments with submissions.`);
     console.log(`Lecturer #1 login email: ${lecturer.email}`);

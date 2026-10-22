@@ -15,9 +15,6 @@ export default class ClassConstant {
     PAGE_SIZE_MAX: 200
   });
 
-  // GBR-35: end date = start date + 6 weeks (stored literally as start + 42 days, SRS Q&A #9).
-  static readonly classDurationDays = 42;
-
   static readonly importFile = Object.freeze({
     MAX_BYTES: 2 * 1024 * 1024,
     MAX_SIZE_MB: 2,
@@ -37,9 +34,9 @@ export default class ClassConstant {
   });
 
   static readonly fieldLabels: Readonly<Record<string, string>> = Object.freeze({
-    name: 'Tên lớp',
-    cohort: 'Khóa',
-    instrumentId: 'Nhạc cụ',
+    name: 'Mã lớp',
+    cohort: 'Học kỳ',
+    instrumentId: 'Môn học',
     description: 'Mô tả',
     startDate: 'Ngày bắt đầu',
     studentCode: 'Mã sinh viên',
@@ -65,12 +62,11 @@ export default class ClassConstant {
     MEMBER_NOT_FOUND: 'Không tìm thấy sinh viên trong lớp.',
     IMPORT_LOG_NOT_FOUND: 'Không tìm thấy phiên nhập danh sách.',
     CLASS_FINISHED: format('MSG-08', { action: 'thay đổi lớp', reason: 'lớp đã kết thúc' }),
-    INSTRUMENT_LOCKED: format('MSG-08', { action: 'đổi nhạc cụ', reason: 'lớp đã bắt đầu' }),
-    START_DATE_LOCKED: format('MSG-08', { action: 'đổi ngày bắt đầu', reason: 'lớp đã bắt đầu' }),
-    START_DATE_IN_PAST: 'Ngày bắt đầu không được ở quá khứ.',
-    INVALID_DATE: 'Ngày bắt đầu không hợp lệ.',
-    INSTRUMENT_UNAVAILABLE: 'Nhạc cụ đã chọn không còn hoạt động. Vui lòng chọn nhạc cụ khác.',
-    DUPLICATE_CLASS_NAME: format('MSG-05', { field: 'Tên lớp' }),
+    INSTRUMENT_LOCKED: format('MSG-08', { action: 'đổi môn học', reason: 'lớp đã bắt đầu' }),
+    SEMESTER_LOCKED: format('MSG-08', { action: 'đổi học kỳ', reason: 'lớp đã bắt đầu' }),
+    SEMESTER_NOT_FOUND: 'Học kỳ đã chọn không tồn tại. Vui lòng chọn học kỳ khác.',
+    INSTRUMENT_UNAVAILABLE: 'Môn học đã chọn không còn hoạt động. Vui lòng chọn môn học khác.',
+    DUPLICATE_CLASS_NAME: 'Mã lớp đã tồn tại.',
     UNSUPPORTED_FILE: format('MSG-13', { allowed_formats: '.xlsx, .csv' }),
     FILE_TOO_LARGE: format('MSG-14', { max_size: 2 }),
     FILE_REQUIRED: format('MSG-35', { field: 'File' }),

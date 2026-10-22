@@ -19,6 +19,7 @@ export default class AssignmentService {
   static async createAssignment(lecturerId: string, input: Backend.CreateAssignmentInput): Promise<Backend.AssignmentBaseDTO> {
     const classRecord = await ClassAccessService.assertOwnedClass(input.classId, lecturerId, { requireActive: true });
     await AssignmentService.assertPieceSelectable(input.pieceId, classRecord.instrumentId);
+    await AssignmentService.assertKindAvailable(input.classId, input.kind);
 
     const assignmentId = await PrismaClientProvider.instance.$transaction(async (transaction) => {
       const status: Backend.AssignmentStatus = input.publish ? 'PUBLISHED' : 'DRAFT';
@@ -39,7 +40,10 @@ export default class AssignmentService {
 
   static async updateAssignment(assignmentId: string, lecturerId: string, input: Backend.AssignmentContentInput): Promise<Backend.AssignmentBaseDTO> {
     const record = await AssignmentAccessService.assertOwnedAssignment(assignmentId, lecturerId, { requireActiveClass: true });
+    // User decision 19/10: saving without any change creates no version and sends no notification.
+    if (AssignmentService.isUnchanged(record, input)) return AssignmentService.loadBaseDTO(assignmentId);
     await AssignmentService.assertPieceSelectable(input.pieceId, record.class.instrumentId);
+    await AssignmentService.assertKindAvailable(record.classId, input.kind, assignmentId);
 
     await PrismaClientProvider.instance.$transaction(async (transaction) => {
       const version = (await AssignmentRepository.findMaxVersion(assignmentId, transaction)) + 1;
@@ -69,8 +73,15 @@ export default class AssignmentService {
   }
 
   static async reopenAssignment(assignmentId: string, lecturerId: string): Promise<Backend.AssignmentBaseDTO> {
-    await AssignmentService.assertTransition(assignmentId, lecturerId, 'CLOSED', messages.INVALID_STATE('mở lại bài tập', 'bài tập chưa bị đóng'));
-    return AssignmentService.changeStatus(assignmentId, lecturerId, { status: 'PUBLISHED', closedAt: null }, auditActions.REOPEN);
+    const record = await AssignmentService.assertTransition(assignmentId, lecturerId, 'CLOSED', messages.INVALID_STATE('mở lại bài tập', 'bài tập chưa bị đóng'));
+    // User decision 19/10: reopening notifies members; closing and deleting do not.
+    await PrismaClientProvider.instance.$transaction(async (transaction) => {
+      await AssignmentRepository.updateAssignment(assignmentId, { status: 'PUBLISHED', closedAt: null }, transaction);
+      await AssignmentService.audit(lecturerId, auditActions.REOPEN, assignmentId, transaction);
+      const title = record.currentVersion?.title ?? '';
+      await AssignmentService.notifyMembers(lecturerId, record.classId, record.class.name, title, assignmentId, notifications.REOPENED_TITLE, transaction);
+    });
+    return AssignmentService.loadBaseDTO(assignmentId);
   }
 
   // A10: soft delete; the assignment disappears for everyone and its submissions stop counting.
@@ -103,6 +114,26 @@ export default class AssignmentService {
       await AssignmentService.audit(lecturerId, action, assignmentId, transaction);
     });
     return AssignmentService.loadBaseDTO(assignmentId);
+  }
+
+  // Validation already trims and turns empty values into null, so a plain comparison is enough.
+  static isUnchanged(record: Backend.AssignmentRecord, input: Backend.AssignmentContentInput): boolean {
+    const current = record.currentVersion;
+    if (!current) return false;
+    return (
+      current.title === input.title &&
+      current.description === (input.description ?? null) &&
+      current.kind === input.kind &&
+      (current.piece?.id ?? null) === (input.pieceId ?? null) &&
+      current.requiredBpm === (input.requiredBpm ?? null)
+    );
+  }
+
+  static async assertKindAvailable(classId: string, kind: Backend.AssignmentKind, excludeAssignmentId?: string): Promise<void> {
+    if (!AssignmentConstant.singleKinds.includes(kind)) return;
+    if (await AssignmentRepository.existsKindInClass(classId, kind, excludeAssignmentId)) {
+      throw AppError.fieldError(409, { field: 'kind', code: 'MSG-08', message: messages.KIND_TAKEN(kind) });
+    }
   }
 
   // A15: any visible piece of the class instrument (songs and finger exercises).

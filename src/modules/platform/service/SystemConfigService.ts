@@ -31,4 +31,14 @@ export default class SystemConfigService {
     const parsed: unknown = JSON.parse(config.value);
     return Array.isArray(parsed) ? parsed.map(String) : [];
   }
+
+  // Missing or malformed config yields an empty list; the admin page rejects bad JSON on save.
+  static async getSemesters(): Promise<Backend.Semester[]> {
+    const config = await SystemConfigRepository.findByKey(PlatformConstant.settingKeys.SEMESTERS);
+    if (!config || !SystemConfigPolicyService.validateSemesters(config.value).isValid) return [];
+    const semesters = JSON.parse(config.value) as Backend.Semester[];
+    return semesters
+      .map((semester) => ({ name: semester.name.trim(), startDate: semester.startDate, endDate: semester.endDate }))
+      .sort((left, right) => left.startDate.localeCompare(right.startDate));
+  }
 }

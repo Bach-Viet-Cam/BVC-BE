@@ -4,7 +4,15 @@ const format = MessageConstant.format;
 
 export default class PlatformConstant {
   // Grading thresholds behind "Đạt" and the progress statuses live in system_configs (SCORING group).
-  static readonly settingKeys = Object.freeze({ MIN_ACCURACY: 'min_accuracy_default', AT_RISK_MARGIN: 'at_risk_margin' });
+  static readonly settingKeys = Object.freeze({ MIN_ACCURACY: 'min_accuracy_default', AT_RISK_MARGIN: 'at_risk_margin', SEMESTERS: 'class.semesters' });
+  // Semesters for class creation: a JSON array of { name, startDate, endDate } (yyyy-MM-dd), edited on the admin config page.
+  static readonly semesterConfig = Object.freeze({
+    group: 'PRACTICE_RULE' as const,
+    valueType: 'JSON' as const,
+    label: 'Danh sách học kỳ',
+    description: 'Mỗi học kỳ gồm tên, ngày bắt đầu và ngày kết thúc, ví dụ [{"name":"FA26","startDate":"2026-09-07","endDate":"2026-12-27"}].',
+    NAME_MAX: 50
+  });
   static readonly gradingLimits = Object.freeze({ MIN: 0, MAX: 100 });
   static readonly gradingMessages = Object.freeze({
     GRADING_SAVED: format('MSG-01', { action: 'Lưu', object: 'cấu hình chấm điểm' }),

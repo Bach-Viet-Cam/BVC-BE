@@ -55,12 +55,13 @@ Response (also for every other write):
 ### `PUT /assignments/:id`
 Same fields without `classId` and `publish`. Creates a **new version**; earlier submissions keep the version they were made on.
 Allowed for drafts, published and closed assignments. If the assignment is published, members are notified ("Bài tập đã được cập nhật").
+If nothing changed (title, description, kind, piece, BPM after trimming), no version is created and nobody is notified; the current assignment is returned.
 
 ### `POST /assignments/:id/publish | close | reopen`
-`publish` only from DRAFT (notifies members), `close` only from PUBLISHED, `reopen` only from CLOSED. Any other state → 409.
+`publish` only from DRAFT (notifies members, "Bài tập mới"), `close` only from PUBLISHED (no notification), `reopen` only from CLOSED (notifies members, "Bài tập đã được mở lại"). Any other state → 409.
 
 ### `DELETE /assignments/:id`
-Soft delete. The assignment disappears for everyone and its submissions no longer count towards progress.
+Soft delete, without a notification. The assignment disappears for everyone and its submissions no longer count towards progress.
 
 ### `GET /assignments/:id`
 The response above plus `students[]`, one row per active member:

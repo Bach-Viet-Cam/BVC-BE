@@ -21,48 +21,61 @@ describe('Classes API (UC-09)', () => {
     await TestDatabase.prisma.$disconnect();
   });
 
-  it('creates a class with end date = start + 42 days, pinned to the lecturer, and audits it', async () => {
-    const startDate = TestDatabase.futureDate(3);
+  it('lists semesters from system config with the default one', async () => {
+    const response = await request(app).get('/api/v1/classes/semesters').set('Authorization', lecturerToken);
+    expect(response.status).toBe(200);
+    expect(response.body.data.items.map((semester: Backend.Semester) => semester.name)).toEqual(['SP26', 'FA26', 'SP27']);
+    // Today is in no semester: FA26 ends closest to today.
+    expect(response.body.data.defaultName).toBe('FA26');
+  });
+
+  it('creates a class spanning its semester, pinned to the lecturer, and audits it', async () => {
+    const { startDate, endDate } = TestDatabase.defaultSemesters()[1];
     const response = await request(app)
       .post('/api/v1/classes')
       .set('Authorization', lecturerToken)
-      .send({ name: '  TRD301 — Nhạc cụ truyền thống ', cohort: 'FA26', instrumentId: instrument.id, startDate, description: 'Mô tả' });
+      .send({ name: '  TRD301 — Nhạc cụ truyền thống ', cohort: 'fa26', instrumentId: instrument.id, description: 'Mô tả' });
 
     expect(response.status).toBe(201);
     expect(response.body.message).toBe('Tạo lớp thành công.');
     expect(response.body.data).toMatchObject({
       name: 'TRD301 — Nhạc cụ truyền thống',
+      cohort: 'FA26',
       status: 'ACTIVE',
       startDate,
+      endDate,
       memberCount: 0,
       hasStarted: false,
       isReadOnly: false,
       instrument: { id: instrument.id, name: 'Đàn tranh' }
     });
-    const start = new Date(`${startDate}T00:00:00Z`).getTime();
-    expect(new Date(`${response.body.data.endDate}T00:00:00Z`).getTime() - start).toBe(42 * 86400000);
     expect(await TestDatabase.prisma.auditLog.count({ where: { action: 'CLASS_CREATE', actorId: lecturer.id } })).toBe(1);
   });
 
-  it('returns field errors with message codes for blank, too long and past start date', async () => {
+  it('returns field errors for blank, too long and unknown semester, and allows an ended semester', async () => {
     const blank = await request(app).post('/api/v1/classes').set('Authorization', lecturerToken)
-      .send({ name: '  ', cohort: 'x'.repeat(51), instrumentId: instrument.id, startDate: TestDatabase.futureDate() });
+      .send({ name: '  ', cohort: 'x'.repeat(51), instrumentId: instrument.id });
     expect(blank.status).toBe(400);
     expect(blank.body.errors).toEqual(expect.arrayContaining([
-      { field: 'name', code: 'MSG-35', message: 'Tên lớp không được để trống.' },
-      { field: 'cohort', code: 'MSG-37', message: 'Khóa không được vượt quá 50 ký tự.' }
+      { field: 'name', code: 'MSG-35', message: 'Mã lớp không được để trống.' },
+      { field: 'cohort', code: 'MSG-37', message: 'Học kỳ không được vượt quá 50 ký tự.' }
     ]));
 
-    const past = await request(app).post('/api/v1/classes').set('Authorization', lecturerToken)
-      .send({ name: 'Lớp A', cohort: 'FA26', instrumentId: instrument.id, startDate: TestDatabase.futureDate(-1) });
-    expect(past.status).toBe(400);
-    expect(past.body.errors[0]).toMatchObject({ field: 'startDate', message: 'Ngày bắt đầu không được ở quá khứ.' });
+    const unknown = await request(app).post('/api/v1/classes').set('Authorization', lecturerToken)
+      .send({ name: 'Lớp A', cohort: 'XX99', instrumentId: instrument.id });
+    expect(unknown.status).toBe(400);
+    expect(unknown.body.errors[0]).toMatchObject({ field: 'cohort', message: 'Học kỳ đã chọn không tồn tại. Vui lòng chọn học kỳ khác.' });
+
+    const ended = await request(app).post('/api/v1/classes').set('Authorization', lecturerToken)
+      .send({ name: 'Lớp A', cohort: 'SP26', instrumentId: instrument.id });
+    expect(ended.status).toBe(201);
+    expect(ended.body.data).toMatchObject({ startDate: TestDatabase.defaultSemesters()[0].startDate, hasStarted: true });
   });
 
   it('rejects an inactive instrument', async () => {
     const inactive = await TestDatabase.createInstrument('Đàn cũ', false);
     const response = await request(app).post('/api/v1/classes').set('Authorization', lecturerToken)
-      .send({ name: 'Lớp A', cohort: 'FA26', instrumentId: inactive.id, startDate: TestDatabase.futureDate() });
+      .send({ name: 'Lớp A', cohort: 'FA26', instrumentId: inactive.id });
     expect(response.status).toBe(400);
     expect(response.body.errors[0].field).toBe('instrumentId');
   });
@@ -70,12 +83,12 @@ describe('Classes API (UC-09)', () => {
   it('enforces a case-insensitive unique name per cohort but allows it in another cohort (DBR-02)', async () => {
     await TestDatabase.createClass(lecturer.id, instrument.id, { name: 'TRD301', cohort: 'FA26' });
     const duplicate = await request(app).post('/api/v1/classes').set('Authorization', lecturerToken)
-      .send({ name: 'trd301', cohort: 'FA26', instrumentId: instrument.id, startDate: TestDatabase.futureDate() });
+      .send({ name: 'trd301', cohort: 'FA26', instrumentId: instrument.id });
     expect(duplicate.status).toBe(409);
-    expect(duplicate.body).toMatchObject({ code: 'MSG-05', errors: [{ field: 'name', code: 'MSG-05', message: 'Tên lớp này đã được sử dụng.' }] });
+    expect(duplicate.body).toMatchObject({ code: 'MSG-05', errors: [{ field: 'name', code: 'MSG-05', message: 'Mã lớp đã tồn tại.' }] });
 
     const otherCohort = await request(app).post('/api/v1/classes').set('Authorization', lecturerToken)
-      .send({ name: 'TRD301', cohort: 'SP27', instrumentId: instrument.id, startDate: TestDatabase.futureDate() });
+      .send({ name: 'TRD301', cohort: 'SP27', instrumentId: instrument.id });
     expect(otherCohort.status).toBe(201);
   });
 
@@ -117,27 +130,27 @@ describe('Classes API (UC-09)', () => {
     expect(anonymous.status).toBe(401);
   });
 
-  it('updates a class that has not started and recomputes the end date', async () => {
+  it('updates a class that has not started and takes the dates of the new semester', async () => {
     const classRecord = await TestDatabase.createClass(lecturer.id, instrument.id, { name: 'Cũ' });
     const bau = await TestDatabase.createInstrument('Đàn bầu');
-    const newStart = TestDatabase.futureDate(10);
+    const { startDate, endDate } = TestDatabase.defaultSemesters()[2];
     const response = await request(app).patch(`/api/v1/classes/${classRecord.id}`).set('Authorization', lecturerToken)
-      .send({ name: 'Mới', instrumentId: bau.id, startDate: newStart, description: '' });
+      .send({ name: 'Mới', instrumentId: bau.id, cohort: 'SP27', description: '' });
     expect(response.status).toBe(200);
-    expect(response.body.data).toMatchObject({ name: 'Mới', instrument: { id: bau.id }, startDate: newStart, description: null });
-    expect(response.body.data.endDate).toBe(TestDatabase.futureDate(52));
+    expect(response.body.data).toMatchObject({ name: 'Mới', cohort: 'SP27', instrument: { id: bau.id }, startDate, endDate, description: null });
   });
 
-  it('locks instrument and start date once the class has started (GBR-36) but allows other edits', async () => {
+  it('locks instrument and semester once the class has started (GBR-36) but allows other edits', async () => {
     const started = await TestDatabase.createClass(lecturer.id, instrument.id, { startDate: TestDatabase.futureDate(0) });
     const bau = await TestDatabase.createInstrument('Đàn bầu');
 
     const instrumentChange = await request(app).patch(`/api/v1/classes/${started.id}`).set('Authorization', lecturerToken).send({ instrumentId: bau.id });
     expect(instrumentChange.status).toBe(409);
-    expect(instrumentChange.body.errors[0]).toMatchObject({ field: 'instrumentId', message: 'Không thể đổi nhạc cụ vì lớp đã bắt đầu.' });
+    expect(instrumentChange.body.errors[0]).toMatchObject({ field: 'instrumentId', message: 'Không thể đổi môn học vì lớp đã bắt đầu.' });
 
-    const dateChange = await request(app).patch(`/api/v1/classes/${started.id}`).set('Authorization', lecturerToken).send({ startDate: TestDatabase.futureDate(5) });
-    expect(dateChange.status).toBe(409);
+    const semesterChange = await request(app).patch(`/api/v1/classes/${started.id}`).set('Authorization', lecturerToken).send({ cohort: 'SP27' });
+    expect(semesterChange.status).toBe(409);
+    expect(semesterChange.body.errors[0]).toMatchObject({ field: 'cohort', message: 'Không thể đổi học kỳ vì lớp đã bắt đầu.' });
 
     const sameValues = await request(app).patch(`/api/v1/classes/${started.id}`).set('Authorization', lecturerToken)
       .send({ instrumentId: instrument.id, description: 'Cập nhật mô tả' });

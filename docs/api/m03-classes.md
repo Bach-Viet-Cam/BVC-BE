@@ -33,15 +33,19 @@ Query: `q` (≤ 100, name contains, case-insensitive), `cohort`, `instrumentId`,
   "cohorts": ["FA26", "SP26"] }
 ```
 
+### `GET /classes/semesters`
+Semesters from system config `class.semesters` (JSON `[{ name, startDate, endDate }]`, edited by System Admin), sorted by `startDate`.
+`{ "items": [ { "name", "startDate", "endDate" } ], "defaultName": "FA26" | null }`, where the default is the semester containing today (UTC+7), else the one whose `endDate` is closest to today.
+
 ### `POST /classes` → 201
-Body: `{ name* (1–100), cohort* (1–50), instrumentId* (active instrument), description (≤ 500), startDate* (not in the past) }`.
-`endDate` = `startDate + 42 days` (GBR-35). Returns the class detail. Message: "Tạo lớp thành công."
+Body: `{ name* (Mã lớp, 1–100), cohort* (Học kỳ: a semester name from `/classes/semesters`), instrumentId* (Môn học: active instrument), description (≤ 500) }`.
+`startDate`/`endDate` are copied from the semester; past semesters are allowed. Unknown semester → 400 on `cohort`. Duplicate name in the semester → 409 "Mã lớp đã tồn tại.". Returns the class detail. Message: "Tạo lớp thành công."
 
 ### `GET /classes/:id`
 Class detail = summary + `{ description, hasStarted, isReadOnly, endedAt }`.
 
 ### `PATCH /classes/:id`
-Any subset of the create fields. Once `hasStarted` (today ≥ startDate, UTC+7), changing `instrumentId` or `startDate` → 409 with a field error (GBR-36). Finished class → 409 (GBR-37).
+Any subset of the create fields. Once `hasStarted` (today ≥ startDate, UTC+7), changing `instrumentId` or `cohort` (semester) → 409 with a field error (GBR-36). Finished class → 409 (GBR-37).
 
 ### `POST /classes/:id/end`
 Sets `status = FINISHED`. The class becomes read-only; every write on it then returns 409 `MSG-08`.
