@@ -5,6 +5,7 @@ import DateTimeUtil from '../../../utils/DateTimeUtil.ts';
 import ClassConstant from '../constant/ClassConstant.ts';
 import ClassDTO from '../dto/ClassDTO.ts';
 import AssignmentService from '../../assignments/service/AssignmentService.ts';
+import SystemConfigService from '../../platform/service/SystemConfigService.ts';
 import AssignmentRepository from '../../assignments/repository/AssignmentRepository.ts';
 import RoadmapRepository from '../../roadmaps/repository/RoadmapRepository.ts';
 import ClassRepository from '../repository/ClassRepository.ts';
@@ -34,22 +35,44 @@ export default class ClassService {
     return ClassDTO.toClassDetailDTO(classRecord);
   }
 
-  static calculateEndDate(startDate: string): string {
-    return DateTimeUtil.addDays(startDate, ClassConstant.classDurationDays);
+  static async listSemesters(now: Date = new Date()): Promise<Backend.SemesterListDTO> {
+    const semesters = await SystemConfigService.getSemesters();
+    return { items: semesters, defaultName: ClassService.pickDefaultSemester(semesters, now)?.name ?? null };
+  }
+
+  // The semester containing today; otherwise the one whose end date is closest to today.
+  static pickDefaultSemester(semesters: Backend.Semester[], now: Date = new Date()): Backend.Semester | null {
+    const today = DateTimeUtil.todayInVietnam(now);
+    const current = semesters.find((semester) => semester.startDate <= today && today <= semester.endDate);
+    if (current) return current;
+    const distanceToToday = (semester: Backend.Semester): number =>
+      Math.abs(DateTimeUtil.toDateOnly(semester.endDate).getTime() - DateTimeUtil.toDateOnly(today).getTime());
+    return semesters.reduce<Backend.Semester | null>(
+      (closest, semester) => (!closest || distanceToToday(semester) < distanceToToday(closest) ? semester : closest),
+      null
+    );
+  }
+
+  // The class runs exactly over its semester: start and end dates are copied from the semester config.
+  static async findSemester(name: string): Promise<Backend.Semester> {
+    const semesters = await SystemConfigService.getSemesters();
+    const semester = semesters.find((item) => item.name.toLowerCase() === name.trim().toLowerCase());
+    if (!semester) throw AppError.fieldError(400, { field: 'cohort', message: messages.SEMESTER_NOT_FOUND });
+    return semester;
   }
 
   static async createClass(lecturerId: string, input: Backend.CreateClassInput, now: Date = new Date()): Promise<Backend.ClassDetailDTO> {
-    ClassService.assertStartDateNotInPast(input.startDate, now);
+    const semester = await ClassService.findSemester(input.cohort);
     await ClassService.assertInstrumentActive(input.instrumentId);
-    await ClassService.assertUniqueName(input.cohort, input.name);
+    await ClassService.assertUniqueName(semester.name, input.name);
 
     const classData: Backend.ClassWriteData = {
       name: input.name,
-      cohort: input.cohort,
+      cohort: semester.name,
       instrumentId: input.instrumentId,
       description: input.description || null,
-      startDate: DateTimeUtil.toDateOnly(input.startDate),
-      endDate: DateTimeUtil.toDateOnly(ClassService.calculateEndDate(input.startDate)),
+      startDate: DateTimeUtil.toDateOnly(semester.startDate),
+      endDate: DateTimeUtil.toDateOnly(semester.endDate),
       // UC-11: a new class is bound to the latest roadmap version of its instrument (null until one exists).
       roadmapId: await RoadmapRepository.findLatestRoadmapId(input.instrumentId)
     };
@@ -61,7 +84,7 @@ export default class ClassService {
           action: auditActions.CLASS_CREATE,
           entityType: ClassConstant.auditEntityTypes.CLASS,
           entityId: classRecord.id,
-          payload: { name: classRecord.name, cohort: classRecord.cohort, instrumentId: classRecord.instrumentId, startDate: input.startDate }
+          payload: { name: classRecord.name, cohort: classRecord.cohort, instrumentId: classRecord.instrumentId, startDate: semester.startDate }
         }, transaction);
         return classRecord;
       })
@@ -107,15 +130,16 @@ export default class ClassService {
       // Q6: the roadmap belongs to the instrument, so re-pin to the new instrument's latest version.
       changes.roadmapId = await RoadmapRepository.findLatestRoadmapId(input.instrumentId);
     }
-    if (input.startDate !== undefined && input.startDate !== currentStartDate) {
-      if (hasStarted) throw AppError.fieldError(409, { field: 'startDate', code: 'MSG-08', message: messages.START_DATE_LOCKED });
-      ClassService.assertStartDateNotInPast(input.startDate, now);
-      changes.startDate = DateTimeUtil.toDateOnly(input.startDate);
-      changes.endDate = DateTimeUtil.toDateOnly(ClassService.calculateEndDate(input.startDate));
+    let nextCohort = currentClass.cohort;
+    if (input.cohort !== undefined && input.cohort.trim().toLowerCase() !== currentClass.cohort.toLowerCase()) {
+      if (hasStarted) throw AppError.fieldError(409, { field: 'cohort', code: 'MSG-08', message: messages.SEMESTER_LOCKED });
+      const semester = await ClassService.findSemester(input.cohort);
+      nextCohort = semester.name;
+      changes.startDate = DateTimeUtil.toDateOnly(semester.startDate);
+      changes.endDate = DateTimeUtil.toDateOnly(semester.endDate);
     }
 
     const nextName = input.name ?? currentClass.name;
-    const nextCohort = input.cohort ?? currentClass.cohort;
     if (nextName !== currentClass.name || nextCohort !== currentClass.cohort) {
       await ClassService.assertUniqueName(nextCohort, nextName, currentClass.id);
       changes.name = nextName;
@@ -142,12 +166,6 @@ export default class ClassService {
       return classRecord;
     });
     return ClassDTO.toClassDetailDTO(endedClass);
-  }
-
-  static assertStartDateNotInPast(startDate: string, now: Date): void {
-    if (DateTimeUtil.isBeforeToday(startDate, now)) {
-      throw AppError.fieldError(400, { field: 'startDate', message: messages.START_DATE_IN_PAST });
-    }
   }
 
   static async assertInstrumentActive(instrumentId: string): Promise<void> {

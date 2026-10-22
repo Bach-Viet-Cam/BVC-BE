@@ -33,7 +33,15 @@ describe('DateTimeUtil', () => {
     expect(DateTimeUtil.isValidIsoDate('15/10/2026')).toBe(false);
   });
 
-  it('sets the end date to start + 6 weeks (GBR-35)', () => {
-    expect(ClassService.calculateEndDate('2026-09-01')).toBe('2026-10-13');
+  it('defaults to the semester containing today, else the one whose end date is closest', () => {
+    const semesters = [
+      { name: 'SP26', startDate: '2026-01-05', endDate: '2026-04-26' },
+      { name: 'SU26', startDate: '2026-05-04', endDate: '2026-08-23' },
+      { name: 'FA26', startDate: '2026-09-07', endDate: '2026-12-27' }
+    ];
+    expect(ClassService.pickDefaultSemester(semesters, new Date('2026-10-14T03:00:00Z'))?.name).toBe('FA26');
+    expect(ClassService.pickDefaultSemester(semesters, new Date('2026-08-30T03:00:00Z'))?.name).toBe('SU26');
+    expect(ClassService.pickDefaultSemester(semesters, new Date('2027-02-01T03:00:00Z'))?.name).toBe('FA26');
+    expect(ClassService.pickDefaultSemester([], new Date())).toBeNull();
   });
 });

@@ -39,9 +39,9 @@ describe('Class roadmap (UC-11 pinning + read-only tab)', () => {
     return response.body.data.id;
   }
 
-  async function createClassViaApi(instrumentId: string, startDate: string = TestDatabase.futureDate(7)): Promise<string> {
+  async function createClassViaApi(instrumentId: string): Promise<string> {
     const response = await request(app).post('/api/v1/classes').set('Authorization', lecturerToken)
-      .send({ name: `Lớp ${TestDatabase.nextId()}`, cohort: 'FA26', instrumentId, startDate });
+      .send({ name: `Lớp ${TestDatabase.nextId()}`, cohort: 'FA26', instrumentId });
     expect(response.status).toBe(201);
     return response.body.data.id;
   }

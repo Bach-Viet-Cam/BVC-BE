@@ -77,7 +77,7 @@ export default class AssignmentService {
       await AssignmentRepository.updateAssignment(assignmentId, { status: 'PUBLISHED', closedAt: null }, transaction);
       await AssignmentService.audit(lecturerId, auditActions.REOPEN, assignmentId, transaction);
       const title = record.currentVersion?.title ?? '';
-      await AssignmentService.notifyMembers(record.classId, record.class.name, title, assignmentId, notifications.REOPENED_TITLE, transaction);
+      await AssignmentService.notifyMembers(lecturerId, record.classId, record.class.name, title, assignmentId, notifications.REOPENED_TITLE, transaction);
     });
     return AssignmentService.loadBaseDTO(assignmentId);
   }

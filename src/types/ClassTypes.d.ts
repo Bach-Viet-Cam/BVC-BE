@@ -62,10 +62,14 @@ declare namespace Backend {
     cohort: string;
     instrumentId: string;
     description?: string | null;
-    startDate: string;
   }
 
   type UpdateClassInput = Partial<CreateClassInput>;
+
+  interface SemesterListDTO {
+    items: Semester[];
+    defaultName: string | null;
+  }
 
   interface ClassWriteData {
     name: string;
