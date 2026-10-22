@@ -53,6 +53,7 @@ model User {
   audioUploads              AudioUpload[]
   audioEvaluations          AudioEvaluationRequest[]
   ensembleSessions          EnsembleSession[]
+  leaderboardEntries        LeaderboardEntry[]
   createdNotifications      Notification[]           @relation("NotificationCreator")
   notifications             UserNotification[]       @relation("UserNotifications")
   createdAt                 DateTime                 @default(now()) @map("created_at")
@@ -382,25 +383,26 @@ model ContentCategory {
 
 // Class name is unique per cohort, case-insensitive (DBR-02): enforced in ClassService.
 model Class {
-  id           String             @id @default(uuid())
-  name         String
-  cohort       String             @default("") @db.VarChar(50)
-  description  String?            @db.VarChar(500)
-  instrumentId String             @map("instrument_id")
-  ownerId      String             @map("owner_id")
-  startDate    DateTime           @map("start_date")
-  endDate      DateTime           @default(now()) @map("end_date")
-  status       ClassStatus        @default(ACTIVE)
-  endedAt      DateTime?          @map("ended_at")
-  roadmapId    String?            @map("roadmap_id")
-  createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime           @default(now()) @updatedAt @map("updated_at")
-  instrument   Instrument         @relation(fields: [instrumentId], references: [id])
-  owner        User               @relation(fields: [ownerId], references: [id])
-  roadmap      Roadmap?           @relation(fields: [roadmapId], references: [id])
-  members      ClassMember[]
-  assignments  Assignment[]
-  importLogs   StudentImportLog[]
+  id                 String             @id @default(uuid())
+  name               String
+  cohort             String             @default("") @db.VarChar(50)
+  description        String?            @db.VarChar(500)
+  instrumentId       String             @map("instrument_id")
+  ownerId            String             @map("owner_id")
+  startDate          DateTime           @map("start_date")
+  endDate            DateTime           @default(now()) @map("end_date")
+  status             ClassStatus        @default(ACTIVE)
+  endedAt            DateTime?          @map("ended_at")
+  roadmapId          String?            @map("roadmap_id")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at")
+  instrument         Instrument         @relation(fields: [instrumentId], references: [id])
+  owner              User               @relation(fields: [ownerId], references: [id])
+  roadmap            Roadmap?           @relation(fields: [roadmapId], references: [id])
+  members            ClassMember[]
+  assignments        Assignment[]
+  importLogs         StudentImportLog[]
+  leaderboardEntries LeaderboardEntry[]
 
   @@map("classes")
 }
@@ -774,4 +776,52 @@ model AudioEvaluationRequest {
   @@index([templateUploadId])
   @@index([studentUploadId])
   @@map("audio_evaluation_requests")
+}
+
+enum LeaderboardCategory {
+  OVERALL
+  ACCURACY
+  IMPROVEMENT
+  STREAK
+  ACTIVITY
+}
+
+// UC-17 (DBR-14): periodic ranking snapshot of one semester (semester = Class.cohort); the API reads only from here.
+model LeaderboardSnapshot {
+  id           String             @id @default(uuid())
+  semester     String             @db.VarChar(50)
+  periodStart  DateTime           @map("period_start") @db.Date
+  periodEnd    DateTime           @map("period_end") @db.Date
+  weekStart    DateTime           @map("week_start") @db.Date
+  snapshotDate DateTime           @map("snapshot_date") @db.Date
+  startedAt    DateTime           @map("started_at")
+  generatedAt  DateTime           @map("generated_at")
+  durationMs   Int                @map("duration_ms")
+  entries      LeaderboardEntry[]
+
+  @@unique([semester, snapshotDate])
+  @@index([semester, generatedAt])
+  @@map("leaderboard_snapshots")
+}
+
+model LeaderboardEntry {
+  id         String              @id @default(uuid())
+  snapshotId String              @map("snapshot_id")
+  category   LeaderboardCategory
+  studentId  String              @map("student_id")
+  classId    String              @map("class_id")
+  rank       Int
+  // Display order after tie-break; used for paging
+  position   Int
+  // Value shown on the tab
+  value      Float
+  // OVERALL only: raw + normalised criteria
+  criteria   Json?
+  snapshot   LeaderboardSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  student    User                @relation(fields: [studentId], references: [id])
+  class      Class               @relation(fields: [classId], references: [id])
+
+  @@unique([snapshotId, category, studentId])
+  @@index([snapshotId, category, position])
+  @@map("leaderboard_entries")
 }

@@ -22,6 +22,21 @@ describe('DateTimeUtil', () => {
     expect(DateTimeUtil.isBeforeToday('2026-10-15', now)).toBe(false);
   });
 
+  it('finds the Monday of the ISO week in Vietnam (D7)', () => {
+    expect(DateTimeUtil.startOfWeekInVietnam('2026-10-22')).toBe('2026-10-19'); // Thursday
+    expect(DateTimeUtil.startOfWeekInVietnam('2026-10-19')).toBe('2026-10-19'); // Monday
+    expect(DateTimeUtil.startOfWeekInVietnam('2026-10-25')).toBe('2026-10-19'); // Sunday
+    expect(DateTimeUtil.startOfWeekInVietnam('2026-10-26')).toBe('2026-10-26');
+  });
+
+  it('maps an instant to its Vietnam calendar day and counts day differences', () => {
+    expect(DateTimeUtil.dayKeyInVietnam(new Date('2026-10-21T17:00:00Z'))).toBe('2026-10-22');
+    expect(DateTimeUtil.dayKeyInVietnam(new Date('2026-10-21T16:59:00Z'))).toBe('2026-10-21');
+    expect(DateTimeUtil.diffDays('2026-10-19', '2026-10-22')).toBe(3);
+    expect(DateTimeUtil.diffDays('2026-12-31', '2027-01-01')).toBe(1);
+    expect(DateTimeUtil.diffDays('2026-10-22', '2026-10-19')).toBe(-3);
+  });
+
   it('adds days across month and year boundaries', () => {
     expect(DateTimeUtil.addDays('2026-12-25', 42)).toBe('2027-02-05');
     expect(DateTimeUtil.addDays('2028-02-20', 10)).toBe('2028-03-01');
