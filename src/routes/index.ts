@@ -15,6 +15,7 @@ import AssignmentRoute from '../modules/classes/route/AssignmentRoute.ts';
 import ClassRoute from '../modules/classes/route/ClassRoute.ts';
 import LecturerAssignmentRoute from '../modules/assignments/route/AssignmentRoute.ts';
 import PlatformRoute from '../modules/platform/route/PlatformRoute.ts';
+import ProgressRoute from '../modules/progress/route/ProgressRoute.ts';
 import RoadmapRoute from '../modules/roadmaps/route/RoadmapRoute.ts';
 import EnsembleRoute from '../modules/ensemble/route/EnsembleRoute.ts';
 

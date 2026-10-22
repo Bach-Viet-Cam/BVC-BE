@@ -173,6 +173,53 @@ class SeedRunner {
     for (const userId of studentIds) {
       const isMember = await prisma.classMember.findFirst({ where: { classId, userId, removedAt: null } });
       if (!isMember) await prisma.classMember.create({ data: { classId, userId, instrumentId, addedById, source: 'MANUAL' } });
+  // Sub-project 4: spread earlier attempts over weeks 1–3 so the weekly chart has data.
+  static async seedWeeklyHistory(classId: string): Promise<void> {
+    const members = await prisma.classMember.findMany({ where: { classId, removedAt: null }, orderBy: { joinedAt: 'asc' }, take: 6, select: { studentId: true } });
+    const assignments = await prisma.assignment.findMany({
+      where: { classId, status: 'PUBLISHED', deletedAt: null },
+      select: { id: true, currentVersionId: true }
+    });
+    if (members.length === 0 || assignments.length === 0) return;
+    const marker = await prisma.submission.findFirst({
+      where: { classId, studentId: members[0].studentId, submittedAt: { lt: new Date(Date.now() - 15 * 24 * 3600 * 1000) } }
+    });
+    if (marker) return;
+    const weeklyAccuracy = [
+      [62, 70, 78],
+      [55, 60, 66],
+      [40, 45, 52],
+      [30, 35, 38],
+      [15, 22, 28],
+      [10, 12, 18]
+    ];
+    for (const [memberIndex, member] of members.entries()) {
+      for (const [weekIndex, daysAgo] of [19, 12, 5].entries()) {
+        for (const assignment of assignments) {
+          const submittedAt = new Date(Date.now() - daysAgo * 24 * 3600 * 1000);
+          await prisma.submission.create({
+            data: {
+              assignmentId: assignment.id,
+              assignmentVersionId: assignment.currentVersionId as string,
+              classId,
+              studentId: member.studentId,
+              audioUrl: SAMPLE_AUDIO_URL,
+              status: 'COMPLETED',
+              accuracy: weeklyAccuracy[memberIndex][weekIndex],
+              tempoDeviation: 3,
+              submittedAt,
+              analyzedAt: submittedAt
+            }
+          });
+        }
+      }
+    }
+  }
+
+  static async enroll(classId: string, studentIds: string[], addedById: string): Promise<void> {
+    for (const studentId of studentIds) {
+      const isMember = await prisma.classMember.findFirst({ where: { classId, studentId, removedAt: null } });
+      if (!isMember) await prisma.classMember.create({ data: { classId, studentId, addedById, source: 'MANUAL' } });
     }
   }
 
@@ -227,6 +274,7 @@ class SeedRunner {
 
     const tranhSong = await prisma.piece.findFirst({ where: { instruments: { some: { instrumentId: runningClass.instrumentId } }, kind: 'SONG' } });
     await SeedRunner.seedAssignments(runningClass.id, lecturer.id, tranhSong?.id ?? null);
+    await SeedRunner.seedWeeklyHistory(runningClass.id);
 
     console.log(`Seeded: 3 users (admin/lecturers), ${students.length} students, ${instruments.length} instruments, 3 classes, library pieces, roadmaps v1 for ${ROADMAP_INSTRUMENTS.join(', ')}, TRD301 assignments with submissions.`);
     console.log(`Lecturer #1 login email: ${lecturer.email}`);

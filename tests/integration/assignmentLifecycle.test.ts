@@ -99,6 +99,36 @@ describe('Assignment lifecycle (lecturer)', () => {
     expect(await TestDatabase.prisma.assignmentVersion.count({ where: { assignmentId: draft.id } })).toBe(3);
   });
 
+  it('saving without any change keeps the version and sends no notification', async () => {
+    const member = await TestDatabase.createUser();
+    await TestDatabase.addMember(classRecord.id, member.id, lecturer.id);
+    const piece = await TestDatabase.createPiece(tranh.id);
+    const created = (await create({ ...base(), description: 'Mô tả', pieceId: piece.id, requiredBpm: 80, publish: true })).body.data;
+    const response = await request(app)
+      .put(`/api/v1/assignments/${created.id}`)
+      .set('Authorization', lecturerToken)
+      .send({ title: '  Luyện Lý ngựa ô ', description: 'Mô tả', kind: 'SOLO', pieceId: piece.id, requiredBpm: 80 });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({ version: 1, title: 'Luyện Lý ngựa ô' });
+    expect(await TestDatabase.prisma.assignmentVersion.count({ where: { assignmentId: created.id } })).toBe(1);
+    expect(await countNotifications()).toBe(1);
+  });
+
+  it('reopening notifies active members; closing and deleting do not', async () => {
+    const member = await TestDatabase.createUser();
+    await TestDatabase.addMember(classRecord.id, member.id, lecturer.id);
+    const id = (await create({ ...base(), publish: true })).body.data.id;
+    const action = (name: string) => request(app).post(`/api/v1/assignments/${id}/${name}`).set('Authorization', lecturerToken);
+    await action('close').expect(200);
+    expect(await countNotifications()).toBe(1);
+    await action('reopen').expect(200);
+    const latest = await TestDatabase.prisma.notification.findFirst({ orderBy: { createdAt: 'desc' } });
+    expect(await countNotifications()).toBe(2);
+    expect(latest).toMatchObject({ userId: member.id, title: 'Bài tập đã được mở lại', body: 'TRD301 · Luyện Lý ngựa ô', link: `/student/assignments/${id}` });
+    await request(app).delete(`/api/v1/assignments/${id}`).set('Authorization', lecturerToken).expect(200);
+    expect(await countNotifications()).toBe(2);
+  });
+
   it('editing with a hidden piece returns MSG-48', async () => {
     const piece = await TestDatabase.createPiece(tranh.id);
     const created = (await create({ ...base(), pieceId: piece.id })).body.data;

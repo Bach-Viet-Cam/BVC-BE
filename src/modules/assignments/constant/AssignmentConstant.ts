@@ -49,6 +49,7 @@ export default class AssignmentConstant {
   static readonly notifications = Object.freeze({
     PUBLISHED_TITLE: 'Bài tập mới',
     UPDATED_TITLE: 'Bài tập đã được cập nhật',
+    REOPENED_TITLE: 'Bài tập đã được mở lại',
     COMMENTED_TITLE: 'Giảng viên đã nhận xét bài nộp',
     body: (className: string, title: string): string => `${className} · ${title}`,
     link: (assignmentId: string): string => `/assignment/${assignmentId}`
