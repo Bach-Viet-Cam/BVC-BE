@@ -32,12 +32,18 @@ export default class ChallengeConstant {
   static readonly messages = Object.freeze({
     CREATED: format('MSG-01', { action: 'Tạo', object: 'thử thách' }),
     PUBLISHED: format('MSG-01', { action: 'Đăng', object: 'thử thách' }),
+    UPDATED: format('MSG-01', { action: 'Cập nhật', object: 'thử thách' }),
+    DELETED: format('MSG-01', { action: 'Xóa', object: 'thử thách' }),
     CHALLENGE_NOT_FOUND: 'Không tìm thấy thử thách.',
     PIECE_UNAVAILABLE: format('MSG-48', { resource: 'Bài nhạc' }),
     PIECE_NOT_READY: format('MSG-08', { action: 'đăng thử thách', reason: 'bài nhạc chưa có bản thu mẫu hoặc chưa phân tích xong' }),
     WEEK_NOT_MONDAY: format('MSG-08', { action: 'đăng thử thách', reason: 'tuần phải bắt đầu vào thứ Hai' }),
     WEEK_IN_PAST: format('MSG-08', { action: 'đăng thử thách', reason: 'không thể chọn tuần đã kết thúc' }),
     CLASS_OVERLAP: format('MSG-08', { action: 'đăng thử thách', reason: 'lớp đã có thử thách khác trong tuần này' }),
+    CLASS_EMPTY: format('MSG-08', { action: 'đăng thử thách', reason: 'lớp chưa có sinh viên' }),
+    CLASS_INSTRUMENT_MISMATCH: 'Lớp đã chọn không học nhạc cụ của thử thách.',
+    NOT_DRAFT: (action: string): string => format('MSG-08', { action, reason: 'thử thách đã được đăng' }),
+    PUBLISH_FAILED: format('MSG-09', { action: 'Đăng thử thách' }),
     required: (field: string): string => format('MSG-35', { field }),
     tooLong: (field: string, max: number): string => format('MSG-37', { field, max }),
     outOfRange: (field: string, min: number, max: number): string => format('MSG-03', { field, min, max })

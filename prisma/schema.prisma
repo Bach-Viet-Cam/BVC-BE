@@ -840,7 +840,7 @@ model Challenge {
   id             String          @id @default(uuid())
   title          String
   description    String?
-  instrumentId   String          @map("instrument_id")
+  instrumentId   String?         @map("instrument_id")
   pieceId        String?         @map("piece_id")
   sheetMusicId   String?         @map("sheet_music_id")
   createdById    String          @map("created_by")
@@ -854,7 +854,7 @@ model Challenge {
   publishedAt    DateTime?       @map("published_at")
   createdAt      DateTime        @default(now()) @map("created_at")
   updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
-  instrument     Instrument      @relation(fields: [instrumentId], references: [id])
+  instrument     Instrument?     @relation(fields: [instrumentId], references: [id])
   piece          Piece?          @relation(fields: [pieceId], references: [id])
   sheetMusic     SheetMusic?     @relation(fields: [sheetMusicId], references: [id])
   createdBy      User            @relation("ChallengeCreatedBy", fields: [createdById], references: [id])
