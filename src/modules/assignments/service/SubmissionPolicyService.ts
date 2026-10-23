@@ -2,7 +2,7 @@ import MemberRepository from '../../classes/repository/MemberRepository.ts';
 import AssignmentConstant from '../constant/AssignmentConstant.ts';
 import AssignmentRepository from '../repository/AssignmentRepository.ts';
 
-// TODO(M01): the recording upload must call canSubmit before creating a submission (spec §4.5).
+// Called by the practice module before it creates a submission for an assignment (spec §4.5).
 export default class SubmissionPolicyService {
   static async canSubmit(studentId: string, assignmentId: string): Promise<{ allowed: boolean; reason: string | null }> {
     const denied = { allowed: false, reason: AssignmentConstant.messages.CANNOT_SUBMIT };

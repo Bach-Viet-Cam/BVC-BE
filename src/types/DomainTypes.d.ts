@@ -51,7 +51,7 @@ declare namespace Backend {
   interface DailyCount { date: string; count: number; }
   interface AdminAlert { level: 'ERROR' | 'WARN'; code: string; message: string; }
   interface StorageSummary { usedBytes: number; capacityBytes: number; usedPercent: number; fileCount: number; }
-  interface SubmissionBrief { id: string; createdAt: Date; fileUrl: string | null; student: { username: string }; assignment: { title: string }; }
+  interface SubmissionBrief { id: string; createdAt: Date; fileUrl: string | null; student: { username: string }; assignment: { title: string } | null; piece: { title: string }; }
   interface AdminRecentUserRecord { id: string; username: string; email: string; role: number; status: UserStatus; createdAt: Date; }
   interface AdminRecentUser { id: string; username: string; email: string; role: number; status: UserStatus; createdAt: string; }
   interface AdminConfigSummary { label: string; value: string; }

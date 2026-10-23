@@ -7,7 +7,8 @@ export default class AdminStatsRepository {
     createdAt: true,
     fileUrl: true,
     student: { select: { username: true } },
-    assignment: { select: { title: true } }
+    assignment: { select: { title: true } },
+    piece: { select: { title: true } }
   } satisfies Prisma.SubmissionSelect;
 
   static get client() {

@@ -32,3 +32,5 @@ build/
 coverage/
 # Uploaded files (generated at runtime / by seed)
 /uploads/
+
+src/modules/practice/docs

@@ -165,6 +165,7 @@ export default class ClassSeeder {
         create: {
           id,
           assignmentId: item.assignment,
+          pieceId: ClassSeeder.pieceId,
           studentId: students[item.student - 1].id,
           status: item.status ?? 'COMPLETED',
           accuracy: item.status === 'REJECTED' ? null : item.accuracy

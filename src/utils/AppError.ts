@@ -3,7 +3,7 @@ import MessageConstant from '../constants/MessageConstant.ts';
 interface AppErrorOptions {
   code?: Backend.MessageCode;
   field?: string;
-  details?: { evaluationId: string; status: string };
+  details?: Record<string, string>;
   fieldErrors?: Backend.FieldError[];
 }
 
@@ -11,7 +11,7 @@ export default class AppError extends Error {
   readonly statusCode: number;
   readonly code?: Backend.MessageCode;
   readonly field?: string;
-  readonly details?: { evaluationId: string; status: string };
+  readonly details?: Record<string, string>;
   readonly fieldErrors?: Backend.FieldError[];
 
   constructor(message: string, statusCode: number = 500, { code, field, details, fieldErrors }: AppErrorOptions = {}) {

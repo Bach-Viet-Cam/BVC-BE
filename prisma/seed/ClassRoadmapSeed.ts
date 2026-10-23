@@ -163,22 +163,23 @@ class SeedRunner {
         data: { closedAt: item.status === 'CLOSED' ? new Date() : null, deletedAt: item.deleted ? new Date() : null }
       });
       const version = await prisma.assignmentVersion.findFirstOrThrow({ where: { assignmentId: assignment.id }, select: { id: true } });
-      if (item.status !== 'DRAFT') await SeedRunner.seedSubmissions(assignment.id, version.id, lecturerId, members.map((member) => member.userId), index);
+      // Submissions always belong to a piece; the class song stands in for assignments without one
+      if (item.status !== 'DRAFT' && pieceId) await SeedRunner.seedSubmissions(assignment.id, version.id, pieceId, lecturerId, members.map((member) => member.userId), index);
     }
   }
 
-  static async seedSubmissions(assignmentId: string, versionId: string, lecturerId: string, studentIds: string[], offset: number): Promise<void> {
+  static async seedSubmissions(assignmentId: string, versionId: string, pieceId: string, lecturerId: string, studentIds: string[], offset: number): Promise<void> {
     for (const [index, studentId] of studentIds.slice(0, 10).entries()) {
       const accuracy = SEED_ACCURACIES[(index + offset) % SEED_ACCURACIES.length];
       const submittedAt = new Date(Date.now() - (index + 1) * 3600 * 1000);
       const submission = await prisma.submission.create({
-        data: { assignmentId, assignmentVersionId: versionId, studentId, fileUrl: SAMPLE_AUDIO_URL, status: 'COMPLETED', accuracy, tempoDeviation: (index % 4) * 2.5, createdAt: submittedAt, analyzedAt: submittedAt }
+        data: { assignmentId, assignmentVersionId: versionId, pieceId, studentId, fileUrl: SAMPLE_AUDIO_URL, status: 'COMPLETED', accuracy, tempoDeviation: (index % 4) * 2.5, createdAt: submittedAt, analyzedAt: submittedAt }
       });
       if (index === 1) {
-        await prisma.submission.create({ data: { assignmentId, assignmentVersionId: versionId, studentId, fileUrl: SAMPLE_AUDIO_URL, status: 'REJECTED', createdAt: submittedAt } });
+        await prisma.submission.create({ data: { assignmentId, assignmentVersionId: versionId, pieceId, studentId, fileUrl: SAMPLE_AUDIO_URL, status: 'REJECTED', createdAt: submittedAt } });
       }
       if (index === 2) {
-        await prisma.submission.create({ data: { assignmentId, assignmentVersionId: versionId, studentId, fileUrl: SAMPLE_AUDIO_URL, status: 'FAILED', createdAt: submittedAt } });
+        await prisma.submission.create({ data: { assignmentId, assignmentVersionId: versionId, pieceId, studentId, fileUrl: SAMPLE_AUDIO_URL, status: 'FAILED', createdAt: submittedAt } });
       }
       if (offset === 0 && index < SEED_COMMENTS.length) {
         await prisma.submissionComment.create({ data: { submissionId: submission.id, lecturerId, content: SEED_COMMENTS[index] } });
@@ -194,13 +195,13 @@ class SeedRunner {
   }
 
   // Sub-project 4: spread earlier attempts over weeks 1–3 so the weekly chart has data.
-  static async seedWeeklyHistory(classId: string): Promise<void> {
+  static async seedWeeklyHistory(classId: string, pieceId: string | null): Promise<void> {
     const members = await prisma.classMember.findMany({ where: { classId, removedAt: null }, orderBy: { joinedAt: 'asc' }, take: 6, select: { userId: true } });
     const assignments = await prisma.assignment.findMany({
       where: { classId, status: 'PUBLISHED', deletedAt: null },
       select: { id: true, currentVersionId: true }
     });
-    if (members.length === 0 || assignments.length === 0) return;
+    if (members.length === 0 || assignments.length === 0 || !pieceId) return; // submissions always belong to a piece
     const marker = await prisma.submission.findFirst({
       where: { assignment: { classId }, studentId: members[0].userId, createdAt: { lt: new Date(Date.now() - 15 * 24 * 3600 * 1000) } }
     });
@@ -221,6 +222,7 @@ class SeedRunner {
             data: {
               assignmentId: assignment.id,
               assignmentVersionId: assignment.currentVersionId as string,
+              pieceId,
               studentId: member.userId,
               fileUrl: SAMPLE_AUDIO_URL,
               status: 'COMPLETED',
@@ -287,7 +289,7 @@ class SeedRunner {
 
     const tranhSong = await prisma.piece.findFirst({ where: { instruments: { some: { instrumentId: runningClass.instrumentId } }, kind: 'SONG' } });
     await SeedRunner.seedAssignments(runningClass.id, lecturer.id, tranhSong?.id ?? null);
-    await SeedRunner.seedWeeklyHistory(runningClass.id);
+    await SeedRunner.seedWeeklyHistory(runningClass.id, tranhSong?.id ?? null);
 
     console.log(`Seeded: 3 users (admin/lecturers), ${students.length} students, ${instruments.length} instruments, 3 classes, library pieces, roadmaps v1 for ${ROADMAP_INSTRUMENTS.join(', ')}, TRD301 assignments with submissions.`);
     console.log(`Lecturer #1 login email: ${lecturer.email}`);

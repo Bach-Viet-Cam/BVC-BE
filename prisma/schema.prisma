@@ -258,6 +258,7 @@ model Piece {
   kind               PieceKind             @default(SONG)
   roadmapUses        RoadmapWeekExercise[]
   assignmentVersions AssignmentVersion[]
+  submissions        Submission[]
   deletedAt          DateTime?             @map("deleted_at")
   createdAt          DateTime              @default(now()) @map("created_at")
   updatedAt          DateTime              @default(now()) @updatedAt @map("updated_at")
@@ -310,6 +311,7 @@ model SheetMusic {
   uploaderId           String         @map("uploader_id")
   uploader             User           @relation("SheetMusicUploader", fields: [uploaderId], references: [id])
   savedItems           SavedItem[]
+  submissions          Submission[]
   createdAt            DateTime       @default(now()) @map("created_at")
   updatedAt            DateTime       @updatedAt @map("updated_at")
 
@@ -361,6 +363,14 @@ enum SubmissionStatus {
   COMPLETED
   REJECTED
   FAILED
+}
+
+// Job of the AI pipeline currently running for a practice submission (GBR-63/64)
+enum SubmissionStage {
+  QUALITY_CHECK
+  AUDIO_ANALYSIS
+  COMPARISON
+  FEEDBACK
 }
 
 enum EnsembleSessionStatus {
@@ -614,23 +624,48 @@ model RubricCriterion {
   @@map("rubric_criteria")
 }
 
+// A practice recording sent for AI analysis. assignmentId is empty for free practice on a library piece.
 model Submission {
   id                  String             @id @default(uuid())
-  assignmentId        String             @map("assignment_id")
+  assignmentId        String?            @map("assignment_id")
+  pieceId             String             @map("piece_id")
+  sheetMusicId        String?            @map("sheet_music_id")
   studentId           String             @map("student_id")
+  studentUploadId     String?            @map("student_upload_id")
   status              SubmissionStatus   @default(PROCESSING)
   accuracy            Float?
   fileUrl             String?            @map("file_url")
   createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at")
   assignmentVersionId String?            @map("assignment_version_id")
   tempoDeviation      Float?             @map("tempo_deviation")
   analyzedAt          DateTime?          @map("analyzed_at")
-  assignment          Assignment         @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  // Rhythm service job: ids, queue publication state and the attempt that callbacks must match
+  evaluationId        String?            @unique @map("evaluation_id")
+  messageId           String?            @unique @map("message_id")
+  publicationState    String?            @map("publication_state")
+  attempt             Int                @default(1)
+  stage               SubmissionStage?
+  stageStartedAt      DateTime?          @map("stage_started_at")
+  // GBR-59: retries used, when the next retry opens, and when the file was deleted after the last one (GBR-62)
+  retryCount          Int                @default(0) @map("retry_count")
+  retryAvailableAt    DateTime?          @map("retry_available_at")
+  fileDeletedAt       DateTime?          @map("file_deleted_at")
+  result              Json?
+  aiFeedback          String?            @map("ai_feedback")
+  rejectReason        String?            @map("reject_reason")
+  errorCode           String?            @map("error_code")
+  errorMessage        String?            @map("error_message")
+  assignment          Assignment?        @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   assignmentVersion   AssignmentVersion? @relation(fields: [assignmentVersionId], references: [id])
+  piece               Piece              @relation(fields: [pieceId], references: [id], onDelete: Cascade)
+  sheetMusic          SheetMusic?        @relation(fields: [sheetMusicId], references: [id], onDelete: SetNull)
+  studentUpload       AudioUpload?       @relation(fields: [studentUploadId], references: [id], onDelete: SetNull)
   student             User               @relation(fields: [studentId], references: [id])
   comment             SubmissionComment?
 
   @@index([assignmentId, studentId])
+  @@index([studentId, pieceId, status])
   @@map("submissions")
 }
 
@@ -737,6 +772,7 @@ model AudioUpload {
   owner               User                     @relation(fields: [ownerId], references: [id])
   templateEvaluations AudioEvaluationRequest[] @relation("AudioTemplate")
   studentEvaluations  AudioEvaluationRequest[] @relation("AudioStudent")
+  submissions         Submission[]
 
   @@unique([provider, key])
   @@index([ownerId])

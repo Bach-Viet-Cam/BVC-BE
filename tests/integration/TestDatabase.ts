@@ -146,11 +146,14 @@ export default class TestDatabase {
     studentId: string,
     overrides: Partial<{ status: 'PROCESSING' | 'COMPLETED' | 'REJECTED' | 'FAILED'; accuracy: number | null; submittedAt: Date; versionId: string }> = {}
   ) {
-    const assignment = await TestDatabase.prisma.assignment.findUniqueOrThrow({ where: { id: assignmentId } });
+    const assignment = await TestDatabase.prisma.assignment.findUniqueOrThrow({ where: { id: assignmentId }, include: { class: { select: { instrumentId: true } } } });
     const status = overrides.status ?? 'COMPLETED';
+    // Every submission belongs to a piece; assignments without one get a throwaway piece
+    const pieceId = assignment.pieceId ?? (await TestDatabase.createPiece(assignment.class.instrumentId)).id;
     return TestDatabase.prisma.submission.create({
       data: {
         assignmentId,
+        pieceId,
         assignmentVersionId: overrides.versionId ?? (assignment.currentVersionId as string),
         studentId,
         fileUrl: '/samples/bvc-sample.wav',

@@ -22,11 +22,12 @@ export default class SubmissionRepository {
 
   static async findCountedSubmitters(assignmentIds: string[]): Promise<Array<{ assignmentId: string; studentId: string }>> {
     if (assignmentIds.length === 0) return [];
-    return SubmissionRepository.client.submission.findMany({
+    const rows = await SubmissionRepository.client.submission.findMany({
       where: { assignmentId: { in: assignmentIds }, status: { notIn: [...AssignmentConstant.uncountedSubmissionStatuses] } },
       distinct: ['assignmentId', 'studentId'],
       select: { assignmentId: true, studentId: true }
     });
+    return rows.flatMap((row) => (row.assignmentId ? [{ assignmentId: row.assignmentId, studentId: row.studentId }] : []));
   }
 
   static async findSnapshotsByStudent(assignmentId: string): Promise<Map<string, Backend.SubmissionSnapshot[]>> {
@@ -77,7 +78,7 @@ export default class SubmissionRepository {
     comment: { id: string } | null;
     assignment: { deletedAt: Date | null; currentVersion: { title: string } | null; class: { id: string; name: string; status: Backend.ClassStatus; ownerId: string } };
   } | null> {
-    return SubmissionRepository.client.submission.findUnique({
+    const row = await SubmissionRepository.client.submission.findUnique({
       where: { id: submissionId },
       select: {
         id: true,
@@ -93,6 +94,9 @@ export default class SubmissionRepository {
         }
       }
     });
+    // Free-practice submissions have no assignment, so there is nothing to comment on
+    if (!row?.assignmentId || !row.assignment) return null;
+    return { ...row, assignmentId: row.assignmentId, assignment: row.assignment };
   }
 
   static async upsertComment(submissionId: string, lecturerId: string, content: string, client: Prisma.TransactionClient): Promise<{ content: string; updatedAt: Date }> {

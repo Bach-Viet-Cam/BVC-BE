@@ -27,7 +27,8 @@ export default class ProgressRepository {
       where: { ...(studentIds ? { studentId: { in: studentIds } } : {}), assignment: { ...countedAssignment, classId } },
       select: { studentId: true, assignmentId: true, status: true, accuracy: true, createdAt: true }
     });
-    return rows.map(({ createdAt, ...row }) => ({ ...row, submittedAt: createdAt }));
+    // Free-practice submissions have no assignment; the where above already excludes them
+    return rows.flatMap(({ createdAt, assignmentId, ...row }) => assignmentId ? [{ ...row, assignmentId, submittedAt: createdAt }] : []);
   }
 
   static async findClassSubmissions(
@@ -59,7 +60,7 @@ export default class ProgressRepository {
       ProgressRepository.client.submission.count({ where })
     ]);
     return {
-      rows: rows.map((row) => ({
+      rows: rows.flatMap((row) => row.assignment && row.assignmentId ? [{
         id: row.id,
         assignmentId: row.assignmentId,
         title: row.assignment.currentVersion?.title ?? '',
@@ -67,7 +68,7 @@ export default class ProgressRepository {
         status: row.status,
         accuracy: row.accuracy,
         submittedAt: row.createdAt
-      })),
+      }] : []),
       total
     };
   }
