@@ -5,17 +5,17 @@ const recordId = z.string().trim().min(1).max(64);
 
 export default class PracticeValidation {
   readonly createSchema = z.object({
-    body: z.object({ pieceId: recordId, sheetMusicId: recordId, assignmentId: recordId.optional(), studentUploadId: z.uuid() }).strict(),
+    body: z.object({ sheetMusicId: recordId, assignmentId: recordId.optional(), studentUploadId: z.uuid() }).strict(),
     params: z.object({}), query: z.object({})
   });
 
   readonly idSchema = z.object({ body: z.unknown(), params: z.object({ id: z.uuid() }), query: z.object({}) });
 
-  readonly activeSchema = z.object({ body: z.unknown(), params: z.object({}), query: z.object({ pieceId: recordId }) });
+  readonly activeSchema = z.object({ body: z.unknown(), params: z.object({}), query: z.object({ sheetMusicId: recordId }) });
 
   readonly contextSchema = z.object({
     body: z.unknown(), params: z.object({}),
-    query: z.object({ pieceId: recordId, sheetMusicId: recordId, assignmentId: recordId.optional() })
+    query: z.object({ sheetMusicId: recordId, assignmentId: recordId.optional() })
   });
 
   readonly callbackSchema = z.object({

@@ -9,7 +9,7 @@ import type RhythmClientService from '../../audio/service/RhythmClientService.ts
 import type RhythmPublisherService from '../../audio/service/RhythmPublisherService.ts';
 
 const now = new Date('2026-10-22T10:00:00Z');
-const input: Practice.CreateInput = { pieceId: 'piece-1', sheetMusicId: 'sheet-bau', studentUploadId: '00000000-0000-4000-8000-000000000001' };
+const input: Practice.CreateInput = { sheetMusicId: 'sheet-bau', studentUploadId: '00000000-0000-4000-8000-000000000001' };
 const sheet: Practice.SheetTemplate = { id: 'sheet-bau', pieceId: 'piece-1', instrumentId: 'inst-bau', kind: 'MAIN', referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau' } };
 const candidate: Practice.AssignmentCandidate = {
   id: 'asg-1', title: 'Bài 3', description: '', status: 'PUBLISHED', deadline: new Date('2026-12-01'), maxSubmissions: 3, targetBpm: null,

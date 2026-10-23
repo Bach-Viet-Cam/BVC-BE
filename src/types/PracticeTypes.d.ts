@@ -3,7 +3,7 @@ declare namespace Practice {
   type Stage = 'QUALITY_CHECK' | 'AUDIO_ANALYSIS' | 'COMPARISON' | 'FEEDBACK';
   type ProgressStatus = 'started' | 'done' | 'failed' | 'rejected';
 
-  interface CreateInput { pieceId: string; sheetMusicId: string; assignmentId?: string; studentUploadId: string; }
+  interface CreateInput { sheetMusicId: string; assignmentId?: string; studentUploadId: string; }
 
   // Body the Rhythm service posts for every job event (see its ProgressCallback schema)
   interface ProgressCallback {
