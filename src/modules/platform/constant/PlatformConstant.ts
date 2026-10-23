@@ -10,7 +10,7 @@ export default class PlatformConstant {
     group: 'PRACTICE_RULE' as const,
     valueType: 'JSON' as const,
     label: 'Danh sách học kỳ',
-    description: 'Mỗi học kỳ gồm tên, ngày bắt đầu và ngày kết thúc, ví dụ [{"name":"FA26","startDate":"2026-09-07","endDate":"2026-12-27"}].',
+    description: 'Các học kỳ dùng khi tạo lớp: mỗi học kỳ có tên, ngày bắt đầu và ngày kết thúc.',
     NAME_MAX: 50
   });
   static readonly gradingLimits = Object.freeze({ MIN: 0, MAX: 100 });
