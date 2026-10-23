@@ -56,13 +56,13 @@ export default class AssignmentRepository {
     return found !== null;
   }
 
-  // The piece is selectable when it is available and played on the class instrument.
-  static async isPieceSelectable(pieceId: string, instrumentId: string): Promise<boolean> {
-    const piece = await AssignmentRepository.client.piece.findUnique({
-      where: { id: pieceId },
-      select: { visibility: true, moderation: true, deletedAt: true, instruments: { where: { instrumentId }, select: { instrumentId: true } } }
+  // The sheet music is selectable when it and its piece are available and it is written for the class instrument.
+  static async isSheetMusicSelectable(sheetMusicId: string, instrumentId: string): Promise<boolean> {
+    const sheet = await AssignmentRepository.client.sheetMusic.findUnique({
+      where: { id: sheetMusicId },
+      select: { instrumentId: true, visibility: true, moderation: true, piece: { select: { visibility: true, moderation: true, deletedAt: true } } }
     });
-    return piece !== null && PieceUtil.isAvailable(piece) && piece.instruments.length > 0;
+    return sheet !== null && sheet.instrumentId === instrumentId && PieceUtil.isSheetMusicAvailable(sheet);
   }
 
   static async createAssignment(
@@ -79,7 +79,7 @@ export default class AssignmentRepository {
       title: content.title,
       description: content.description || '',
       type: AssignmentConstant.typeByKind[content.kind],
-      pieceId: content.pieceId || null,
+      sheetMusicId: content.sheetMusicId || null,
       targetBpm: content.requiredBpm ?? null,
       isPublished: status !== 'DRAFT'
     };
@@ -104,7 +104,7 @@ export default class AssignmentRepository {
         title: content.title,
         description: content.description || null,
         kind: content.kind,
-        pieceId: content.pieceId || null,
+        sheetMusicId: content.sheetMusicId || null,
         requiredBpm: content.requiredBpm ?? null,
         createdById
       },

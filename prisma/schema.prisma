@@ -250,11 +250,9 @@ model Piece {
   instruments        PieceInstrument[]
   sheetMusic         SheetMusic[]
   savedItems         SavedItem[]
-  assignments        Assignment[]
   // Roadmap exercises are FINGER_EXERCISE pieces; everything else is a SONG
   kind               PieceKind             @default(SONG)
   roadmapUses        RoadmapWeekExercise[]
-  assignmentVersions AssignmentVersion[]
   submissions        Submission[]
   deletedAt          DateTime?             @map("deleted_at")
   createdAt          DateTime              @default(now()) @map("created_at")
@@ -312,6 +310,8 @@ model SheetMusic {
   createdAt            DateTime       @default(now()) @map("created_at")
   updatedAt            DateTime       @updatedAt @map("updated_at")
 
+  assignments          Assignment[]
+  assignmentVersions   AssignmentVersion[]
   challenges Challenge[]
   @@unique([pieceId, name])
   @@unique([pieceId, mainInstrumentId])
@@ -531,7 +531,7 @@ model RoadmapWeekExercise {
 model Assignment {
   id               String              @id @default(uuid())
   classId          String              @map("class_id")
-  pieceId          String?             @map("piece_id")
+  sheetMusicId     String?             @map("sheet_music_id")
   title            String
   type             AssignmentType
   description      String              @default("")
@@ -543,7 +543,7 @@ model Assignment {
   isPublished      Boolean             @default(false) @map("is_published")
   bonusPoints      Int?                @map("bonus_points")
   createdAt        DateTime            @default(now()) @map("created_at")
-  // Lecturer lifecycle (M03). title / type / description / pieceId / targetBpm / isPublished mirror the current version
+  // Lecturer lifecycle (M03). title / type / description / sheetMusicId / targetBpm / isPublished mirror the current version
   // so the student-side readers keep working; deadline mirrors the class end date.
   status           AssignmentStatus    @default(PUBLISHED)
   createdById      String?             @map("created_by")
@@ -553,7 +553,7 @@ model Assignment {
   deletedAt        DateTime?           @map("deleted_at")
   updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at")
   class            Class               @relation(fields: [classId], references: [id], onDelete: Cascade)
-  piece            Piece?              @relation(fields: [pieceId], references: [id])
+  sheetMusic       SheetMusic?         @relation(fields: [sheetMusicId], references: [id])
   createdBy        User?               @relation("AssignmentCreatedBy", fields: [createdById], references: [id])
   currentVersion   AssignmentVersion?  @relation("AssignmentCurrentVersion", fields: [currentVersionId], references: [id])
   versions         AssignmentVersion[] @relation("AssignmentVersions")
@@ -584,13 +584,13 @@ model AssignmentVersion {
   title        String         @db.VarChar(200)
   description  String?        @db.VarChar(1000)
   kind         AssignmentKind
-  pieceId      String?        @map("piece_id")
+  sheetMusicId String?        @map("sheet_music_id")
   requiredBpm  Int?           @map("required_bpm")
   createdById  String         @map("created_by")
   createdAt    DateTime       @default(now()) @map("created_at")
   assignment   Assignment     @relation("AssignmentVersions", fields: [assignmentId], references: [id], onDelete: Cascade)
   currentOf    Assignment?    @relation("AssignmentCurrentVersion")
-  piece        Piece?         @relation(fields: [pieceId], references: [id])
+  sheetMusic   SheetMusic?    @relation(fields: [sheetMusicId], references: [id])
   createdBy    User           @relation("AssignmentVersionCreatedBy", fields: [createdById], references: [id])
   submissions  Submission[]
 

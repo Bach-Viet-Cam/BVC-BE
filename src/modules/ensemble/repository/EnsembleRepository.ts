@@ -66,10 +66,10 @@ export default class EnsembleRepository {
     });
   }
 
-  static async findPublishedAssignment(assignmentId: string): Promise<{ id: string; classId: string; pieceId: string | null; targetBpm: number | null } | null> {
+  static async findPublishedAssignment(assignmentId: string): Promise<{ id: string; classId: string; sheetMusic: { pieceId: string } | null; targetBpm: number | null } | null> {
     return EnsembleRepository.client.assignment.findFirst({
       where: { id: assignmentId, isPublished: true },
-      select: { id: true, classId: true, pieceId: true, targetBpm: true }
+      select: { id: true, classId: true, sheetMusic: { select: { pieceId: true } }, targetBpm: true }
     });
   }
 

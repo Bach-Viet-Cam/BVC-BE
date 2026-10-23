@@ -148,10 +148,12 @@ class SeedRunner {
   static async seedAssignments(classId: string, lecturerId: string, pieceId: string | null): Promise<void> {
     const classRecord = await prisma.class.findUniqueOrThrow({ where: { id: classId }, select: { endDate: true } });
     const members = await prisma.classMember.findMany({ where: { classId, removedAt: null }, orderBy: { joinedAt: 'asc' }, select: { userId: true } });
+    const classInstrument = await prisma.class.findUniqueOrThrow({ where: { id: classId }, select: { instrumentId: true } });
+    const sheet = pieceId ? await prisma.sheetMusic.findFirst({ where: { pieceId, instrumentId: classInstrument.instrumentId }, select: { id: true } }) : null;
     for (const [index, item] of SEED_ASSIGNMENTS.entries()) {
       const existing = await prisma.assignment.findFirst({ where: { classId, currentVersion: { title: item.title } } });
       if (existing) continue;
-      const content = { title: item.title, description: item.description, kind: item.kind, pieceId: index === 0 ? pieceId : null };
+      const content = { title: item.title, description: item.description, kind: item.kind, sheetMusicId: index === 0 ? (sheet?.id ?? null) : null };
       const assignment = await AssignmentRepository.createAssignment(
         { classId, createdById: lecturerId, status: item.status, publishedAt: item.status === 'DRAFT' ? null : new Date(), deadline: classRecord.endDate },
         content,

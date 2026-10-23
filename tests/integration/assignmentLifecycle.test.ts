@@ -33,7 +33,7 @@ describe('Assignment lifecycle (lecturer)', () => {
     const response = await create({ ...base(), description: '  Tập chậm  ' });
     expect(response.status).toBe(201);
     expect(response.body.message).toBe('Tạo bài tập thành công.');
-    expect(response.body.data).toMatchObject({ status: 'DRAFT', version: 1, title: 'Luyện Lý ngựa ô', kind: 'SOLO', description: 'Tập chậm', requiredBpm: null, piece: null });
+    expect(response.body.data).toMatchObject({ status: 'DRAFT', version: 1, title: 'Luyện Lý ngựa ô', kind: 'SOLO', description: 'Tập chậm', requiredBpm: null, sheetMusic: null });
     expect(await countNotifications()).toBe(0);
   });
 
@@ -85,17 +85,26 @@ describe('Assignment lifecycle (lecturer)', () => {
     expect((await create(base())).status).toBe(201);
   });
 
-  it('rejects a piece of another instrument or hidden piece with MSG-48', async () => {
+  it('rejects sheet music of another instrument, a hidden sheet or a sheet of a hidden piece with MSG-48', async () => {
     const bau = await TestDatabase.createInstrument('Đàn bầu');
-    const otherPiece = await TestDatabase.createPiece(bau.id);
-    const hiddenPiece = await TestDatabase.createPiece(tranh.id, { isVisible: false });
-    for (const pieceId of [otherPiece.id, hiddenPiece.id]) {
-      const response = await create({ ...base(), pieceId });
-      expect(response.status).toBe(400);
-      expect(response.body.errors).toEqual([{ field: 'pieceId', code: 'MSG-48', message: 'Bài nhạc đã chọn không còn khả dụng trong thư viện. Vui lòng chọn mục khác.' }]);
-    }
     const song = await TestDatabase.createPiece(tranh.id, { title: 'Lý ngựa ô', kind: 'SONG' });
-    expect((await create({ ...base(), pieceId: song.id })).body.data.piece).toMatchObject({ id: song.id, title: 'Lý ngựa ô', isAvailable: true });
+    const otherInstrumentSheet = await TestDatabase.createSheetMusic(song.id, bau.id);
+    const hiddenSheet = await TestDatabase.createSheetMusic(song.id, tranh.id, { visibility: 'HIDDEN' });
+    const hiddenPiece = await TestDatabase.createPiece(tranh.id, { isVisible: false });
+    const hiddenPieceSheet = await TestDatabase.createSheetMusic(hiddenPiece.id, tranh.id);
+    for (const sheetMusicId of [otherInstrumentSheet.id, hiddenSheet.id, hiddenPieceSheet.id]) {
+      const response = await create({ ...base(), sheetMusicId });
+      expect(response.status).toBe(400);
+      expect(response.body.errors).toEqual([{ field: 'sheetMusicId', code: 'MSG-48', message: 'Bản nhạc đã chọn không còn khả dụng trong thư viện. Vui lòng chọn mục khác.' }]);
+    }
+    const sheet = await TestDatabase.createSheetMusic(song.id, tranh.id, { name: 'Bản dễ' });
+    expect((await create({ ...base(), sheetMusicId: sheet.id })).body.data.sheetMusic).toMatchObject({
+      id: sheet.id,
+      name: 'Bản dễ',
+      pieceId: song.id,
+      pieceTitle: 'Lý ngựa ô',
+      isAvailable: true
+    });
   });
 
   it('editing creates version 2 and notifies only when published', async () => {
@@ -120,11 +129,12 @@ describe('Assignment lifecycle (lecturer)', () => {
     const member = await TestDatabase.createUser();
     await TestDatabase.addMember(classRecord.id, member.id, lecturer.id);
     const piece = await TestDatabase.createPiece(tranh.id);
-    const created = (await create({ ...base(), description: 'Mô tả', pieceId: piece.id, requiredBpm: 80, publish: true })).body.data;
+    const sheet = await TestDatabase.createSheetMusic(piece.id, tranh.id);
+    const created = (await create({ ...base(), description: 'Mô tả', sheetMusicId: sheet.id, requiredBpm: 80, publish: true })).body.data;
     const response = await request(app)
       .put(`/api/v1/assignments/${created.id}`)
       .set('Authorization', lecturerToken)
-      .send({ title: '  Luyện Lý ngựa ô ', description: 'Mô tả', kind: 'SOLO', pieceId: piece.id, requiredBpm: 80 });
+      .send({ title: '  Luyện Lý ngựa ô ', description: 'Mô tả', kind: 'SOLO', sheetMusicId: sheet.id, requiredBpm: 80 });
     expect(response.status).toBe(200);
     expect(response.body.data).toMatchObject({ version: 1, title: 'Luyện Lý ngựa ô' });
     expect(await TestDatabase.prisma.assignmentVersion.count({ where: { assignmentId: created.id } })).toBe(1);
@@ -146,13 +156,14 @@ describe('Assignment lifecycle (lecturer)', () => {
     expect(await countNotifications()).toBe(2);
   });
 
-  it('editing with a hidden piece returns MSG-48', async () => {
+  it('editing with a sheet of a hidden piece returns MSG-48', async () => {
     const piece = await TestDatabase.createPiece(tranh.id);
-    const created = (await create({ ...base(), pieceId: piece.id })).body.data;
+    const sheet = await TestDatabase.createSheetMusic(piece.id, tranh.id);
+    const created = (await create({ ...base(), sheetMusicId: sheet.id })).body.data;
     await TestDatabase.prisma.piece.update({ where: { id: piece.id }, data: { visibility: 'HIDDEN' } });
-    const response = await request(app).put(`/api/v1/assignments/${created.id}`).set('Authorization', lecturerToken).send({ title: 'Sửa', kind: 'SOLO', pieceId: piece.id });
+    const response = await request(app).put(`/api/v1/assignments/${created.id}`).set('Authorization', lecturerToken).send({ title: 'Sửa', kind: 'SOLO', sheetMusicId: sheet.id });
     expect(response.status).toBe(400);
-    expect(response.body.errors[0]).toMatchObject({ field: 'pieceId', code: 'MSG-48' });
+    expect(response.body.errors[0]).toMatchObject({ field: 'sheetMusicId', code: 'MSG-48' });
   });
 
   it('closed assignment can still be edited', async () => {

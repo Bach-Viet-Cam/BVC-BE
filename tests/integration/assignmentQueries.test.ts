@@ -59,7 +59,8 @@ describe('Assignment queries (lecturer) + canSubmit', () => {
   it('detail lists active members with status, counts, best accuracy and effective bpm', async () => {
     const piece = await TestDatabase.createPiece(tranh.id, { title: 'Lý ngựa ô' });
     await TestDatabase.prisma.piece.update({ where: { id: piece.id }, data: { bpm: 96 } });
-    const assignment = await TestDatabase.createAssignment(classRecord.id, lecturer.id, { pieceId: piece.id });
+    const sheet = await TestDatabase.createSheetMusic(piece.id, tranh.id, { name: 'Bản chính' });
+    const assignment = await TestDatabase.createAssignment(classRecord.id, lecturer.id, { sheetMusicId: sheet.id });
     const anh = await member('Trần Minh Anh', 'SE1');
     const han = await member('Phạm Gia Hân', 'SE2');
     await member('Ngô Thảo My', 'SE3');
@@ -69,7 +70,9 @@ describe('Assignment queries (lecturer) + canSubmit', () => {
 
     const response = await get(`/assignments/${assignment.id}`);
     expect(response.status).toBe(200);
-    expect(response.body.data).toMatchObject({ requiredBpm: null, effectiveBpm: 96, piece: { id: piece.id, title: 'Lý ngựa ô', defaultBpm: 96, isAvailable: true } });
+    expect(response.body.data).toMatchObject({ requiredBpm: null, effectiveBpm: 96,
+      sheetMusic: { id: sheet.id, name: 'Bản chính', pieceId: piece.id, pieceTitle: 'Lý ngựa ô', defaultBpm: 96, isAvailable: true }
+    });
     const byCode = Object.fromEntries(response.body.data.students.map((student: { studentCode: string }) => [student.studentCode, student]));
     expect(byCode.SE1).toMatchObject({ fullName: 'Trần Minh Anh', status: 'PASSED', submissionCount: 2, bestAccuracy: 82, lastSubmittedAt: '2026-10-16T02:30:00.000Z' });
     expect(byCode.SE2).toMatchObject({ status: 'SUBMITTED', submissionCount: 1, bestAccuracy: 40 });
@@ -110,17 +113,26 @@ describe('Assignment queries (lecturer) + canSubmit', () => {
     expect((await get(`/assignments/${assignment.id}`)).body.data.students[0].status).toBe('PASSED');
   });
 
-  it('lists visible pieces of the class instrument', async () => {
+  it('lists visible sheet music of the class instrument', async () => {
     const bau = await TestDatabase.createInstrument('Đàn bầu');
-    await TestDatabase.createPiece(tranh.id, { title: 'B — Lý ngựa ô', kind: 'SONG' });
-    await TestDatabase.createPiece(tranh.id, { title: 'A — Gẩy đơn' });
-    await TestDatabase.createPiece(tranh.id, { title: 'Ẩn', isVisible: false });
-    await TestDatabase.createPiece(bau.id, { title: 'Bầu' });
-    const response = await get(`/assignments/pieces?classId=${classRecord.id}`);
+    const song = await TestDatabase.createPiece(tranh.id, { title: 'B — Lý ngựa ô', kind: 'SONG' });
+    const exercise = await TestDatabase.createPiece(tranh.id, { title: 'A — Gẩy đơn' });
+    const hiddenPiece = await TestDatabase.createPiece(tranh.id, { title: 'Ẩn', isVisible: false });
+    await TestDatabase.createSheetMusic(song.id, tranh.id, { name: 'Bản nâng cao' });
+    await TestDatabase.createSheetMusic(song.id, tranh.id, { name: 'Bản cơ bản' });
+    await TestDatabase.createSheetMusic(song.id, tranh.id, { name: 'Bản ẩn', visibility: 'HIDDEN' });
+    await TestDatabase.createSheetMusic(song.id, bau.id, { name: 'Bản bầu' });
+    await TestDatabase.createSheetMusic(exercise.id, tranh.id, { name: 'Bản chính' });
+    await TestDatabase.createSheetMusic(hiddenPiece.id, tranh.id, { name: 'Bản của bài ẩn' });
+    const response = await get(`/assignments/sheet-music?classId=${classRecord.id}`);
     expect(response.status).toBe(200);
-    expect(response.body.data.map((item: { title: string; kind: string }) => [item.title, item.kind])).toEqual([['A — Gẩy đơn', 'FINGER_EXERCISE'], ['B — Lý ngựa ô', 'SONG']]);
+    expect(response.body.data.map((item: { pieceTitle: string; name: string; kind: string }) => [item.pieceTitle, item.name, item.kind])).toEqual([
+      ['A — Gẩy đơn', 'Bản chính', 'FINGER_EXERCISE'],
+      ['B — Lý ngựa ô', 'Bản cơ bản', 'SONG'],
+      ['B — Lý ngựa ô', 'Bản nâng cao', 'SONG']
+    ]);
     const otherToken = TestDatabase.tokenFor(await TestDatabase.createLecturer());
-    expect((await get(`/assignments/pieces?classId=${classRecord.id}`, otherToken)).status).toBe(404);
+    expect((await get(`/assignments/sheet-music?classId=${classRecord.id}`, otherToken)).status).toBe(404);
   });
 
   it('another lecturer gets 404 on detail and submissions; deleted assignment is 404', async () => {

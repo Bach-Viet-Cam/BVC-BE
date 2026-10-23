@@ -31,7 +31,7 @@ export interface StudentSubmissionRow extends SubmissionBrief {
 
 export interface AssignmentDetailRow extends AssignmentRow {
   submissions: StudentSubmissionRow[];
-  piece: (PieceAvailability & { id: string; title: string; bpm: number; sheetMusic: { instrumentId: string }[] }) | null;
+  sheetMusic: { id: string; piece: PieceAvailability & { id: string; title: string; bpm: number; sheetMusic: { instrumentId: string }[] } } | null;
   rubric: { criteria: { name: string; weight: number }[] } | null;
 }
 
@@ -56,21 +56,26 @@ export default class AssignmentRepository {
       where: { id: assignmentId },
       include: {
         class: { select: { id: true, name: true } },
-        piece: {
+        sheetMusic: {
           select: {
             id: true,
-            title: true,
-            bpm: true,
-            visibility: true,
-            moderation: true,
-            deletedAt: true,
-            sheetMusic: {
-              where: {
-                kind: 'MAIN',
-                referenceAudioId: { not: null },
-                moderation: 'NORMAL'
-              },
-              select: { instrumentId: true }
+            piece: {
+              select: {
+                id: true,
+                title: true,
+                bpm: true,
+                visibility: true,
+                moderation: true,
+                deletedAt: true,
+                sheetMusic: {
+                  where: {
+                    kind: 'MAIN',
+                    referenceAudioId: { not: null },
+                    moderation: 'NORMAL'
+                  },
+                  select: { instrumentId: true }
+                }
+              }
             }
           }
         },

@@ -42,7 +42,7 @@ export default class AssignmentConstant {
     ASSIGNMENT_NOT_FOUND: 'Không tìm thấy bài tập.',
     SUBMISSION_NOT_FOUND: 'Không tìm thấy bài nộp.',
     STUDENT_NOT_FOUND: 'Không tìm thấy sinh viên.',
-    PIECE_UNAVAILABLE: format('MSG-48', { resource: 'Bài nhạc' }),
+    SHEET_MUSIC_UNAVAILABLE: format('MSG-48', { resource: 'Bản nhạc' }),
     BPM_RANGE: format('MSG-03', { field: 'BPM yêu cầu', min: 1, max: 300 }),
     KIND_REQUIRED: format('MSG-35', { field: 'Loại bài' }),
     KIND_TAKEN: (kind: Backend.AssignmentKind): string =>

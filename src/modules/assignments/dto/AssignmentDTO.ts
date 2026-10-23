@@ -4,8 +4,16 @@ export default class AssignmentDTO {
   static toBaseDTO(record: Backend.AssignmentRecord): Backend.AssignmentBaseDTO {
     const version = record.currentVersion;
     if (!version) throw new Error(`Assignment ${record.id} has no current version`);
-    const piece = version.piece
-      ? { id: version.piece.id, title: version.piece.title, defaultBpm: version.piece.bpm, isAvailable: PieceUtil.isAvailable(version.piece) }
+    const sheet = version.sheetMusic;
+    const sheetMusic = sheet
+      ? {
+          id: sheet.id,
+          name: sheet.name,
+          pieceId: sheet.piece.id,
+          pieceTitle: sheet.piece.title,
+          defaultBpm: sheet.piece.bpm,
+          isAvailable: PieceUtil.isSheetMusicAvailable(sheet)
+        }
       : null;
     return {
       id: record.id,
@@ -17,9 +25,9 @@ export default class AssignmentDTO {
       title: version.title,
       description: version.description,
       kind: version.kind,
-      piece,
+      sheetMusic,
       requiredBpm: version.requiredBpm,
-      effectiveBpm: version.requiredBpm ?? piece?.defaultBpm ?? null,
+      effectiveBpm: version.requiredBpm ?? sheetMusic?.defaultBpm ?? null,
       publishedAt: record.publishedAt?.toISOString() ?? null,
       closedAt: record.closedAt?.toISOString() ?? null,
       updatedAt: record.updatedAt.toISOString()

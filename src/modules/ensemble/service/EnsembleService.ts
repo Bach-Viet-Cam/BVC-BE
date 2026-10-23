@@ -32,7 +32,7 @@ export default class EnsembleService {
     }
     const assignment = await EnsembleRepository.findPublishedAssignment(assignmentId);
     const membership = assignment ? memberships.find((item) => item.classId === assignment.classId) : undefined;
-    if (!assignment || !membership || assignment.pieceId !== pieceId) throw AppError.notFound(EnsembleConstant.messages.ASSIGNMENT_NOT_FOUND);
+    if (!assignment || !membership || assignment.sheetMusic?.pieceId !== pieceId) throw AppError.notFound(EnsembleConstant.messages.ASSIGNMENT_NOT_FOUND);
     const targetBpm = EnsemblePolicyService.resolveTargetBpm({ assignmentBpm: assignment.targetBpm, pieceBpm: piece.bpm });
     return { pieceId, pieceTitle: piece.title, targetBpm, myInstrumentId: membership.instrumentId, myInstrumentName: membership.instrument.name, assignmentId };
   }

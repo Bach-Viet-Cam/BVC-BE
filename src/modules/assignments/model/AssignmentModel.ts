@@ -16,7 +16,15 @@ export default class AssignmentModel {
         description: true,
         kind: true,
         requiredBpm: true,
-        piece: { select: { id: true, title: true, bpm: true, visibility: true, moderation: true, deletedAt: true } }
+        sheetMusic: {
+          select: {
+            id: true,
+            name: true,
+            visibility: true,
+            moderation: true,
+            piece: { select: { id: true, title: true, bpm: true, visibility: true, moderation: true, deletedAt: true } }
+          }
+        }
       }
     }
   };
