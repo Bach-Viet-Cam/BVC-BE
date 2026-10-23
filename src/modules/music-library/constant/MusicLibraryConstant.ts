@@ -52,9 +52,8 @@ export default class MusicLibraryConstant {
     DEFAULT_MAX_SEC: 600
   });
 
-  static readonly urlLifetimes = Object.freeze({ UPLOAD_SEC: 15 * 60, READ_SEC: 60 * 60, COVER_SEC: 24 * 60 * 60, AI_SEC: 6 * 60 * 60 });
-
-  static readonly analysisQueue = Object.freeze({ NAME: 'reference-analysis', ATTEMPTS: 3 });
+  // Presigned upload window; content PUT after it is rejected
+  static readonly upload = Object.freeze({ WINDOW_SEC: 15 * 60, MAX_BYTES: 250 * 1024 * 1024 });
 
   static readonly sheetSlots = Object.freeze({ sheet: 'SHEET', audio: 'AUDIO', video: 'VIDEO' } as const);
 
@@ -71,7 +70,9 @@ export default class MusicLibraryConstant {
     FILE_NOT_UPLOADED: { action: 'gắn file', reason: 'file chưa được tải lên hoặc không thuộc về bạn' },
     FILE_ALREADY_USED: { action: 'gắn file', reason: 'file này đã được dùng ở nơi khác' },
     FILE_KIND_MISMATCH: { action: 'gắn file', reason: 'loại file không đúng với ô đã chọn' },
-    FILE_UNREADABLE: { action: 'đọc file', reason: 'file bị lỗi hoặc không đúng định dạng' }
+    FILE_UNREADABLE: { action: 'đọc file', reason: 'file bị lỗi hoặc không đúng định dạng' },
+    UPLOAD_CLOSED: { action: 'tải file lên', reason: 'file đã được xác nhận hoặc phiên tải lên đã hết hạn' },
+    UPLOAD_TOO_LARGE: { action: 'tải file lên', reason: 'file vượt quá dung lượng đã khai báo' }
   });
 
   static readonly successMessages = Object.freeze({

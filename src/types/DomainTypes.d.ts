@@ -20,27 +20,14 @@ declare namespace Backend {
   interface StoredObjectInfo { sizeBytes: number; }
   interface PresignedUpload { uploadUrl: string; method: 'PUT'; headers: Record<string, string>; expiresAt: string; }
   interface StorageDriver {
-    createUploadUrl(storageKey: string, mimeType: string, expiresInSec: number): Promise<PresignedUpload>;
-    createReadUrl(storageKey: string, expiresInSec: number): Promise<string>;
+    createReadUrl(storageKey: string): string;
     statObject(storageKey: string): Promise<StoredObjectInfo | null>;
     readRange(storageKey: string, byteCount: number): Promise<Buffer>;
     readObject(storageKey: string): Promise<Buffer>;
     openReadStream(storageKey: string): Promise<NodeJS.ReadableStream>;
-    putObject(storageKey: string, content: Buffer, mimeType: string): Promise<void>;
+    putObject(storageKey: string, content: Buffer): Promise<void>;
+    writeStream(storageKey: string, source: NodeJS.ReadableStream, maxBytes: number): Promise<number>;
     deleteObject(storageKey: string): Promise<void>;
-  }
-
-  interface JobQueueOptions<TPayload> {
-    name: string;
-    attempts: number;
-    backoffMs: number;
-    handler: (payload: TPayload) => Promise<void>;
-    onFailed: (payload: TPayload, error: unknown) => Promise<void>;
-  }
-  interface JobQueue<TPayload> {
-    enqueue(jobId: string, payload: TPayload): Promise<void>;
-    cancel(jobId: string): Promise<void>;
-    close(): Promise<void>;
   }
 
   interface UserNotification { title: string; body: string; link?: string; }
@@ -57,6 +44,7 @@ declare namespace Backend {
   type ConfigValueType = 'STRING' | 'NUMBER' | 'BOOLEAN' | 'JSON';
   type ConfigGroup = 'FILE_LIMIT' | 'SCORING' | 'PRACTICE_RULE';
   interface SystemConfigRecord { id: string; key: string; value: string; valueType: ConfigValueType; group: ConfigGroup; label: string; description: string | null; }
+  interface Semester { name: string; startDate: string; endDate: string; }
   interface SystemConfigListQuery { group?: ConfigGroup; q?: string; sortBy: 'label' | 'group'; sortDir: 'asc' | 'desc'; }
   type SubmissionStatusName = 'PROCESSING' | 'COMPLETED' | 'REJECTED' | 'FAILED';
   interface DirectoryUsage { usedBytes: number; fileCount: number; }
@@ -143,6 +131,15 @@ declare namespace Backend {
     scheduledAt: Date | null;
   }
   interface NotificationListQuery { status?: NotificationStatusName; page: number; pageSize: number; }
+  interface MyNotificationListQuery { unreadOnly: boolean; type?: NotificationTypeName; page: number; pageSize: number; }
+  interface MyNotificationRecord {
+    id: string;
+    isRead: boolean;
+    createdAt: Date;
+    notification: { title: string; body: string; type: NotificationTypeName; link: string | null; sentAt: Date | null };
+  }
+  interface MyNotificationItem { id: string; title: string; body: string; type: NotificationTypeName; link: string | null; isRead: boolean; sentAt: string; }
+  interface MyNotificationPage extends PaginatedResult<MyNotificationItem> { unreadCount: number; }
 
   type ImportMode = 'skip' | 'update';
   type ImportAction = 'CREATE' | 'UPDATE' | 'SKIP' | 'ERROR';

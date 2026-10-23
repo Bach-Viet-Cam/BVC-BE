@@ -23,7 +23,8 @@ export default class MusicLibraryModel {
     sizeBytes: true,
     durationSec: true,
     pageCount: true,
-    uploadedById: true
+    uploadedById: true,
+    createdAt: true
   } satisfies Prisma.MediaFileSelect;
 
   static readonly pieceSelect = {

@@ -1,1 +1,0 @@
-CREATE DATABASE bvc_test OWNER bvc;

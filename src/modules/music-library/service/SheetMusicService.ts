@@ -207,7 +207,7 @@ export default class SheetMusicService {
 
   static async syncAnalysisAfterUpdate(previous: MusicLibrary.SheetMusicRecord, updated: MusicLibrary.SheetMusicRecord): Promise<void> {
     if (previous.kind === 'MAIN' && updated.kind !== 'MAIN') {
-      await AnalysisService.clearAnalysis(updated.id, previous.analysisJobId);
+      await AnalysisService.clearAnalysis(updated.id);
       return;
     }
     const isNewMain = updated.kind === 'MAIN' && (previous.kind !== 'MAIN' || previous.instrumentId !== updated.instrumentId);

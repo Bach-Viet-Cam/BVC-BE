@@ -1,4 +1,4 @@
-import type { AssignmentDetailRow, AssignmentRow } from '../repository/AssignmentRepository.ts';
+import type { AssignmentDetailRow, AssignmentRow, StudentSubmissionRow } from '../repository/AssignmentRepository.ts';
 import type { StudentAssignmentStatus } from '../service/AssignmentPolicyService.ts';
 
 export interface AssignmentListItem {
@@ -15,6 +15,15 @@ export interface AssignmentListItem {
   bonusPoints: number | null;
 }
 
+export interface StudentSubmissionItem {
+  id: string;
+  attemptNumber: number;
+  status: StudentSubmissionRow['status'];
+  accuracy: number | null;
+  submittedAt: string;
+  comment: { content: string; updatedAt: string } | null;
+}
+
 export interface AssignmentDetail extends AssignmentListItem {
   description: string;
   weekNo: number | null;
@@ -24,6 +33,8 @@ export interface AssignmentDetail extends AssignmentListItem {
   rubric: { name: string; weight: number }[];
   canSubmit: boolean;
   hasEnsembleTracks: boolean;
+  // Newest attempt first, each with the lecturer comment if any.
+  submissions: StudentSubmissionItem[];
 }
 
 export default class AssignmentDTO {
@@ -53,7 +64,19 @@ export default class AssignmentDTO {
       pieceTitle: row.piece?.title ?? null,
       rubric: row.rubric?.criteria ?? [],
       canSubmit: extra.canSubmit,
-      hasEnsembleTracks: extra.hasEnsembleTracks
+      hasEnsembleTracks: extra.hasEnsembleTracks,
+      submissions: row.submissions.map((submission, index) => AssignmentDTO.toSubmissionItem(submission, index + 1)).reverse()
+    };
+  }
+
+  static toSubmissionItem(submission: StudentSubmissionRow, attemptNumber: number): StudentSubmissionItem {
+    return {
+      id: submission.id,
+      attemptNumber,
+      status: submission.status,
+      accuracy: submission.accuracy,
+      submittedAt: submission.createdAt.toISOString(),
+      comment: submission.comment ? { content: submission.comment.content, updatedAt: submission.comment.updatedAt.toISOString() } : null
     };
   }
 }

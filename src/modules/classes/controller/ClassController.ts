@@ -34,6 +34,11 @@ export default class ClassController {
     return ApiResponse.sendSuccessResponse(response, { statusCode: 201, data: classDetail, message: messages.CLASS_CREATED });
   }
 
+  static async listSemesters(_request: Request, response: Response): Promise<Response> {
+    const semesters = await ClassService.listSemesters();
+    return ApiResponse.sendSuccessResponse(response, { data: semesters });
+  }
+
   static async getClass(request: Request, response: Response): Promise<Response> {
     const { params } = ClassController.getValidated<unknown, { id: string }>(request);
     const classDetail = await ClassService.getClassDetail(params.id, ClassController.getLecturerId(request));

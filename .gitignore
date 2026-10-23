@@ -26,9 +26,9 @@ npm-debug.log*
 dist/
 build/
 
-# Local object storage (STORAGE_DRIVER=local)
+# Local file storage (FILE_STORAGE_LOCAL_ROOT); /storage/ is the old folder before the switch
 /storage/
 /storage-test/
-
+coverage/
 # Uploaded files (generated at runtime / by seed)
 /uploads/

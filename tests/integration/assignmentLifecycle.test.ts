@@ -51,7 +51,7 @@ describe('Assignment lifecycle (lecturer)', () => {
     expect(response.body.data.status).toBe('PUBLISHED');
     const deliveries = await TestDatabase.prisma.userNotification.findMany({ include: { notification: true } });
     expect(deliveries.map((item) => item.userId).sort()).toEqual([first.id, second.id].sort());
-    expect(deliveries[0].notification).toMatchObject({ title: 'Bài tập mới', body: 'TRD301 · Luyện Lý ngựa ô', link: `/student/assignments/${response.body.data.id}` });
+    expect(deliveries[0].notification).toMatchObject({ title: 'Bài tập mới', body: 'TRD301 · Luyện Lý ngựa ô', link: `/assignment/${response.body.data.id}` });
   });
 
   it('validates title, description, kind and bpm', async () => {
@@ -66,6 +66,23 @@ describe('Assignment lifecycle (lecturer)', () => {
     expect(byField.kind).toBeDefined();
     expect((await create({ ...base(), requiredBpm: 301 })).body.errors[0]).toMatchObject({ field: 'requiredBpm', message: 'BPM yêu cầu phải nằm trong khoảng từ 1 đến 300.' });
     expect((await create({ ...base(), requiredBpm: 300, title: 'x'.repeat(200) })).status).toBe(201);
+  });
+
+  it('allows one solo and one ensemble assignment per class', async () => {
+    const solo = (await create(base())).body.data;
+    const ensemble = (await create({ ...base(), kind: 'ENSEMBLE' })).body.data;
+    const secondSolo = await create(base());
+    expect(secondSolo.status).toBe(409);
+    expect(secondSolo.body.errors[0]).toMatchObject({ field: 'kind', code: 'MSG-08', message: 'Không thể lưu bài tập vì lớp đã có bài Độc tấu.' });
+    expect((await create({ ...base(), kind: 'BONUS' })).status).toBe(201);
+    expect((await create({ ...base(), kind: 'BONUS' })).status).toBe(201);
+
+    const edit = (id: string, kind: string) => request(app).put(`/api/v1/assignments/${id}`).set('Authorization', lecturerToken).send({ title: 'Sửa', kind });
+    expect((await edit(solo.id, 'SOLO')).status).toBe(200);
+    expect((await edit(ensemble.id, 'SOLO')).status).toBe(409);
+
+    await request(app).delete(`/api/v1/assignments/${solo.id}`).set('Authorization', lecturerToken).expect(200);
+    expect((await create(base())).status).toBe(201);
   });
 
   it('rejects a piece of another instrument or hidden piece with MSG-48', async () => {
@@ -97,6 +114,36 @@ describe('Assignment lifecycle (lecturer)', () => {
     const titles = (await TestDatabase.prisma.notification.findMany({ orderBy: { createdAt: 'asc' } })).map((item) => item.title);
     expect(titles).toEqual(['Bài tập mới', 'Bài tập đã được cập nhật']);
     expect(await TestDatabase.prisma.assignmentVersion.count({ where: { assignmentId: draft.id } })).toBe(3);
+  });
+
+  it('saving without any change keeps the version and sends no notification', async () => {
+    const member = await TestDatabase.createUser();
+    await TestDatabase.addMember(classRecord.id, member.id, lecturer.id);
+    const piece = await TestDatabase.createPiece(tranh.id);
+    const created = (await create({ ...base(), description: 'Mô tả', pieceId: piece.id, requiredBpm: 80, publish: true })).body.data;
+    const response = await request(app)
+      .put(`/api/v1/assignments/${created.id}`)
+      .set('Authorization', lecturerToken)
+      .send({ title: '  Luyện Lý ngựa ô ', description: 'Mô tả', kind: 'SOLO', pieceId: piece.id, requiredBpm: 80 });
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({ version: 1, title: 'Luyện Lý ngựa ô' });
+    expect(await TestDatabase.prisma.assignmentVersion.count({ where: { assignmentId: created.id } })).toBe(1);
+    expect(await countNotifications()).toBe(1);
+  });
+
+  it('reopening notifies active members; closing and deleting do not', async () => {
+    const member = await TestDatabase.createUser();
+    await TestDatabase.addMember(classRecord.id, member.id, lecturer.id);
+    const id = (await create({ ...base(), publish: true })).body.data.id;
+    const action = (name: string) => request(app).post(`/api/v1/assignments/${id}/${name}`).set('Authorization', lecturerToken);
+    await action('close').expect(200);
+    expect(await countNotifications()).toBe(1);
+    await action('reopen').expect(200);
+    const latest = await TestDatabase.prisma.notification.findFirst({ orderBy: { createdAt: 'desc' } });
+    expect(await countNotifications()).toBe(2);
+    expect(latest).toMatchObject({ userId: member.id, title: 'Bài tập đã được mở lại', body: 'TRD301 · Luyện Lý ngựa ô', link: `/student/assignments/${id}` });
+    await request(app).delete(`/api/v1/assignments/${id}`).set('Authorization', lecturerToken).expect(200);
+    expect(await countNotifications()).toBe(2);
   });
 
   it('editing with a hidden piece returns MSG-48', async () => {

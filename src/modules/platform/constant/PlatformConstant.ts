@@ -4,7 +4,15 @@ const format = MessageConstant.format;
 
 export default class PlatformConstant {
   // Grading thresholds behind "Đạt" and the progress statuses live in system_configs (SCORING group).
-  static readonly settingKeys = Object.freeze({ MIN_ACCURACY: 'min_accuracy_default', AT_RISK_MARGIN: 'at_risk_margin' });
+  static readonly settingKeys = Object.freeze({ MIN_ACCURACY: 'min_accuracy_default', AT_RISK_MARGIN: 'at_risk_margin', SEMESTERS: 'class.semesters' });
+  // Semesters for class creation: a JSON array of { name, startDate, endDate } (yyyy-MM-dd), edited on the admin config page.
+  static readonly semesterConfig = Object.freeze({
+    group: 'PRACTICE_RULE' as const,
+    valueType: 'JSON' as const,
+    label: 'Danh sách học kỳ',
+    description: 'Các học kỳ dùng khi tạo lớp: mỗi học kỳ có tên, ngày bắt đầu và ngày kết thúc.',
+    NAME_MAX: 50
+  });
   static readonly gradingLimits = Object.freeze({ MIN: 0, MAX: 100 });
   static readonly gradingMessages = Object.freeze({
     GRADING_SAVED: format('MSG-01', { action: 'Lưu', object: 'cấu hình chấm điểm' }),
@@ -69,6 +77,7 @@ export default class PlatformConstant {
     NOTIFICATION_ALREADY_SENT: 'Thông báo này đã được gửi.',
     NOTIFICATION_SCHEDULE_PAST: 'Thời điểm hẹn giờ phải ở tương lai.',
     NOTIFICATION_DELETED: 'Đã xóa thông báo.',
+    NOTIFICATIONS_ALL_READ: 'Đã đánh dấu tất cả thông báo là đã đọc.',
     IMPORT_NO_ACTIONABLE_ROWS: 'Không có dòng hợp lệ để import.',
     IMPORT_CONFLICT: 'Dữ liệu vừa thay đổi trong lúc import. Vui lòng kiểm tra lại bản xem trước.',
     IMPORT_DONE: 'Import hoàn tất.'

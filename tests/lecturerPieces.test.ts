@@ -144,7 +144,7 @@ describe('UC-05 Quản lý bài hát (giảng viên)', () => {
     ));
     const withCover = await request(app).put(`${api}/lecturer/pieces/${piece.id}/cover`).set(TestContext.auth(lecturer)).send({ fileId: coverId });
     expect(withCover.status).toBe(200);
-    expect(withCover.body.data.coverUrl).toContain('/api/v1/storage/local/');
+    expect(withCover.body.data.coverUrl).toMatch(/^http:\/\/localhost:3000\/uploads\/cover\//);
     const image = await request(app).get(new URL(withCover.body.data.coverUrl).pathname);
     expect(image.status).toBe(200);
     expect(image.headers['content-type']).toBe('image/png');

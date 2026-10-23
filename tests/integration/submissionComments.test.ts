@@ -42,7 +42,7 @@ describe('Submission comments (lecturer)', () => {
     const deliveries = await TestDatabase.prisma.userNotification.findMany({ where: { userId: student.id }, include: { notification: true } });
     const notifications = deliveries.map((delivery) => delivery.notification);
     expect(notifications).toHaveLength(1);
-    expect(notifications[0]).toMatchObject({ title: 'Giảng viên đã nhận xét bài nộp', body: 'TRD301 · Độc tấu', link: `/student/assignments/${assignmentId}` });
+    expect(notifications[0]).toMatchObject({ title: 'Giảng viên đã nhận xét bài nộp', body: 'TRD301 · Độc tấu', link: `/assignment/${assignmentId}` });
 
     const update = await comment('Đã sửa nhận xét');
     expect(update.body.message).toBe('Cập nhật nhận xét thành công.');
@@ -77,6 +77,21 @@ describe('Submission comments (lecturer)', () => {
     const otherToken = TestDatabase.tokenFor(await TestDatabase.createLecturer());
     expect((await comment('Xin chào', otherToken)).status).toBe(404);
     expect((await comment('Xin chào', lecturerToken, '6f1c2e9a-0000-4000-8000-000000000000')).status).toBe(404);
+  });
+
+  it('student sees own attempts newest first with the lecturer comment', async () => {
+    const secondId = (await TestDatabase.createSubmission(assignmentId, student.id, { accuracy: 92, submittedAt: new Date(Date.now() + 60_000) })).id;
+    await comment('Nhịp ổn, chú ý ô nhịp 12.');
+    const otherStudent = await TestDatabase.createUser({ username: 'Lê Hà', studentCode: 'SE2' });
+    await TestDatabase.addMember(classRecord.id, otherStudent.id, lecturer.id);
+    await TestDatabase.createSubmission(assignmentId, otherStudent.id);
+
+    const response = await request(app).get(`/api/v1/assignments/${assignmentId}`).set('Authorization', TestDatabase.tokenFor(student));
+    expect(response.status).toBe(200);
+    const submissions = response.body.data.submissions;
+    expect(submissions).toHaveLength(2);
+    expect(submissions[0]).toMatchObject({ id: secondId, attemptNumber: 2, accuracy: 92, comment: null });
+    expect(submissions[1]).toMatchObject({ id: submissionId, attemptNumber: 1, comment: { content: 'Nhịp ổn, chú ý ô nhịp 12.' } });
   });
 
   it("removed student's submissions stay viewable with canComment false", async () => {

@@ -1,4 +1,3 @@
-import path from 'node:path';
 import FileStorageRoute from './modules/storage/route/FileStorageRoute.ts';
 import express from 'express';
 import type { Express } from 'express';
@@ -33,7 +32,7 @@ export function createApp(): Express {
   app.use('/uploads', (_request, response, next) => {
     response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     next();
-  }, express.static(path.resolve('uploads')));
+  }, express.static(EnvConfig.fileStorageLocalRoot, { dotfiles: 'deny' }));
   app.use('/api', ApiRoute.createRouter());
   registerErrorHandlers(app);
   return app;

@@ -1,3 +1,6 @@
+import DateTimeUtil from '../../../utils/DateTimeUtil.ts';
+import PlatformConstant from '../constant/PlatformConstant.ts';
+
 export default class SystemConfigPolicyService {
   static readonly percentKeys = new Set([
     'min_accuracy_default',
@@ -22,6 +25,7 @@ export default class SystemConfigPolicyService {
     if (valueType === 'BOOLEAN') {
       return nextValue === 'true' || nextValue === 'false' ? { isValid: true } : SystemConfigPolicyService.invalid('Giá trị phải là true hoặc false.');
     }
+    if (valueType === 'JSON' && key === PlatformConstant.settingKeys.SEMESTERS) return SystemConfigPolicyService.validateSemesters(nextValue);
     if (valueType === 'JSON') return SystemConfigPolicyService.validateStringArray(nextValue);
     return nextValue.trim() ? { isValid: true } : SystemConfigPolicyService.invalid('Giá trị không được để trống.');
   }
@@ -49,6 +53,39 @@ export default class SystemConfigPolicyService {
     } catch {
       return SystemConfigPolicyService.invalid('Giá trị phải là JSON hợp lệ.');
     }
+  }
+
+  // Each semester needs a unique name and a valid yyyy-MM-dd range with start <= end.
+  static validateSemesters(nextValue: string): { isValid: boolean; message?: string } {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(nextValue);
+    } catch {
+      return SystemConfigPolicyService.invalid('Giá trị phải là JSON hợp lệ.');
+    }
+    const example = 'ví dụ [{"name":"FA26","startDate":"2026-09-07","endDate":"2026-12-27"}]';
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return SystemConfigPolicyService.invalid(`Danh sách học kỳ không được để trống, ${example}.`);
+    }
+    const seenNames = new Set<string>();
+    for (const [index, entry] of parsed.entries()) {
+      const position = `Học kỳ thứ ${index + 1}`;
+      const semester = (entry ?? {}) as Record<string, unknown>;
+      const { name, startDate, endDate } = semester;
+      if (typeof name !== 'string' || name.trim() === '') return SystemConfigPolicyService.invalid(`${position}: tên không được để trống.`);
+      if (name.trim().length > PlatformConstant.semesterConfig.NAME_MAX) {
+        return SystemConfigPolicyService.invalid(`${position}: tên không được vượt quá ${PlatformConstant.semesterConfig.NAME_MAX} ký tự.`);
+      }
+      const normalizedName = name.trim().toLowerCase();
+      if (seenNames.has(normalizedName)) return SystemConfigPolicyService.invalid(`${position}: tên "${name.trim()}" bị trùng.`);
+      seenNames.add(normalizedName);
+      if (typeof startDate !== 'string' || !DateTimeUtil.isValidIsoDate(startDate)
+        || typeof endDate !== 'string' || !DateTimeUtil.isValidIsoDate(endDate)) {
+        return SystemConfigPolicyService.invalid(`${position}: ngày bắt đầu và ngày kết thúc phải có dạng yyyy-MM-dd.`);
+      }
+      if (startDate > endDate) return SystemConfigPolicyService.invalid(`${position}: ngày bắt đầu phải trước hoặc bằng ngày kết thúc.`);
+    }
+    return { isValid: true };
   }
 
   static validateRelations(values: Record<string, string>): { isValid: boolean; message?: string } {

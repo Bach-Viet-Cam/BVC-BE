@@ -1,6 +1,5 @@
 import { z } from 'zod';
 import MessageConstant from '../../../constants/MessageConstant.ts';
-import DateTimeUtil from '../../../utils/DateTimeUtil.ts';
 import ClassConstant from '../constant/ClassConstant.ts';
 
 const limits = ClassConstant.limits;
@@ -20,12 +19,6 @@ function optionalSearch() {
   return z.string().trim().max(limits.SEARCH_MAX, format('MSG-37', { field: labels.q, max: limits.SEARCH_MAX })).optional()
     .transform((value) => value || undefined);
 }
-
-const isoDate = z
-  .string({ error: format('MSG-35', { field: labels.startDate }) })
-  .trim()
-  .min(1, format('MSG-35', { field: labels.startDate }))
-  .refine(DateTimeUtil.isValidIsoDate, ClassConstant.messages.INVALID_DATE);
 
 const instrumentId = z.uuid({ error: format('MSG-35', { field: labels.instrumentId }) });
 const description = z
@@ -61,8 +54,7 @@ export default class ClassValidation {
       name: requiredText('name', limits.NAME_MAX),
       cohort: requiredText('cohort', limits.COHORT_MAX),
       instrumentId,
-      description,
-      startDate: isoDate
+      description
     }),
     params: z.object({}),
     query: emptyQuery
@@ -73,12 +65,13 @@ export default class ClassValidation {
       name: requiredText('name', limits.NAME_MAX).optional(),
       cohort: requiredText('cohort', limits.COHORT_MAX).optional(),
       instrumentId: instrumentId.optional(),
-      description,
-      startDate: isoDate.optional()
+      description
     }),
     params: classParams,
     query: emptyQuery
   });
+
+  static readonly semestersSchema = z.object({ body: z.unknown(), params: z.object({}), query: emptyQuery });
 
   static readonly classIdSchema = z.object({ body: z.unknown(), params: classParams, query: emptyQuery });
 

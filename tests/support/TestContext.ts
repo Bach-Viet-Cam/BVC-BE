@@ -4,39 +4,19 @@ import { createApp } from '../../src/app.ts';
 import PrismaClientProvider from '../../src/config/PrismaClient.ts';
 import AuthConstant from '../../src/modules/auth/constant/AuthConstant.ts';
 import AuthService from '../../src/modules/auth/service/AuthService.ts';
-import AnalysisService from '../../src/modules/music-library/service/AnalysisService.ts';
 import SampleMediaFactory from '../../prisma/seed/SampleMediaFactory.ts';
 
 interface TestUser { id: string; token: string; }
-
-// Queue double: records enqueue / cancel calls instead of contacting the AI service
-export class RecordingQueue implements Backend.JobQueue<MusicLibrary.AnalysisJobPayload> {
-  readonly enqueued: MusicLibrary.AnalysisJobPayload[] = [];
-  readonly cancelled: string[] = [];
-
-  async enqueue(_jobId: string, payload: MusicLibrary.AnalysisJobPayload): Promise<void> {
-    this.enqueued.push(payload);
-  }
-
-  async cancel(jobId: string): Promise<void> {
-    this.cancelled.push(jobId);
-  }
-
-  async close(): Promise<void> {}
-}
 
 export default class TestContext {
   static readonly app: Express = createApp();
   static readonly prisma = PrismaClientProvider.instance;
   static readonly api = '/api/v1';
-  static queue = new RecordingQueue();
   static catalog: { instruments: Record<string, string>; genres: Record<string, string>; levels: Record<string, string> };
 
   static async reset(): Promise<void> {
     await TestContext.prisma.$executeRawUnsafe(`TRUNCATE TABLE saved_item, sheet_music, piece_instrument, pieces, media_file,
       category, instruments, system_configs, auth_sessions, auth_identities, users RESTART IDENTITY CASCADE`);
-    TestContext.queue = new RecordingQueue();
-    AnalysisService.useQueue(TestContext.queue);
     await TestContext.seedCatalog();
   }
 
@@ -72,7 +52,7 @@ export default class TestContext {
     return { Authorization: `Bearer ${user.token}` };
   }
 
-  // presign → PUT bytes to the signed URL → returns the media file id (not yet confirmed)
+  // presign → PUT bytes to the upload URL (Bearer) → returns the media file id (not yet confirmed)
   static async upload(user: TestUser, kind: MusicLibrary.MediaKind, fileName: string, mimeType: string, content: Buffer): Promise<string> {
     const presignResponse = await request(TestContext.app)
       .post(`${TestContext.api}/uploads/presign`)
@@ -80,7 +60,7 @@ export default class TestContext {
       .send({ kind, fileName, mimeType, size: content.length });
     if (presignResponse.status !== 201) throw new Error(`presign failed: ${JSON.stringify(presignResponse.body)}`);
     const { fileId, uploadUrl } = presignResponse.body.data;
-    const uploadResponse = await request(TestContext.app).put(new URL(uploadUrl).pathname).set('Content-Type', mimeType).send(content);
+    const uploadResponse = await request(TestContext.app).put(new URL(uploadUrl).pathname).set(TestContext.auth(user)).set('Content-Type', mimeType).send(content);
     if (uploadResponse.status !== 200) throw new Error(`upload failed: ${uploadResponse.status}`);
     return fileId;
   }

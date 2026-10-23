@@ -74,7 +74,6 @@ declare namespace MusicLibrary {
     reason?: string;
     timeSignatureMissing?: boolean;
   }
-  interface AnalysisJobPayload { jobId: string; sheetMusicId: string; }
 
   interface FileRules { extensions: string[]; formatLabel: string; maxBytes: number; maxMb: number; }
   interface InspectedFile { sizeBytes: number; durationSec: number | null; pageCount: number | null; }

@@ -24,6 +24,23 @@ export default class TestDatabase {
     const tableList = tables.map(({ tablename }) => `"${tablename}"`).join(', ');
     await TestDatabase.prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tableList} CASCADE`);
     await TestDatabase.resetGradingSettings();
+    await TestDatabase.resetSemesters();
+  }
+
+  // Default semesters relative to today: SP26 already ended, FA26 starts in 3 days, SP27 later.
+  static defaultSemesters(): Backend.Semester[] {
+    return [
+      { name: 'SP26', startDate: TestDatabase.futureDate(-200), endDate: TestDatabase.futureDate(-100) },
+      { name: 'FA26', startDate: TestDatabase.futureDate(3), endDate: TestDatabase.futureDate(90) },
+      { name: 'SP27', startDate: TestDatabase.futureDate(120), endDate: TestDatabase.futureDate(210) }
+    ];
+  }
+
+  static async resetSemesters(semesters: Backend.Semester[] = TestDatabase.defaultSemesters()): Promise<void> {
+    const key = PlatformConstant.settingKeys.SEMESTERS;
+    const { group, valueType, label } = PlatformConstant.semesterConfig;
+    const value = JSON.stringify(semesters);
+    await TestDatabase.prisma.systemConfig.upsert({ where: { key }, update: { value }, create: { key, value, valueType, group, label } });
   }
 
   // Grading thresholds live in system_configs (SCORING group); there is no code fallback.

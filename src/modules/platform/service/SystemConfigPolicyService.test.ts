@@ -56,4 +56,14 @@ describe('SystemConfigPolicyService.validate', () => {
     assert.equal(validate('some_flag', 'BOOLEAN', 'yes').isValid, false);
     assert.equal(validate('some_flag', 'BOOLEAN', 'true').isValid, true);
   });
+  it('chấp nhận danh sách học kỳ hợp lệ', () => {
+    assert.equal(validate('class.semesters', 'JSON', '[{"name":"FA26","startDate":"2026-09-07","endDate":"2026-12-27"}]').isValid, true);
+  });
+  it('từ chối học kỳ trùng tên, sai ngày hoặc ngày bắt đầu sau ngày kết thúc', () => {
+    assert.equal(validate('class.semesters', 'JSON', '[]').isValid, false);
+    assert.equal(validate('class.semesters', 'JSON', '["FA26"]').isValid, false);
+    assert.equal(validate('class.semesters', 'JSON', '[{"name":"FA26","startDate":"2026-09-07","endDate":"2026-12-27"},{"name":"fa26","startDate":"2027-01-04","endDate":"2027-04-25"}]').isValid, false);
+    assert.equal(validate('class.semesters', 'JSON', '[{"name":"FA26","startDate":"07/09/2026","endDate":"2026-12-27"}]').isValid, false);
+    assert.equal(validate('class.semesters', 'JSON', '[{"name":"FA26","startDate":"2026-12-28","endDate":"2026-12-27"}]').isValid, false);
+  });
 });
