@@ -31,6 +31,7 @@ export default class PracticeModel {
     pieceId: true,
     instrumentId: true,
     kind: true,
+    analysisJobId: true,
     referenceAudio: { select: { storageKey: true, status: true } },
     instrument: { select: { code: true } }
   } satisfies Prisma.SheetMusicSelect;

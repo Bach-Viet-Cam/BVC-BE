@@ -109,6 +109,7 @@ export default class PracticeSubmissionService {
     const job: Audio.Job = {
       evaluationId: record.evaluationId ?? '', messageId: record.messageId ?? randomUUID(), attempt: record.attempt,
       templateUrl: await this.createReadUrl(sheet.referenceAudio?.storageKey ?? ''),
+      templateAnalysisId: sheet.analysisJobId,
       studentUrl: record.fileUrl ?? '', instrumentId: sheet.instrument.code,
       requestedAt: this.now().toISOString(), callbackUrl: `${EnvConfig.fileStoragePublicBaseUrl}${PracticeConstant.callbackPath}`
     };

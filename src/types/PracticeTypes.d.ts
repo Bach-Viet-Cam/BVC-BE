@@ -77,12 +77,13 @@ declare namespace Practice {
     pieceId: string;
     instrumentId: string;
     kind: 'MAIN' | 'LEVEL';
+    analysisJobId: string | null;
     referenceAudio: { storageKey: string; status: 'PENDING' | 'READY' } | null;
     instrument: { code: string };
   }
 
   // Sheet shown on the record screen, with the piece it belongs to
-  interface ContextSheet extends Omit<SheetTemplate, 'instrument'> {
+  interface ContextSheet extends Omit<SheetTemplate, 'instrument' | 'analysisJobId'> {
     name: string;
     durationSec: number | null;
     analysisFileUrl: string | null;
