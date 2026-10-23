@@ -17,10 +17,6 @@ export default class PracticeConstant {
   // GBR-63: the jobs always run in this order
   static readonly stageOrder: readonly Practice.Stage[] = Object.freeze(['QUALITY_CHECK', 'AUDIO_ANALYSIS', 'COMPARISON', 'FEEDBACK']);
 
-  // GBR-65: a job running longer than one minute fails; the grace covers callback latency
-  static readonly jobTimeoutMs = 60_000;
-  static readonly staleGraceMs = 10_000;
-
   // GBR-59: three retries, the first available after 5 s and the later ones after 10 s
   static readonly maxRetries = 3;
   static readonly retryDelaysMs = Object.freeze({ FIRST: 5_000, LATER: 10_000 });
@@ -31,7 +27,6 @@ export default class PracticeConstant {
 
   static readonly errorCodes = Object.freeze({
     PUBLISH_FAILED: 'PUBLISH_FAILED',
-    JOB_TIMEOUT: 'JOB_TIMEOUT',
     RETRY_DISPATCH_FAILED: 'RETRY_DISPATCH_FAILED',
     QUALITY_REJECTED: 'QUALITY_REJECTED',
     EVALUATION_FAILED: 'EVALUATION_FAILED'
@@ -50,7 +45,6 @@ export default class PracticeConstant {
     RETRY_NOT_ALLOWED: 'Bản nộp này không thể xử lý lại.',
     RETRY_TOO_EARLY: 'Bạn có thể thử lại sau ít giây nữa.',
     PUBLISH_FAILED: 'Không thể gửi bản thu vào hàng đợi xử lý.',
-    JOB_TIMEOUT: 'Bước xử lý chạy quá thời gian cho phép.',
     RETRY_DISPATCH_FAILED: 'Chưa thể gửi yêu cầu xử lý lại.',
     QUALITY_REJECTED: 'Bản thu không đạt chất lượng.',
     PROCESSING_FAILED: 'Xử lý bản thu thất bại.'

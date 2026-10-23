@@ -34,12 +34,11 @@ export default class SubmissionProgressService {
     return isUpdated;
   }
 
-  // Called on read: a job silent for longer than the limit is checked against Rhythm, then failed (GBR-65)
+  // Called on read: reconcile the persisted status with Rhythm without imposing a local job deadline.
   async reconcile(record: Practice.SubmissionRecord): Promise<Practice.SubmissionRecord> {
-    if (!this.isStale(record)) return record;
+    if (record.status !== 'PROCESSING') return record;
     const remote = await this.fetchRemote(record);
-    const isApplied = remote ? await this.applyRemote(record, remote) : false;
-    if (!isApplied) await this.markFailed(record, errorCodes.JOB_TIMEOUT, messages.JOB_TIMEOUT);
+    if (remote) await this.applyRemote(record, remote);
     return (await this.repository.findById(record.id)) ?? record;
   }
 
@@ -83,17 +82,12 @@ export default class SubmissionProgressService {
     return PracticeConstant.stageOrder.indexOf(next) >= PracticeConstant.stageOrder.indexOf(current);
   }
 
-  private isStale(record: Practice.SubmissionRecord): boolean {
-    if (record.status !== 'PROCESSING' || !record.stageStartedAt) return false;
-    return this.now().getTime() - record.stageStartedAt.getTime() > PracticeConstant.jobTimeoutMs + PracticeConstant.staleGraceMs;
-  }
-
   private async fetchRemote(record: Practice.SubmissionRecord): Promise<Audio.EvaluationResponse | null> {
     if (!record.evaluationId || record.publicationState !== 'published') return null;
     try {
       return await this.client.get(record.evaluationId);
     } catch {
-      return null; // Rhythm unreachable: the timeout below still applies
+      return null; // Keep the local job in PROCESSING until Rhythm is reachable or sends a callback.
     }
   }
 

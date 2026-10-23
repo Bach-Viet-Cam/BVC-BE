@@ -91,15 +91,15 @@ test('Lỗi lần đầu mở thử lại sau 5 giây, các lần sau 10 giây, 
   assert.deepEqual(last.deleted, ['sub-1']);
 });
 
-test('Bước chạy quá 1 phút không có tin từ Rhythm thì chuyển Lỗi xử lý (JOB_TIMEOUT)', async () => {
+test('Job không bị đánh dấu lỗi chỉ vì chạy lâu hoặc Rhythm tạm thời chưa phản hồi', async () => {
   const late = new Date(startedAt.getTime() + 71_000);
   const silent = setup(makeRecord(), { now: late, remote: { evaluationId: 'eval-1', status: 'processing', stage: 'quality_check', attempt: 1, result: null, error: null } });
   const reconciled = await silent.service.reconcile(makeRecord());
-  assert.equal(reconciled.status, 'FAILED');
-  assert.equal(reconciled.errorCode, 'JOB_TIMEOUT');
+  assert.equal(reconciled.status, 'PROCESSING');
+  assert.equal(reconciled.errorCode, null);
 
-  const fresh = setup(makeRecord(), { now: new Date(startedAt.getTime() + 30_000) });
-  assert.equal((await fresh.service.reconcile(makeRecord())).status, 'PROCESSING');
+  const unreachable = setup(makeRecord(), { now: late, remote: null });
+  assert.equal((await unreachable.service.reconcile(makeRecord())).status, 'PROCESSING');
 });
 
 test('Callback bị mất thì đối soát theo trạng thái của Rhythm', async () => {

@@ -115,7 +115,7 @@ export default class PracticeSubmissionService {
     };
     const state = await this.publisher.publish(job);
     await this.repository.updatePublication(record.id, { publicationState: state, messageId: job.messageId });
-    // publish_unknown may still reach the worker; reconciliation settles it after the job timeout
+    // publish_unknown may still reach the worker; reconciliation follows Rhythm's eventual status.
     if (state === 'publish_failed') await this.progress.markFailed(record, errorCodes.PUBLISH_FAILED, messages.PUBLISH_FAILED);
     return (await this.repository.findById(record.id)) ?? record;
   }
