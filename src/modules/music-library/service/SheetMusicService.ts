@@ -211,7 +211,7 @@ export default class SheetMusicService {
       return;
     }
     const isNewMain = updated.kind === 'MAIN' && (previous.kind !== 'MAIN' || previous.instrumentId !== updated.instrumentId);
-    if (isNewMain) await AnalysisService.requestAnalysis({ ...updated, analysisFileUrl: null });
+    if (isNewMain) await AnalysisService.requestAnalysis(updated);
   }
 
   // GBR-43: the sheet_music id never changes, so assignments and saved items keep working
@@ -235,7 +235,8 @@ export default class SheetMusicService {
       video: sheetMusic.tutorialVideo
     };
     const updatedSheetMusic = await SheetMusicRepository.update(sheetMusicId, slotUpdates[slot]);
-    await UploadService.discardFile(previousFiles[slot]);
+    // Keep the replaced audio available: Rhythm may still be downloading a previously published job.
+    if (slot !== 'audio') await UploadService.discardFile(previousFiles[slot]);
     await PieceRepository.touch(sheetMusic.pieceId);
     if (slot === 'audio') await AnalysisService.requestAnalysis(updatedSheetMusic);
     return SheetMusicService.getSheetMusic(lecturerId, sheetMusicId);

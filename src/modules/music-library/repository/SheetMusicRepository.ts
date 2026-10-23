@@ -104,4 +104,11 @@ export default class SheetMusicRepository {
       }
     });
   }
+
+  static async listProcessingAnalysis() {
+    return SheetMusicRepository.client.sheetMusic.findMany({
+      where: { kind: 'MAIN', analysisStatus: 'PROCESSING', analysisJobId: { not: null } },
+      select: { id: true, analysisJobId: true }
+    });
+  }
 }
