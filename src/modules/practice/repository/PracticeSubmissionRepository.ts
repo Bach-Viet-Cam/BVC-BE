@@ -17,8 +17,37 @@ export default class PracticeSubmissionRepository {
     });
   }
 
-  async findAssignmentGate(assignmentId: string, studentId: string): Promise<Practice.AssignmentGate | null> {
-    return this.client.assignment.findUnique({ where: { id: assignmentId }, select: PracticeModel.assignmentGateSelect(studentId) });
+  async findContextSheet(pieceId: string, sheetMusicId: string): Promise<Practice.ContextSheet | null> {
+    return this.client.sheetMusic.findFirst({
+      where: { id: sheetMusicId, pieceId, visibility: 'PUBLIC', moderation: 'NORMAL', piece: { deletedAt: null } },
+      select: PracticeModel.contextSheetSelect
+    });
+  }
+
+  // A student has at most one active membership; the class may already be ENDED, which still explains the deadline
+  async findClassAssignments(studentId: string, pieceId: string): Promise<Practice.ClassAssignments | null> {
+    const membership = await this.client.classMember.findFirst({
+      where: { userId: studentId, removedAt: null },
+      orderBy: { class: { startDate: 'desc' } },
+      select: {
+        class: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            instrumentId: true,
+            assignments: {
+              where: { pieceId, deletedAt: null, status: { in: ['PUBLISHED', 'CLOSED'] } },
+              orderBy: { deadline: 'asc' },
+              select: PracticeModel.classAssignmentsSelect(studentId)
+            }
+          }
+        }
+      }
+    });
+    if (!membership) return null;
+    const { assignments, ...classRecord } = membership.class;
+    return { classRecord, assignments };
   }
 
   // GBR-49: the lock makes "no submission of this piece is processing" and the insert one atomic step

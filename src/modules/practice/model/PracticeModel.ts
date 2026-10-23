@@ -28,16 +28,36 @@ export default class PracticeModel {
 
   static readonly sheetSelect = {
     id: true,
+    pieceId: true,
+    instrumentId: true,
+    kind: true,
     referenceAudio: { select: { storageKey: true, status: true } },
     instrument: { select: { code: true } }
   } satisfies Prisma.SheetMusicSelect;
 
-  static readonly assignmentGateSelect = (studentId: string) => ({
+  static readonly contextSheetSelect = {
+    id: true,
     pieceId: true,
-    currentVersionId: true,
-    isPublished: true,
+    instrumentId: true,
+    kind: true,
+    name: true,
+    durationSec: true,
+    analysisFileUrl: true,
+    referenceAudio: { select: { storageKey: true, status: true } },
+    instrument: { select: { id: true, code: true, name: true } },
+    level: { select: { id: true, name: true } },
+    piece: { select: { id: true, title: true, bpm: true } }
+  } satisfies Prisma.SheetMusicSelect;
+
+  static readonly classAssignmentsSelect = (studentId: string) => ({
+    id: true,
+    title: true,
+    description: true,
+    status: true,
     deadline: true,
     maxSubmissions: true,
+    targetBpm: true,
+    currentVersionId: true,
     submissions: { where: { studentId }, select: { status: true } }
   }) satisfies Prisma.AssignmentSelect;
 }

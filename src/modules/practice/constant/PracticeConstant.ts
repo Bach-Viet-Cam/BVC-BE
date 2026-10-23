@@ -26,7 +26,6 @@ export default class PracticeConstant {
   static readonly retryDelaysMs = Object.freeze({ FIRST: 5_000, LATER: 10_000 });
 
   // The template URL must stay readable for the whole retry window
-  static readonly templateUrlLifetimeSec = 60 * 60;
   static readonly callbackPath = '/api/v1/internal/practice-submissions/progress';
   static readonly lockNamespace = 'practice-submission';
 
@@ -44,9 +43,10 @@ export default class PracticeConstant {
     BUSY: 'Bản nộp trước đang được xử lý. Vui lòng đợi hoàn tất rồi nộp bản mới.', // GBR-49
     SUBMISSION_NOT_FOUND: 'Không tìm thấy bản nộp.',
     UPLOAD_INVALID: 'File ghi âm không hợp lệ hoặc bạn không có quyền sử dụng file.',
+    NOT_PRACTICABLE_HINT: 'Hãy luyện bản chính của nhạc cụ này.',
+    SHEET_PREPARING: 'Bản nhạc đang được chuẩn bị, vui lòng quay lại sau.',
     SHEET_NOT_FOUND: 'Không tìm thấy bản nhạc đã chọn của bài này.',
     NO_REFERENCE_AUDIO: 'Bản nhạc này chưa có bản thu mẫu nên chưa thể phân tích.',
-    PIECE_MISMATCH: 'Bản nhạc đã chọn không thuộc bài tập này.',
     RETRY_NOT_ALLOWED: 'Bản nộp này không thể xử lý lại.',
     RETRY_TOO_EARLY: 'Bạn có thể thử lại sau ít giây nữa.',
     PUBLISH_FAILED: 'Không thể gửi bản thu vào hàng đợi xử lý.',

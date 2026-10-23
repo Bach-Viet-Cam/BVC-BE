@@ -35,7 +35,8 @@ export default class LeaderboardSourceRepository {
         assignment: { select: { classId: true, status: true, currentVersion: { select: { kind: true } } } }
       }
     });
-    return rows.map((row) => ({
+    // Free-practice submissions have no assignment; the where above already excludes them
+    return rows.flatMap((row) => row.assignment && row.assignmentId ? [{
       studentId: row.studentId,
       classId: row.assignment.classId,
       assignmentId: row.assignmentId,
@@ -44,7 +45,7 @@ export default class LeaderboardSourceRepository {
       status: row.status,
       accuracy: row.accuracy,
       submittedAt: row.createdAt
-    }));
+    }] : []);
   }
 
   static async findEnsembleSessions(studentIds: string[], from: Date, to: Date): Promise<Backend.LeaderboardEnsembleRecord[]> {

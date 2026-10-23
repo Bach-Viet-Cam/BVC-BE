@@ -74,17 +74,75 @@ declare namespace Practice {
 
   interface SheetTemplate {
     id: string;
+    pieceId: string;
+    instrumentId: string;
+    kind: 'MAIN' | 'LEVEL';
     referenceAudio: { storageKey: string; status: 'PENDING' | 'READY' } | null;
     instrument: { code: string };
   }
 
-  interface AssignmentGate {
-    pieceId: string | null;
-    currentVersionId: string | null;
-    isPublished: boolean;
+  // Sheet shown on the record screen, with the piece it belongs to
+  interface ContextSheet extends Omit<SheetTemplate, 'instrument'> {
+    name: string;
+    durationSec: number | null;
+    analysisFileUrl: string | null;
+    instrument: { id: string; code: string; name: string };
+    level: { id: string; name: string };
+    piece: { id: string; title: string; bpm: number };
+  }
+
+  interface AssignmentCandidate {
+    id: string;
+    title: string;
+    description: string;
+    status: Backend.AssignmentStatus;
     deadline: Date;
     maxSubmissions: number;
+    targetBpm: number | null;
+    currentVersionId: string | null;
     submissions: { status: SubmissionStatus }[];
+  }
+
+  // The student's current class with its assignments for one piece
+  interface ClassAssignments {
+    classRecord: { id: string; name: string; status: Backend.ClassStatus; instrumentId: string };
+    assignments: AssignmentCandidate[];
+  }
+
+  // OPEN counts toward the assignment; ENDED = past deadline, class ended or assignment closed
+  type AssignmentState = 'OPEN' | 'ENDED' | 'EXHAUSTED';
+
+  interface ResolvedAssignment {
+    candidate: AssignmentCandidate;
+    state: AssignmentState;
+    usedSubmissions: number;
+  }
+
+  interface ContextDTO {
+    piece: { id: string; title: string };
+    sheet: {
+      id: string;
+      name: string;
+      isMain: boolean;
+      durationSec: number | null;
+      instrument: { id: string; name: string };
+      level: { id: string; name: string };
+      practice: { isAvailable: boolean; reason: string | null };
+    };
+    enrollment: 'NO_CLASS' | 'IN_CLASS';
+    classRecord: { id: string; name: string } | null;
+    assignment: {
+      id: string;
+      title: string;
+      description: string;
+      deadline: string;
+      maxSubmissions: number;
+      usedSubmissions: number;
+      remainingSubmissions: number;
+      targetBpm: number | null;
+      state: AssignmentState;
+      countsTowardAssignment: boolean;
+    } | null;
   }
 
   interface SubmissionDTO {

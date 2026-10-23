@@ -14,6 +14,8 @@ export default class EnvConfig {
   static readonly rabbitmqUrl = process.env.RABBITMQ_URL?.trim() || '';
   static readonly rhythmServiceBaseUrl = (process.env.RHYTHM_SERVICE_BASE_URL || 'http://localhost:8001').trim().replace(/\/$/, '');
   static readonly rhythmServiceInternalApiKey = process.env.RHYTHM_SERVICE_INTERNAL_API_KEY?.trim() || '';
+  // Shared secret the Rhythm service sends as X-Callback-Secret on its progress callback
+  static readonly aiCallbackSecret = process.env.AI_CALLBACK_SECRET?.trim() || '';
 
   static readonly port: number = Number.isInteger(parsedPort) && parsedPort > 0 ? parsedPort : 3000;
   static readonly appOrigin: string = process.env.APP_ORIGIN || '*';

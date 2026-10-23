@@ -1,24 +1,42 @@
-import type { Router } from 'express';
+import crypto from 'node:crypto';
+import type { NextFunction, Request, Response, Router } from 'express';
+import EnvConfig from '../../../config/EnvConfig.ts';
+import AppError from '../../../utils/AppError.ts';
 import AsyncHandler from '../../../utils/AsyncHandler.ts';
 import { validateRequest } from '../../../middlewares/ValidateMiddleware.ts';
+import { requireRoles } from '../../../middlewares/RoleMiddleware.ts';
+import AuthConstant from '../../auth/constant/AuthConstant.ts';
 import { requireAuthenticatedUser } from '../../auth/middleware/AuthMiddleware.ts';
-import { requireCallbackSecret } from '../../music-library/middleware/InternalCallbackMiddleware.ts';
 import PracticeSubmissionController from '../controller/PracticeSubmissionController.ts';
 import PracticeSubmissionRepository from '../repository/PracticeSubmissionRepository.ts';
+import PracticeContextService from '../service/PracticeContextService.ts';
 import PracticeFileService from '../service/PracticeFileService.ts';
 import PracticeSubmissionService from '../service/PracticeSubmissionService.ts';
 import SubmissionProgressService from '../service/SubmissionProgressService.ts';
 import PracticeValidation from '../validation/PracticeValidation.ts';
 
+// Rhythm service calls back with a shared secret header; compared in constant time
+function requireCallbackSecret(request: Request, _response: Response, next: NextFunction): void {
+  const givenSecret = Buffer.from(String(request.headers['x-callback-secret'] || ''));
+  const expectedSecret = Buffer.from(EnvConfig.aiCallbackSecret);
+  const isValid = expectedSecret.length > 0
+    && givenSecret.length === expectedSecret.length
+    && crypto.timingSafeEqual(givenSecret, expectedSecret);
+  if (!isValid) return next(AppError.unauthorized('Callback secret không hợp lệ.'));
+  return next();
+}
+
 export default class PracticeSubmissionRoute {
   register(router: Router): void {
     const repository = new PracticeSubmissionRepository();
     const progress = new SubmissionProgressService(repository, new PracticeFileService(repository));
-    const controller = new PracticeSubmissionController(new PracticeSubmissionService({ repository, progress }), progress);
+    const controller = new PracticeSubmissionController(new PracticeSubmissionService({ repository, progress }), progress, new PracticeContextService(repository));
     const validation = new PracticeValidation();
     const wrap = AsyncHandler.wrap;
     const auth = wrap(requireAuthenticatedUser);
 
+    // Registered before '/:id' routes; only students practice, so lecturers and admins get 403
+    router.get('/practice/context', validateRequest(validation.contextSchema), auth, requireRoles(AuthConstant.roles.STUDENT), wrap(controller.getContext));
     router.post('/practice/submissions', validateRequest(validation.createSchema), auth, wrap(controller.create));
     // Registered before '/:id' so "active" is not read as a submission id
     router.get('/practice/submissions/active', validateRequest(validation.activeSchema), auth, wrap(controller.getActive));

@@ -13,6 +13,11 @@ export default class PracticeValidation {
 
   readonly activeSchema = z.object({ body: z.unknown(), params: z.object({}), query: z.object({ pieceId: recordId }) });
 
+  readonly contextSchema = z.object({
+    body: z.unknown(), params: z.object({}),
+    query: z.object({ pieceId: recordId, sheetMusicId: recordId, assignmentId: recordId.optional() })
+  });
+
   readonly callbackSchema = z.object({
     body: z.object({
       evaluationId: z.string().min(1).max(128),

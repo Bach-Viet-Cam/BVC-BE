@@ -2,14 +2,12 @@ import { randomUUID } from 'node:crypto';
 import EnvConfig from '../../../config/EnvConfig.ts';
 import StorageService from '../../../lib/storage/StorageService.ts';
 import AppError from '../../../utils/AppError.ts';
-import AssignmentConstant from '../../assignments/constant/AssignmentConstant.ts';
-import SubmissionPolicyService from '../../assignments/service/SubmissionPolicyService.ts';
 import RhythmClientService from '../../audio/service/RhythmClientService.ts';
 import RhythmPublisherService from '../../audio/service/RhythmPublisherService.ts';
-import AssignmentPolicyService from '../../classes/service/AssignmentPolicyService.ts';
 import PracticeConstant from '../constant/PracticeConstant.ts';
 import PracticeSubmissionDTO from '../dto/PracticeSubmissionDTO.ts';
 import PracticeSubmissionRepository from '../repository/PracticeSubmissionRepository.ts';
+import PracticeAssignmentResolver from './PracticeAssignmentResolver.ts';
 import SubmissionProgressService from './SubmissionProgressService.ts';
 
 const { messages, errorCodes } = PracticeConstant;
@@ -19,8 +17,7 @@ interface PracticeSubmissionDependencies {
   progress?: SubmissionProgressService;
   publisher?: RhythmPublisherService;
   client?: RhythmClientService;
-  canSubmitAssignment?: (studentId: string, assignmentId: string) => Promise<{ allowed: boolean }>;
-  createReadUrl?: (storageKey: string, expiresInSec: number) => Promise<string>;
+  createReadUrl?: (storageKey: string) => string | Promise<string>;
   now?: () => Date;
 }
 
@@ -29,8 +26,7 @@ export default class PracticeSubmissionService {
   private readonly progress: SubmissionProgressService;
   private readonly publisher: RhythmPublisherService;
   private readonly client: RhythmClientService;
-  private readonly canSubmitAssignment: (studentId: string, assignmentId: string) => Promise<{ allowed: boolean }>;
-  private readonly createReadUrl: (storageKey: string, expiresInSec: number) => Promise<string>;
+  private readonly createReadUrl: (storageKey: string) => string | Promise<string>;
   private readonly now: () => Date;
   private readonly dto = new PracticeSubmissionDTO();
 
@@ -39,19 +35,18 @@ export default class PracticeSubmissionService {
     this.progress = dependencies.progress ?? new SubmissionProgressService(this.repository);
     this.publisher = dependencies.publisher ?? RhythmPublisherService.instance;
     this.client = dependencies.client ?? new RhythmClientService();
-    this.canSubmitAssignment = dependencies.canSubmitAssignment ?? SubmissionPolicyService.canSubmit;
-    this.createReadUrl = dependencies.createReadUrl ?? ((storageKey, expiresInSec) => StorageService.driver.createReadUrl(storageKey, expiresInSec));
+    this.createReadUrl = dependencies.createReadUrl ?? ((storageKey) => StorageService.driver.createReadUrl(storageKey));
     this.now = dependencies.now ?? (() => new Date());
   }
 
   async create(studentId: string, input: Practice.CreateInput): Promise<Practice.SubmissionDTO> {
     const upload = await this.repository.findOwnedUpload(studentId, input.studentUploadId);
     if (!upload) throw AppError.badRequest(messages.UPLOAD_INVALID);
-    const assignmentVersionId = input.assignmentId ? await this.checkAssignment(studentId, input) : null;
     const sheet = await this.findTemplate(input);
+    const link = await this.findAssignmentLink(studentId, sheet, input.assignmentId);
 
     const { submission, busyId } = await this.repository.createIfIdle({
-      studentId, pieceId: input.pieceId, sheetMusicId: sheet.id, assignmentId: input.assignmentId ?? null, assignmentVersionId,
+      studentId, pieceId: input.pieceId, sheetMusicId: sheet.id, assignmentId: link?.assignmentId ?? null, assignmentVersionId: link?.assignmentVersionId ?? null,
       studentUploadId: upload.id, fileUrl: upload.url, evaluationId: randomUUID(), messageId: randomUUID()
     }, this.now());
     if (!submission) throw AppError.conflict(messages.BUSY, { details: { submissionId: busyId ?? '' } });
@@ -113,9 +108,9 @@ export default class PracticeSubmissionService {
   private async publish(record: Practice.SubmissionRecord, sheet: Practice.SheetTemplate): Promise<Practice.SubmissionRecord> {
     const job: Audio.Job = {
       evaluationId: record.evaluationId ?? '', messageId: record.messageId ?? randomUUID(), attempt: record.attempt,
-      templateUrl: await this.createReadUrl(sheet.referenceAudio?.storageKey ?? '', PracticeConstant.templateUrlLifetimeSec),
+      templateUrl: await this.createReadUrl(sheet.referenceAudio?.storageKey ?? ''),
       studentUrl: record.fileUrl ?? '', instrumentId: sheet.instrument.code,
-      requestedAt: this.now().toISOString(), callbackUrl: `${EnvConfig.publicApiUrl}${PracticeConstant.callbackPath}`
+      requestedAt: this.now().toISOString(), callbackUrl: `${EnvConfig.fileStoragePublicBaseUrl}${PracticeConstant.callbackPath}`
     };
     const state = await this.publisher.publish(job);
     await this.repository.updatePublication(record.id, { publicationState: state, messageId: job.messageId });
@@ -124,13 +119,13 @@ export default class PracticeSubmissionService {
     return (await this.repository.findById(record.id)) ?? record;
   }
 
-  private async checkAssignment(studentId: string, input: Practice.CreateInput): Promise<string | null> {
-    const assignmentId = input.assignmentId ?? '';
-    const [policy, gate] = await Promise.all([this.canSubmitAssignment(studentId, assignmentId), this.repository.findAssignmentGate(assignmentId, studentId)]);
-    const now = this.now();
-    if (!policy.allowed || !gate || !AssignmentPolicyService.canSubmit({ ...gate, now })) throw AppError.forbidden(AssignmentConstant.messages.CANNOT_SUBMIT);
-    if (gate.pieceId !== input.pieceId) throw AppError.badRequest(messages.PIECE_MISMATCH);
-    return gate.currentVersionId;
+  // A send counts toward the class assignment only for the MAIN sheet of the class instrument while the assignment is
+  // open; any other send is plain practice and stays unlinked, even when the client names an assignment.
+  private async findAssignmentLink(studentId: string, sheet: Practice.SheetTemplate, hintAssignmentId?: string): Promise<{ assignmentId: string; assignmentVersionId: string | null } | null> {
+    const enrollment = await this.repository.findClassAssignments(studentId, sheet.pieceId);
+    const resolved = PracticeAssignmentResolver.resolve(sheet, enrollment, this.now(), hintAssignmentId);
+    if (!resolved || resolved.state !== 'OPEN') return null;
+    return { assignmentId: resolved.candidate.id, assignmentVersionId: resolved.candidate.currentVersionId };
   }
 
   // The student may submit to any instrument's sheet of the piece; its reference recording is the template

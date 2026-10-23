@@ -10,15 +10,18 @@ import type RhythmPublisherService from '../../audio/service/RhythmPublisherServ
 
 const now = new Date('2026-10-22T10:00:00Z');
 const input: Practice.CreateInput = { pieceId: 'piece-1', sheetMusicId: 'sheet-bau', studentUploadId: '00000000-0000-4000-8000-000000000001' };
-const sheet: Practice.SheetTemplate = { id: 'sheet-bau', referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau' } };
-const gate: Practice.AssignmentGate = { pieceId: 'piece-1', currentVersionId: 'version-1', isPublished: true, deadline: new Date('2026-12-01'), maxSubmissions: 3, submissions: [] };
+const sheet: Practice.SheetTemplate = { id: 'sheet-bau', pieceId: 'piece-1', instrumentId: 'inst-bau', kind: 'MAIN', referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau' } };
+const candidate: Practice.AssignmentCandidate = {
+  id: 'asg-1', title: 'Bài 3', description: '', status: 'PUBLISHED', deadline: new Date('2026-12-01'), maxSubmissions: 3, targetBpm: null,
+  currentVersionId: 'version-1', submissions: []
+};
+const enrollment: Practice.ClassAssignments = { classRecord: { id: 'class-1', name: 'Lớp K18A', status: 'ACTIVE', instrumentId: 'inst-bau' }, assignments: [candidate] };
 
 interface Options {
   publishState?: Audio.PublicationState;
   busyId?: string | null;
   sheet?: Practice.SheetTemplate | null;
-  gate?: Practice.AssignmentGate | null;
-  allowed?: boolean;
+  enrollment?: Practice.ClassAssignments | null;
   stored?: Practice.SubmissionRecord;
   isKnownToRhythm?: boolean;
 }
@@ -31,7 +34,7 @@ function setup(options: Options = {}) {
   const repository = {
     findOwnedUpload: async (ownerId: string) => (ownerId === 'student' ? { id: input.studentUploadId, url: 'https://be/s.wav' } : null),
     findSheet: async () => (options.sheet === undefined ? sheet : options.sheet),
-    findAssignmentGate: async () => (options.gate === undefined ? gate : options.gate),
+    findClassAssignments: async () => (options.enrollment === undefined ? enrollment : options.enrollment),
     createIfIdle: async (data: Practice.SubmissionCreateData) => {
       if (options.busyId) return { submission: null, busyId: options.busyId };
       created.push(data);
@@ -61,7 +64,6 @@ function setup(options: Options = {}) {
   const progress = new SubmissionProgressService(repository, files, client, () => now);
   const service = new PracticeSubmissionService({
     repository, progress, publisher, client, now: () => now,
-    canSubmitAssignment: async () => ({ allowed: options.allowed ?? true }),
     createReadUrl: async (key: string) => `https://storage/${key}?signed`
   });
   return { service, jobs, retries, created, read: () => current };
@@ -93,17 +95,43 @@ test('Bản nhạc sai, chưa có bản thu mẫu hoặc file không thuộc h�
   await assert.rejects(setup().service.create('other-student', input), hasStatus(400));
 });
 
-test('Nộp cho bài tập kiểm tra quyền, số lượt và bài nhạc của bài tập', async () => {
-  const withAssignment = { ...input, assignmentId: 'asg-1' };
-  const ok = setup();
-  await ok.service.create('student', withAssignment);
-  assert.equal(ok.created[0].assignmentVersionId, 'version-1');
-  await assert.rejects(setup({ allowed: false }).service.create('student', withAssignment), hasStatus(403));
-  const used = { ...gate, submissions: [{ status: 'COMPLETED' as const }, { status: 'PROCESSING' as const }, { status: 'COMPLETED' as const }] };
-  await assert.rejects(setup({ gate: used }).service.create('student', withAssignment), hasStatus(403));
-  const notCounted = { ...gate, submissions: [{ status: 'REJECTED' as const }, { status: 'FAILED' as const }, { status: 'COMPLETED' as const }] };
-  await setup({ gate: notCounted }).service.create('student', withAssignment);
-  await assert.rejects(setup({ gate: { ...gate, pieceId: 'other-piece' } }).service.create('student', withAssignment), hasStatus(400));
+const withCandidate = (changes: Partial<Practice.AssignmentCandidate>): Practice.ClassAssignments => ({ ...enrollment, assignments: [{ ...candidate, ...changes }] });
+
+test('Bản chính của nhạc cụ lớp được tính vào bài tập, kể cả khi client không gửi assignmentId', async () => {
+  const auto = setup();
+  await auto.service.create('student', input);
+  assert.equal(auto.created[0].assignmentId, 'asg-1');
+  assert.equal(auto.created[0].assignmentVersionId, 'version-1');
+  const hinted = setup();
+  await hinted.service.create('student', { ...input, assignmentId: 'asg-1' });
+  assert.equal(hinted.created[0].assignmentId, 'asg-1');
+});
+
+test('Lượt bị từ chối hoặc lỗi không tính; đủ lượt thì luyện tập thường', async () => {
+  const notCounted = withCandidate({ submissions: [{ status: 'REJECTED' }, { status: 'FAILED' }, { status: 'COMPLETED' }] });
+  const stillOpen = setup({ enrollment: notCounted });
+  await stillOpen.service.create('student', input);
+  assert.equal(stillOpen.created[0].assignmentId, 'asg-1');
+  const used = setup({ enrollment: withCandidate({ submissions: [{ status: 'COMPLETED' }, { status: 'PROCESSING' }, { status: 'COMPLETED' }] }) });
+  await used.service.create('student', input);
+  assert.equal(used.created[0].assignmentId, null);
+});
+
+test('Bản không phải MAIN, nhạc cụ khác, chưa có lớp, quá hạn hoặc lớp đã kết thúc: không tính vào bài tập và không bị chặn', async () => {
+  const cases: Options[] = [
+    { sheet: { ...sheet, kind: 'LEVEL' } },
+    { sheet: { ...sheet, instrumentId: 'inst-other' } },
+    { enrollment: null },
+    { enrollment: withCandidate({ deadline: new Date('2026-10-01') }) },
+    { enrollment: { ...enrollment, classRecord: { ...enrollment.classRecord, status: 'ENDED' } } },
+    { enrollment: withCandidate({ status: 'CLOSED' }) }
+  ];
+  for (const options of cases) {
+    const run = setup(options);
+    await run.service.create('student', { ...input, assignmentId: 'asg-1' });
+    assert.equal(run.created[0].assignmentId, null);
+    assert.equal(run.created[0].assignmentVersionId, null);
+  }
 });
 
 test('Gửi hàng đợi thất bại thì chuyển Lỗi xử lý và cho thử lại', async () => {
