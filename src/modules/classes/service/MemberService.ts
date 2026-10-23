@@ -24,6 +24,18 @@ export default class MemberService {
     };
   }
 
+  // Step 1 of the manual add form: tells the lecturer whether the email already has an account
+  // so the FE can prefill and lock the known fields before calling addMember.
+  static async lookupMember(classId: string, lecturerId: string, email: string): Promise<Backend.MemberLookupDTO> {
+    await ClassAccessService.assertOwnedClass(classId, lecturerId, { requireActive: true });
+    const user = await MemberRepository.findUserByEmail(email);
+    if (!user) return { status: 'NEW', fullName: null, studentCode: null };
+    if (user.role !== studentRole) return { status: 'NOT_STUDENT', fullName: null, studentCode: null };
+
+    const member = await MemberRepository.findActiveMembership(classId, user.id);
+    return { status: member ? 'ALREADY_IN_CLASS' : 'STUDENT', fullName: user.username || null, studentCode: user.studentCode };
+  }
+
   static async addMember(classId: string, lecturerId: string, input: Backend.StudentRowInput): Promise<Backend.MemberDTO> {
     const classRecord = await ClassAccessService.assertOwnedClass(classId, lecturerId, { requireActive: true });
 
