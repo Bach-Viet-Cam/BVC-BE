@@ -34,3 +34,4 @@ coverage/
 /uploads/
 
 src/modules/practice/docs
+.claude/
