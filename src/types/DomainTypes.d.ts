@@ -37,7 +37,10 @@ declare namespace Backend {
   interface UserListQuery { role?: number; status?: UserStatus; q?: string; sortBy: 'username' | 'email' | 'role' | 'status'; sortDir: 'asc' | 'desc'; page: number; pageSize: number; }
   interface UserCreateInput { email: string; username: string; role: UserRole; studentCode?: string; }
   interface UserUpdateInput { email?: string; username?: string; role?: UserRole; studentCode?: string | null; }
-  interface InstrumentRecord { id: string; code: string; name: string; description: string | null; isActive: boolean; createdAt: Date; }
+  interface InstrumentTuneRecord { id: string; instrumentId: string; tuneName: string; pitch: number; displayOrder: number; createdAt: Date; updatedAt: Date; }
+  interface InstrumentTuneInput { tuneName: string; pitch: number; displayOrder?: number; }
+  interface InstrumentTuneItem { id: string; instrumentId: string; tuneName: string; pitch: number; displayOrder: number; }
+  interface InstrumentRecord { id: string; code: string; name: string; description: string | null; isActive: boolean; createdAt: Date; tunes?: InstrumentTuneRecord[]; tunesCount?: number; }
   interface InstrumentListQuery { q?: string; status: 'active' | 'inactive' | 'all'; sortBy: 'code' | 'name'; sortDir: 'asc' | 'desc'; }
   interface InstrumentInput { code: string; name: string; description?: string; }
   interface InstrumentUpdateInput { name?: string; description?: string | null; }

@@ -60,6 +60,7 @@ export default class PlatformConstant {
     INSTRUMENT_CODE_EXISTS: 'Mã nhạc cụ đã tồn tại.',
     INSTRUMENT_CREATED: 'Thêm nhạc cụ thành công.',
     INSTRUMENT_UPDATED: 'Cập nhật nhạc cụ thành công.',
+    INSTRUMENT_TUNES_UPDATED: 'Cập nhật cấu hình dây / nốt thành công.',
     INSTRUMENT_DEACTIVATED: 'Đã ngừng hoạt động nhạc cụ.',
     INSTRUMENT_ACTIVATED: 'Đã bật lại nhạc cụ.',
     CONFIG_NOT_FOUND: 'Không tìm thấy tham số hệ thống.',

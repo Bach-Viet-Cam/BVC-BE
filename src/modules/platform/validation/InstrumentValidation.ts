@@ -32,4 +32,16 @@ export default class InstrumentValidation {
     query: noQuery
   });
   static readonly idSchema = z.object({ body: z.unknown(), params: idParams, query: noQuery });
+  static readonly tunesSchema = z.object({
+    body: z.object({
+      tunes: z.array(z.object({
+        tuneName: z.string().trim().min(1, 'Tên dây hoặc nốt không được để trống').max(50),
+        pitch: z.number().positive('Cao độ chuẩn phải lớn hơn 0').max(10000),
+        displayOrder: z.number().int().optional()
+      })).max(40, 'Tối đa 40 dây hoặc nốt cho một nhạc cụ')
+    }),
+    params: idParams,
+    query: noQuery
+  });
 }
+
