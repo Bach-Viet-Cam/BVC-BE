@@ -12,10 +12,10 @@ export default class PracticeContextService {
     private readonly now: () => Date = () => new Date()
   ) {}
 
-  async get(studentId: string, query: { pieceId: string; sheetMusicId: string; assignmentId?: string }): Promise<Practice.ContextDTO> {
-    const sheet = await this.repository.findContextSheet(query.pieceId, query.sheetMusicId);
+  async get(studentId: string, query: { sheetMusicId: string; assignmentId?: string }): Promise<Practice.ContextDTO> {
+    const sheet = await this.repository.findContextSheet(query.sheetMusicId);
     if (!sheet) throw AppError.notFound(messages.SHEET_NOT_FOUND);
-    const enrollment = await this.repository.findClassAssignments(studentId, query.pieceId);
+    const enrollment = await this.repository.findClassAssignments(studentId, sheet.piece.id);
     const resolved = PracticeAssignmentResolver.resolve(sheet, enrollment, this.now(), query.assignmentId);
     return {
       piece: { id: sheet.piece.id, title: sheet.piece.title },

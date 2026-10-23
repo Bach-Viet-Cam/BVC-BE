@@ -10,16 +10,16 @@ export default class PracticeSubmissionRepository {
     return this.client.audioUpload.findFirst({ where: { id: uploadId, ownerId, deletingAt: null }, select: { id: true, url: true } });
   }
 
-  async findSheet(pieceId: string, sheetMusicId: string): Promise<Practice.SheetTemplate | null> {
+  async findSheet(sheetMusicId: string): Promise<Practice.SheetTemplate | null> {
     return this.client.sheetMusic.findFirst({
-      where: { id: sheetMusicId, pieceId, visibility: 'PUBLIC', moderation: 'NORMAL', piece: { deletedAt: null } },
+      where: { id: sheetMusicId, visibility: 'PUBLIC', moderation: 'NORMAL', piece: { deletedAt: null } },
       select: PracticeModel.sheetSelect
     });
   }
 
-  async findContextSheet(pieceId: string, sheetMusicId: string): Promise<Practice.ContextSheet | null> {
+  async findContextSheet(sheetMusicId: string): Promise<Practice.ContextSheet | null> {
     return this.client.sheetMusic.findFirst({
-      where: { id: sheetMusicId, pieceId, visibility: 'PUBLIC', moderation: 'NORMAL', piece: { deletedAt: null } },
+      where: { id: sheetMusicId, visibility: 'PUBLIC', moderation: 'NORMAL', piece: { deletedAt: null } },
       select: PracticeModel.contextSheetSelect
     });
   }

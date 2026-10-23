@@ -17,7 +17,7 @@ const enrollment: Practice.ClassAssignments = {
     currentVersionId: 'v1', currentVersion: { kind: 'SOLO' }, submissions: [{ status: 'COMPLETED' }, { status: 'FAILED' }]
   }]
 };
-const query = { pieceId: 'piece-1', sheetMusicId: 'sheet-1' };
+const query = { sheetMusicId: 'sheet-1' };
 
 function service(options: { sheet?: Practice.ContextSheet | null; enrollment?: Practice.ClassAssignments | null }) {
   const repository = {

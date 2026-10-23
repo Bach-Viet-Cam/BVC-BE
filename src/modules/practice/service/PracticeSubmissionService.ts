@@ -68,7 +68,7 @@ export default class PracticeSubmissionService {
     const link = await this.findAssignmentLink(studentId, sheet, input.assignmentId, practiceMode);
 
     const { submission, busyId } = await this.repository.createIfIdle({
-      studentId, pieceId: input.pieceId, sheetMusicId: sheet.id, assignmentId: link?.assignmentId ?? null, assignmentVersionId: link?.assignmentVersionId ?? null,
+      studentId, pieceId: sheet.pieceId, sheetMusicId: sheet.id, assignmentId: link?.assignmentId ?? null, assignmentVersionId: link?.assignmentVersionId ?? null,
       studentUploadId: upload.id, fileUrl: upload.url, evaluationId: randomUUID(), messageId: randomUUID(), practiceMode
     }, this.now());
     if (!submission) throw AppError.conflict(messages.BUSY, { details: { submissionId: busyId ?? '' } });
@@ -81,9 +81,11 @@ export default class PracticeSubmissionService {
     return this.dto.toResponse(await this.progress.reconcile(record));
   }
 
-  // GBR-49: the processing submission of this piece, if any, so the record screen can stay locked
-  async getActive(studentId: string, pieceId: string): Promise<Practice.SubmissionDTO | null> {
-    const record = await this.repository.findActiveProcessing(studentId, pieceId);
+  // GBR-49: the processing submission of this sheet's piece, if any, so the record screen can stay locked
+  async getActive(studentId: string, sheetMusicId: string): Promise<Practice.SubmissionDTO | null> {
+    const sheet = await this.repository.findSheet(sheetMusicId);
+    if (!sheet) return null;
+    const record = await this.repository.findActiveProcessing(studentId, sheet.pieceId);
     if (!record) return null;
     const current = await this.progress.reconcile(record);
     return current.status === 'PROCESSING' ? this.dto.toResponse(current) : null;
@@ -118,7 +120,7 @@ export default class PracticeSubmissionService {
         : false;
       if (isKnownToRhythm) return (await this.repository.findById(record.id)) ?? record;
       // The job never reached Rhythm (publish failed or lost): send it again as this attempt
-      const sheet = record.sheetMusicId ? await this.repository.findSheet(record.pieceId, record.sheetMusicId) : null;
+      const sheet = record.sheetMusicId ? await this.repository.findSheet(record.sheetMusicId) : null;
       if (!sheet) throw AppError.notFound(messages.SHEET_NOT_FOUND);
       return await this.publish({ ...record, messageId: randomUUID() }, sheet);
     } catch {
@@ -152,7 +154,7 @@ export default class PracticeSubmissionService {
 
   // The student may submit to any instrument's sheet of the piece; its reference recording is the template
   private async findTemplate(input: Practice.CreateInput): Promise<Practice.SheetTemplate> {
-    const sheet = await this.repository.findSheet(input.pieceId, input.sheetMusicId);
+    const sheet = await this.repository.findSheet(input.sheetMusicId);
     if (!sheet) throw AppError.notFound(messages.SHEET_NOT_FOUND);
     if (sheet.referenceAudio?.status !== 'READY') throw new AppError(messages.NO_REFERENCE_AUDIO, 422);
     return sheet;

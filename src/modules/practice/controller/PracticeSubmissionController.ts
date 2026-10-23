@@ -19,11 +19,11 @@ export default class PracticeSubmissionController {
   });
 
   readonly getContext = async (request: Request, response: Response): Promise<Response> => ApiResponse.sendSuccessResponse(response, {
-    data: await this.context.get(request.auth!.user.userId, (request.validated as { query: { pieceId: string; sheetMusicId: string; assignmentId?: string } }).query)
+    data: await this.context.get(request.auth!.user.userId, (request.validated as { query: { sheetMusicId: string; assignmentId?: string } }).query)
   });
 
   readonly getActive = async (request: Request, response: Response): Promise<Response> => ApiResponse.sendSuccessResponse(response, {
-    data: await this.submissions.getActive(request.auth!.user.userId, (request.validated as { query: { pieceId: string } }).query.pieceId)
+    data: await this.submissions.getActive(request.auth!.user.userId, (request.validated as { query: { sheetMusicId: string } }).query.sheetMusicId)
   });
 
   readonly get = async (request: Request, response: Response): Promise<Response> => ApiResponse.sendSuccessResponse(response, {
