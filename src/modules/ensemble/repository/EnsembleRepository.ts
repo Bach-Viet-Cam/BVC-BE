@@ -1,3 +1,4 @@
+import StorageService from '../../../lib/storage/StorageService.ts';
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
 import type { PieceAvailability } from '../service/EnsemblePolicyService.ts';
 
@@ -36,11 +37,37 @@ export default class EnsembleRepository {
   }
 
   static async findTracks(pieceId: string): Promise<EnsembleTrackRecord[]> {
-    return EnsembleRepository.client.ensembleTrack.findMany({
-      where: { pieceId },
-      select: { id: true, instrumentId: true, fileUrl: true, durationSec: true, offsetMs: true, defaultVolume: true, instrument: { select: { name: true } } },
+    const mainSheets = await EnsembleRepository.client.sheetMusic.findMany({
+      where: {
+        pieceId,
+        kind: 'MAIN',
+        referenceAudioId: { not: null },
+        moderation: 'NORMAL'
+      },
+      select: {
+        id: true,
+        instrumentId: true,
+        durationSec: true,
+        referenceAudio: {
+          select: {
+            storageKey: true,
+            durationSec: true
+          }
+        },
+        instrument: { select: { name: true } }
+      },
       orderBy: { instrument: { name: 'asc' } }
     });
+
+    return mainSheets.map((sheet) => ({
+      id: sheet.id,
+      instrumentId: sheet.instrumentId,
+      fileUrl: sheet.referenceAudio?.storageKey ? StorageService.driver.createReadUrl(sheet.referenceAudio.storageKey) : '',
+      durationSec: sheet.referenceAudio?.durationSec ?? sheet.durationSec ?? 0,
+      offsetMs: 0,
+      defaultVolume: 1,
+      instrument: sheet.instrument
+    }));
   }
 
   static async findMemberships(userId: string): Promise<{ classId: string; instrumentId: string; instrument: { name: string } }[]> {

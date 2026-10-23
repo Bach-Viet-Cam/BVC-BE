@@ -90,12 +90,12 @@ export default class LibraryService {
           .map((sheetMusic) => MusicLibraryDTO.toLibrarySheetCard(sheetMusic, savedSheetIds.has(sheetMusic.id)))
       };
     }));
-    const hasEnsembleTracks = (await PrismaClientProvider.instance.ensembleTrack.count({ where: { pieceId } })) > 0;
+    const mainSheetsWithAudio = tabs.filter((tab) => tab.main?.referenceAudio);
     return {
       ...await MusicLibraryDTO.toLibraryPieceCard(piece, tabs.length, savedPieceIds.has(pieceId)),
       description: piece.description,
-      // "Luyện hòa tấu" needs at least one public main sheet with a reference recording AND real ensemble accompaniment tracks
-      canPracticeEnsemble: hasEnsembleTracks && tabs.some((tab) => tab.main?.referenceAudio),
+      // "Luyện hòa tấu" needs at least 2 instruments with main reference audio (so there is at least one accompaniment track)
+      canPracticeEnsemble: mainSheetsWithAudio.length >= 2,
       defaultInstrumentId: await LibraryService.resolveDefaultInstrumentId(viewer, tabs.map((tab) => tab.instrument.id)),
       tabs
     };

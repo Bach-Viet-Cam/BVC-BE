@@ -117,7 +117,6 @@ model Instrument {
   classes          Class[]
   classMembers     ClassMember[]
   roadmaps         Roadmap[]
-  ensembleTracks   EnsembleTrack[]
   ensembleSessions EnsembleSession[]
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at")
@@ -254,7 +253,6 @@ model Piece {
   sheetMusic         SheetMusic[]
   savedItems         SavedItem[]
   assignments        Assignment[]
-  ensembleTracks     EnsembleTrack[]
   ensembleSessions   EnsembleSession[]
   // Roadmap exercises are FINGER_EXERCISE pieces; everything else is a SONG
   kind               PieceKind             @default(SONG)
@@ -648,22 +646,6 @@ model SubmissionComment {
   lecturer     User       @relation(fields: [lecturerId], references: [id])
 
   @@map("submission_comments")
-}
-
-model EnsembleTrack {
-  id            String     @id @default(uuid())
-  pieceId       String     @map("piece_id")
-  instrumentId  String     @map("instrument_id")
-  fileUrl       String     @map("file_url")
-  durationSec   Int        @map("duration_sec")
-  offsetMs      Int        @default(0) @map("offset_ms")
-  defaultVolume Float      @default(1) @map("default_volume")
-  createdAt     DateTime   @default(now()) @map("created_at")
-  piece         Piece      @relation(fields: [pieceId], references: [id], onDelete: Cascade)
-  instrument    Instrument @relation(fields: [instrumentId], references: [id])
-
-  @@unique([pieceId, instrumentId])
-  @@map("ensemble_tracks")
 }
 
 model EnsembleSession {
