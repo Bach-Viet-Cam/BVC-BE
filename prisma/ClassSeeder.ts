@@ -1,7 +1,7 @@
-import path from 'node:path';
 import PrismaClientProvider from '../src/config/PrismaClient.ts';
-import SeedAudioService from './SeedAudioService.ts';
+import StorageService from '../src/lib/storage/StorageService.ts';
 import TextNormalizer from '../src/utils/TextNormalizer.ts';
+import SampleMediaFactory from './seed/SampleMediaFactory.ts';
 
 interface AssignmentSeed {
   id: string;
@@ -25,10 +25,10 @@ export default class ClassSeeder {
   static readonly secondTeacherEmail = 'teacher2@seed.bvc.test';
   static readonly studentEmails = [1, 2, 3, 4, 5].map((index) => `student${index}@seed.bvc.test`);
   static readonly ensembleTracks = [
-    { instrumentCode: 'sao-truc', frequency: 440, volume: 0.7 },
-    { instrumentCode: 'dan-bau', frequency: 330, volume: 0.9 },
-    { instrumentCode: 'ty-ba', frequency: 392, volume: 0.7 },
-    { instrumentCode: 'bo-go', frequency: 220, volume: 1 }
+    { instrumentCode: 'sao-truc', frequency: 440 },
+    { instrumentCode: 'dan-bau', frequency: 330 },
+    { instrumentCode: 'ty-ba', frequency: 392 },
+    { instrumentCode: 'bo-go', frequency: 220 }
   ];
   static readonly assignments: AssignmentSeed[] = [
     { id: 'seed-asg-rhythm-34', title: 'Rhythm drill — nhịp 3/4', type: 'RHYTHM', deadlineDays: -10, isPublished: true, description: 'Luyện nhịp 3/4 với metronome.' },
@@ -102,13 +102,40 @@ export default class ClassSeeder {
         searchText: TextNormalizer.normalize(`${pieceTitle} ${pieceComposer}`)
       }
     });
+    // Ensemble accompaniment comes from MAIN sheet music with reference audio (one per instrument)
     for (const track of ClassSeeder.ensembleTracks) {
-      const relativeUrl = `/uploads/seed/${track.instrumentCode}.wav`;
-      SeedAudioService.writeTone(path.resolve('uploads', 'seed', `${track.instrumentCode}.wav`), track.frequency, 20);
-      await client.ensembleTrack.upsert({
-        where: { pieceId_instrumentId: { pieceId: ClassSeeder.pieceId, instrumentId: instruments[track.instrumentCode] } },
+      const instrumentId = instruments[track.instrumentCode];
+      const existingSheet = await client.sheetMusic.findUnique({ where: { pieceId_mainInstrumentId: { pieceId: ClassSeeder.pieceId, mainInstrumentId: instrumentId } }, select: { id: true } });
+      if (existingSheet) continue;
+      const audioKey = `seed/class/${track.instrumentCode}.wav`;
+      const sheetKey = `seed/class/${track.instrumentCode}.pdf`;
+      const audio = SampleMediaFactory.createWav(20, track.frequency);
+      const sheet = await SampleMediaFactory.createPdf(`Ly ngua o - ${track.instrumentCode}`, 1);
+      await StorageService.driver.putObject(audioKey, audio);
+      await StorageService.driver.putObject(sheetKey, sheet);
+      const audioFile = await client.mediaFile.upsert({
+        where: { storageKey: audioKey },
         update: {},
-        create: { pieceId: ClassSeeder.pieceId, instrumentId: instruments[track.instrumentCode], fileUrl: relativeUrl, durationSec: 20, defaultVolume: track.volume }
+        create: { kind: 'AUDIO', status: 'READY', storageKey: audioKey, originalName: `${track.instrumentCode}.wav`, mimeType: 'audio/wav', sizeBytes: audio.length, durationSec: 20, uploadedById: teacher.id }
+      });
+      const sheetFile = await client.mediaFile.upsert({
+        where: { storageKey: sheetKey },
+        update: {},
+        create: { kind: 'SHEET', status: 'READY', storageKey: sheetKey, originalName: `${track.instrumentCode}.pdf`, mimeType: 'application/pdf', sizeBytes: sheet.length, pageCount: 1, uploadedById: teacher.id }
+      });
+      await client.sheetMusic.create({
+        data: {
+          pieceId: ClassSeeder.pieceId,
+          instrumentId,
+          kind: 'MAIN',
+          mainInstrumentId: instrumentId,
+          name: `Bản chính — ${track.instrumentCode}`,
+          levelId: level.id,
+          sheetFileId: sheetFile.id,
+          referenceAudioId: audioFile.id,
+          durationSec: 20,
+          uploaderId: teacher.id
+        }
       });
     }
 
