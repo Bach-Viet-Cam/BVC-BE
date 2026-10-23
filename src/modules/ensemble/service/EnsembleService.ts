@@ -1,8 +1,6 @@
-import path from 'node:path';
 import AppError from '../../../utils/AppError.ts';
-import SystemConfigService from '../../platform/service/SystemConfigService.ts';
 import EnsembleConstant from '../constant/EnsembleConstant.ts';
-import EnsembleDTO, { type EnsembleSessionItem, type EnsembleTrackItem } from '../dto/EnsembleDTO.ts';
+import EnsembleDTO, { type EnsembleTrackItem } from '../dto/EnsembleDTO.ts';
 import EnsembleRepository from '../repository/EnsembleRepository.ts';
 import EnsemblePolicyService from './EnsemblePolicyService.ts';
 
@@ -16,19 +14,8 @@ export interface PracticeContext {
 }
 
 export interface EnsembleTracksResult extends Omit<PracticeContext, 'assignmentId'> {
+  mySheetMusicId: string | null;
   tracks: EnsembleTrackItem[];
-}
-
-export interface CreateSessionInput {
-  pieceId: string;
-  assignmentId?: string;
-  trackSettings: string;
-}
-
-export interface UploadedRecording {
-  filename: string;
-  size: number;
-  originalname: string;
 }
 
 export default class EnsembleService {
@@ -54,39 +41,15 @@ export default class EnsembleService {
     const context = await EnsembleService.resolveContext(studentId, pieceId, assignmentId);
     const tracks = EnsemblePolicyService.filterTracks({ tracks: await EnsembleRepository.findTracks(pieceId), studentInstrumentId: context.myInstrumentId });
     if (tracks.length === 0) throw AppError.notFound(EnsembleConstant.messages.NO_TRACKS);
+    const mySheetMusicId = await EnsembleRepository.findReadyMainSheetId(pieceId, context.myInstrumentId);
     return {
       pieceId: context.pieceId,
       pieceTitle: context.pieceTitle,
       targetBpm: context.targetBpm,
       myInstrumentId: context.myInstrumentId,
       myInstrumentName: context.myInstrumentName,
+      mySheetMusicId,
       tracks: tracks.map(EnsembleDTO.toTrackItem)
     };
-  }
-
-  static async createSession(studentId: string, input: CreateSessionInput, file: UploadedRecording | undefined): Promise<EnsembleSessionItem> {
-    if (!file) throw AppError.badRequest(EnsembleConstant.messages.RECORDING_REQUIRED);
-    const [maxMb, formats] = await Promise.all([SystemConfigService.getNumber('max_recording_mb'), SystemConfigService.getStringList('allowed_recording_formats')]);
-    const upload = EnsemblePolicyService.validateUpload({ sizeBytes: file.size, extension: path.extname(file.originalname), maxMb, formats });
-    if (!upload.isValid) throw AppError.badRequest(upload.message);
-    const trackSettings = EnsemblePolicyService.parseTrackSettings(input.trackSettings);
-    if (!trackSettings) throw AppError.badRequest(EnsembleConstant.messages.TRACK_SETTINGS_INVALID);
-    const context = await EnsembleService.resolveContext(studentId, input.pieceId, input.assignmentId);
-    const session = await EnsembleRepository.createSession({
-      studentId,
-      pieceId: context.pieceId,
-      instrumentId: context.myInstrumentId,
-      assignmentId: context.assignmentId,
-      recordingUrl: `/uploads/recordings/${file.filename}`,
-      trackSettings,
-      targetBpm: context.targetBpm
-    });
-    return EnsembleDTO.toSessionItem(session);
-  }
-
-  static async getSession(studentId: string, sessionId: string): Promise<EnsembleSessionItem> {
-    const session = await EnsembleRepository.findSessionOfStudent(sessionId, studentId);
-    if (!session) throw AppError.notFound(EnsembleConstant.messages.SESSION_NOT_FOUND);
-    return EnsembleDTO.toSessionItem(session);
   }
 }

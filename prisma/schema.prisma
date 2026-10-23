@@ -53,7 +53,6 @@ model User {
   submissions               Submission[]
   audioUploads              AudioUpload[]
   audioEvaluations          AudioEvaluationRequest[]
-  ensembleSessions          EnsembleSession[]
   leaderboardEntries        LeaderboardEntry[]
   createdNotifications      Notification[]           @relation("NotificationCreator")
   notifications             UserNotification[]       @relation("UserNotifications")
@@ -117,7 +116,6 @@ model Instrument {
   classes          Class[]
   classMembers     ClassMember[]
   roadmaps         Roadmap[]
-  ensembleSessions EnsembleSession[]
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at")
 
@@ -253,7 +251,6 @@ model Piece {
   sheetMusic         SheetMusic[]
   savedItems         SavedItem[]
   assignments        Assignment[]
-  ensembleSessions   EnsembleSession[]
   // Roadmap exercises are FINGER_EXERCISE pieces; everything else is a SONG
   kind               PieceKind             @default(SONG)
   roadmapUses        RoadmapWeekExercise[]
@@ -373,10 +370,9 @@ enum SubmissionStage {
   FEEDBACK
 }
 
-enum EnsembleSessionStatus {
-  RECORDING
-  COMPLETED
-  FAILED
+enum PracticeMode {
+  SOLO
+  ENSEMBLE
 }
 
 model ContentCategory {
@@ -563,7 +559,6 @@ model Assignment {
   versions         AssignmentVersion[] @relation("AssignmentVersions")
   rubric           Rubric?
   submissions      Submission[]
-  ensembleSessions EnsembleSession[]
 
   @@map("assignments")
 }
@@ -633,6 +628,7 @@ model Submission {
   studentId           String             @map("student_id")
   studentUploadId     String?            @map("student_upload_id")
   status              SubmissionStatus   @default(PROCESSING)
+  practiceMode        PracticeMode       @default(SOLO) @map("practice_mode")
   accuracy            Float?
   fileUrl             String?            @map("file_url")
   createdAt           DateTime           @default(now()) @map("created_at")
@@ -681,26 +677,6 @@ model SubmissionComment {
   lecturer     User       @relation(fields: [lecturerId], references: [id])
 
   @@map("submission_comments")
-}
-
-model EnsembleSession {
-  id            String                @id @default(uuid())
-  studentId     String                @map("student_id")
-  pieceId       String                @map("piece_id")
-  instrumentId  String                @map("instrument_id")
-  assignmentId  String?               @map("assignment_id")
-  recordingUrl  String?               @map("recording_url")
-  trackSettings Json                  @default("[]") @map("track_settings")
-  targetBpm     Int                   @map("target_bpm")
-  status        EnsembleSessionStatus @default(RECORDING)
-  createdAt     DateTime              @default(now()) @map("created_at")
-  student       User                  @relation(fields: [studentId], references: [id])
-  piece         Piece                 @relation(fields: [pieceId], references: [id])
-  instrument    Instrument            @relation(fields: [instrumentId], references: [id])
-  assignment    Assignment?           @relation(fields: [assignmentId], references: [id])
-
-  @@index([studentId])
-  @@map("ensemble_sessions")
 }
 
 enum NotificationType {

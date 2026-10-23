@@ -48,14 +48,6 @@ export default class LeaderboardSourceRepository {
     }] : []);
   }
 
-  static async findEnsembleSessions(studentIds: string[], from: Date, to: Date): Promise<Backend.LeaderboardEnsembleRecord[]> {
-    const rows = await LeaderboardSourceRepository.client.ensembleSession.findMany({
-      where: { studentId: { in: studentIds }, createdAt: { gte: from, lt: to } },
-      select: { studentId: true, status: true, createdAt: true, assignment: { select: { classId: true } } }
-    });
-    return rows.map((row) => ({ studentId: row.studentId, classId: row.assignment?.classId ?? null, status: row.status, createdAt: row.createdAt }));
-  }
-
   // P1: published or closed, not deleted, not Bonus
   static async findCountedAssignments(classIds: string[]): Promise<Backend.LeaderboardAssignmentRecord[]> {
     const rows = await LeaderboardSourceRepository.client.assignment.findMany({

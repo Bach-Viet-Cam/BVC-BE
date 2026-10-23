@@ -49,7 +49,7 @@ describe('Leaderboard repositories (UC-17)', () => {
       expect(members.map((member) => member.studentId)).toEqual([kept.id]);
     });
 
-    it('reads submissions, ensemble sessions and assignments of the given classes', async () => {
+    it('reads submissions and assignments of the given classes', async () => {
       const classRecord = await TestDatabase.createClass(lecturer.id, instrumentId, { cohort: 'FA26' });
       const student = await TestDatabase.createUser();
       await TestDatabase.addMember(classRecord.id, student.id, lecturer.id);
@@ -62,19 +62,15 @@ describe('Leaderboard repositories (UC-17)', () => {
       await TestDatabase.createSubmission(solo.id, student.id, { submittedAt: inside, accuracy: 90 });
       await TestDatabase.createSubmission(solo.id, student.id, { submittedAt: new Date('2026-08-01T03:00:00Z') });
       await TestDatabase.createSubmission(deleted.id, student.id, { submittedAt: inside });
-      const piece = await TestDatabase.createPiece(instrumentId);
-      await TestDatabase.prisma.ensembleSession.create({ data: { studentId: student.id, pieceId: piece.id, instrumentId, assignmentId: solo.id, targetBpm: 90, status: 'COMPLETED', createdAt: inside } });
 
       const from = new Date('2026-09-06T17:00:00Z');
       const to = new Date('2026-12-27T17:00:00Z');
       const submissions = await LeaderboardSourceRepository.findSubmissions([student.id], [classRecord.id], from, to);
-      const sessions = await LeaderboardSourceRepository.findEnsembleSessions([student.id], from, to);
       const counted = await LeaderboardSourceRepository.findCountedAssignments([classRecord.id]);
       const bonuses = await LeaderboardSourceRepository.findBonusAssignments([classRecord.id]);
 
       expect(submissions).toHaveLength(1);
       expect(submissions[0]).toMatchObject({ studentId: student.id, classId: classRecord.id, assignmentId: solo.id, kind: 'SOLO', assignmentStatus: 'PUBLISHED', accuracy: 90 });
-      expect(sessions).toEqual([{ studentId: student.id, classId: classRecord.id, status: 'COMPLETED', createdAt: inside }]);
       expect(counted.map((assignment) => assignment.id)).toEqual([solo.id]);
       expect(bonuses).toEqual([{ id: bonus.id, classId: classRecord.id, bonusPoints: 7 }]);
       expect([draft.id, deleted.id]).not.toContain(counted[0].id);

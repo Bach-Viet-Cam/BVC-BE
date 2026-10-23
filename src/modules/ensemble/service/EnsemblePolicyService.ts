@@ -1,16 +1,3 @@
-import { z } from 'zod';
-
-export interface TrackSetting {
-  trackId: string;
-  volume: number;
-  isMuted: boolean;
-  isSolo: boolean;
-}
-
-const trackSettingsSchema = z.array(
-  z.object({ trackId: z.string().min(1), volume: z.number().min(0).max(100), isMuted: z.boolean(), isSolo: z.boolean() })
-);
-
 export interface PieceAvailability {
   visibility: 'PUBLIC' | 'HIDDEN';
   moderation: 'NORMAL' | 'ADMIN_HIDDEN';
@@ -31,26 +18,5 @@ export default class EnsemblePolicyService {
 
   static resolveTargetBpm(input: { assignmentBpm: number | null; pieceBpm: number }): number {
     return input.assignmentBpm ?? input.pieceBpm;
-  }
-
-  static validateUpload(input: { sizeBytes: number; extension: string; maxMb: number; formats: string[] }): { isValid: boolean; message?: string } {
-    if (input.sizeBytes <= 0) return { isValid: false, message: 'File bản thu rỗng.' };
-    if (input.sizeBytes > input.maxMb * 1024 * 1024) {
-      return { isValid: false, message: `Bản thu vượt quá dung lượng tối đa ${input.maxMb} MB.` };
-    }
-    const extension = input.extension.replace(/^\./, '').toLowerCase();
-    if (!input.formats.map((format) => format.toLowerCase()).includes(extension)) {
-      return { isValid: false, message: `Định dạng bản thu không được hỗ trợ. Chỉ chấp nhận: ${input.formats.join(', ')}.` };
-    }
-    return { isValid: true };
-  }
-
-  static parseTrackSettings(raw: string): TrackSetting[] | null {
-    try {
-      const parsed = trackSettingsSchema.safeParse(JSON.parse(raw));
-      return parsed.success ? parsed.data : null;
-    } catch {
-      return null;
-    }
   }
 }

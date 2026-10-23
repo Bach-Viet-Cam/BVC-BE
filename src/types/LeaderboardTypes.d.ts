@@ -2,7 +2,6 @@ declare namespace Backend {
   type LeaderboardCriterion = 'streak' | 'accuracy' | 'bonus' | 'completion';
   type LeaderboardCategoryKey = 'overall' | 'accuracy' | 'improvement' | 'streak' | 'activity';
   type LeaderboardCategoryEnum = 'OVERALL' | 'ACCURACY' | 'IMPROVEMENT' | 'STREAK' | 'ACTIVITY';
-  type EnsembleSessionStatus = 'RECORDING' | 'COMPLETED' | 'FAILED';
 
   interface LeaderboardSubmission {
     assignmentId: string;
@@ -14,10 +13,7 @@ declare namespace Backend {
     submittedAt: Date;
   }
 
-  interface LeaderboardEnsembleSession {
-    status: EnsembleSessionStatus;
-    createdAt: Date;
-  }
+
 
   interface LeaderboardBonusAssignment {
     id: string;
@@ -27,7 +23,6 @@ declare namespace Backend {
   // Everything one student did in the semester, grouped by the snapshot service
   interface LeaderboardActivity {
     submissions: LeaderboardSubmission[];
-    ensembleSessions: LeaderboardEnsembleSession[];
     assignmentIds: string[];
     bonusAssignments: LeaderboardBonusAssignment[];
   }
@@ -52,12 +47,7 @@ declare namespace Backend {
     submittedAt: Date;
   }
 
-  interface LeaderboardEnsembleRecord {
-    studentId: string;
-    classId: string | null;
-    status: EnsembleSessionStatus;
-    createdAt: Date;
-  }
+
 
   interface LeaderboardAssignmentRecord {
     id: string;

@@ -3,7 +3,13 @@ import AssignmentPolicyService from '../../classes/service/AssignmentPolicyServi
 // Decides whether a practice send counts toward a class assignment.
 // It counts only for the MAIN sheet of the class instrument, while the class is active, the assignment is
 // published and before its deadline (the class end date) with attempts left. Anything else is free practice.
+// Bài nộp hòa tấu chỉ ghép bài tập loại Hòa tấu và ngược lại.
 export default class PracticeAssignmentResolver {
+  static matchesMode(candidate: Practice.AssignmentCandidate, mode: Practice.PracticeMode): boolean {
+    const isEnsemble = candidate.currentVersion?.kind === 'ENSEMBLE';
+    return mode === 'ENSEMBLE' ? isEnsemble : !isEnsemble;
+  }
+
   static isAssignedSheet(sheet: Pick<Practice.SheetTemplate, 'kind' | 'instrumentId'>, classInstrumentId: string): boolean {
     return sheet.kind === 'MAIN' && sheet.instrumentId === classInstrumentId;
   }
@@ -20,10 +26,12 @@ export default class PracticeAssignmentResolver {
     sheet: Pick<Practice.SheetTemplate, 'kind' | 'instrumentId'>,
     enrollment: Practice.ClassAssignments | null,
     now: Date,
-    hintAssignmentId?: string
+    hintAssignmentId?: string,
+    mode: Practice.PracticeMode = 'SOLO'
   ): Practice.ResolvedAssignment | null {
     if (!enrollment || !PracticeAssignmentResolver.isAssignedSheet(sheet, enrollment.classRecord.instrumentId)) return null;
-    const resolved = enrollment.assignments.map((candidate) => ({
+    const filtered = enrollment.assignments.filter((candidate) => PracticeAssignmentResolver.matchesMode(candidate, mode));
+    const resolved = filtered.map((candidate) => ({
       candidate,
       ...PracticeAssignmentResolver.stateOf(candidate, enrollment.classRecord.status, now)
     }));
@@ -33,3 +41,4 @@ export default class PracticeAssignmentResolver {
     return byDeadline.find((item) => item.state === 'OPEN') ?? byDeadline.at(-1) ?? null;
   }
 }
+
