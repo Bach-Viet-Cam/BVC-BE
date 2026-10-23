@@ -1,6 +1,7 @@
 import request from 'supertest';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import TestContext from './support/TestContext.ts';
+import TemplateAnalysisPublisherService from '../src/modules/music-library/service/TemplateAnalysisPublisherService.ts';
 
 const { app, api } = TestContext;
 
@@ -13,13 +14,17 @@ describe('Phân tích bản thu mẫu (tạm tắt)', () => {
     await TestContext.reset();
     lecturer = await TestContext.createUser('LECTURER', 'gv@test.local');
     pieceId = (await TestContext.createPiece(lecturer)).id;
+    vi.spyOn(TemplateAnalysisPublisherService.instance, 'publish').mockResolvedValue('published');
   });
+
+  afterEach(() => vi.restoreAllMocks());
 
   it('lưu bản thu cho bản chính không còn đẩy job: trạng thái giữ NONE', async () => {
     const response = await TestContext.createSheet(lecturer, pieceId, { name: 'Chính', referenceAudioId: await TestContext.uploadWav(lecturer) });
     expect(response.status).toBe(201);
     const sheetMusic = await TestContext.prisma.sheetMusic.findUniqueOrThrow({ where: { id: response.body.data.id } });
-    expect(sheetMusic).toMatchObject({ analysisStatus: 'NONE', analysisJobId: null });
+    expect(sheetMusic).toMatchObject({ analysisStatus: 'PROCESSING' });
+    expect(sheetMusic.analysisJobId).toMatch(/^[0-9a-f-]{36}$/i);
   });
 
   it('đã có file phân tích cũ: thay bản thu vẫn giữ nguyên trạng thái "Sẵn sàng"', async () => {
@@ -29,7 +34,8 @@ describe('Phân tích bản thu mẫu (tạm tắt)', () => {
     await request(app).put(`${api}/lecturer/sheet-music/${mainId}/files/audio`)
       .set(TestContext.auth(lecturer)).send({ fileId: await TestContext.uploadWav(lecturer, 4) }).expect(200);
     const sheetMusic = await TestContext.prisma.sheetMusic.findUniqueOrThrow({ where: { id: mainId } });
-    expect(sheetMusic).toMatchObject({ analysisStatus: 'READY', analysisFileUrl: 'v1.json' });
+    expect(sheetMusic).toMatchObject({ analysisStatus: 'PROCESSING', analysisFileUrl: null });
+    expect(sheetMusic.analysisJobId).toMatch(/^[0-9a-f-]{36}$/i);
   });
 
   it('route callback AI đang tắt → 404', async () => {

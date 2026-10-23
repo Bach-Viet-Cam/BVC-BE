@@ -7,10 +7,12 @@ export default class AuthConstant {
     JWT_INVALID: 'Phiên đăng nhập không hợp lệ hoặc đã hết hạn.',
     REFRESH_TOKEN_INVALID: 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.',
     GOOGLE_LOGIN_SUCCESS: 'Đăng nhập bằng Google thành công.',
-    ACCOUNT_NOT_PROVISIONED: 'Tài khoản chưa được cấp. Vui lòng liên hệ quản trị viên.',
+    ACCOUNT_NOT_PROVISIONED: 'Email này chưa có tài khoản trong hệ thống.',
     LOGOUT_SUCCESS: 'Đăng xuất thành công.',
     ACCOUNT_LOCKED: 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.',
     FORBIDDEN_ROLE: 'Bạn không có quyền truy cập chức năng này.'
   });
+  // FE đọc lý do này để hỏi người dùng có muốn tạo tài khoản học sinh mới không
+  static readonly errorReasons = Object.freeze({ ACCOUNT_NOT_PROVISIONED: 'ACCOUNT_NOT_PROVISIONED' });
   static readonly refreshTokenCookieName = 'refreshToken';
 }

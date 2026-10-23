@@ -28,6 +28,19 @@ export default class AuthRepository {
     });
   }
 
+  static async createStudentWithIdentity({ email, username, role, provider, providerId }: {
+    email: string;
+    username: string;
+    role: number;
+    provider: string;
+    providerId: string;
+  }): Promise<Backend.UserRecord> {
+    return AuthRepository.client.user.create({
+      data: { email, username, role, status: 'ACTIVE', identities: { create: { provider, providerId } } },
+      select: AuthModel.userSelect
+    });
+  }
+
   static async findUserById(userId: string): Promise<Backend.UserRecord | null> {
     return AuthRepository.client.user.findUnique({
       where: { id: userId },

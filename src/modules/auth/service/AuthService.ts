@@ -90,7 +90,10 @@ export default class AuthService {
     throw AppError.unauthorized(AUTH_MESSAGES.GOOGLE_TOKEN_INVALID);
   }
 }
-  static async findUserForGoogleLogin(googleProfile: Backend.GoogleProfile): Promise<Backend.UserRecord> {
+  static async findUserForGoogleLogin(
+    googleProfile: Backend.GoogleProfile,
+    shouldCreateIfMissing: boolean = false
+  ): Promise<Backend.UserRecord> {
     const existingIdentity = await authRepository.findIdentityByProvider(
       AUTH_PROVIDERS.GOOGLE,
       googleProfile.providerId
@@ -99,7 +102,12 @@ export default class AuthService {
     if (existingIdentity) return existingIdentity.user;
 
     const existingUser = await authRepository.findUserByEmail(googleProfile.email);
-    if (!existingUser) throw AppError.unauthorized(AUTH_MESSAGES.ACCOUNT_NOT_PROVISIONED);
+    if (!existingUser) {
+      if (shouldCreateIfMissing) return AuthService.createStudentForGoogleProfile(googleProfile);
+      throw new AppError(AUTH_MESSAGES.ACCOUNT_NOT_PROVISIONED, 401, {
+        details: { reason: AuthConstant.errorReasons.ACCOUNT_NOT_PROVISIONED }
+      });
+    }
     AuthService.assertNotLocked(existingUser);
     await authRepository.createIdentity({
       userId: existingUser.id,
@@ -107,6 +115,16 @@ export default class AuthService {
       providerId: googleProfile.providerId
     });
     return existingUser;
+  }
+
+  static async createStudentForGoogleProfile(googleProfile: Backend.GoogleProfile): Promise<Backend.UserRecord> {
+    return authRepository.createStudentWithIdentity({
+      email: googleProfile.email,
+      username: googleProfile.username,
+      role: AuthConstant.roles.STUDENT,
+      provider: AUTH_PROVIDERS.GOOGLE,
+      providerId: googleProfile.providerId
+    });
   }
 
   static assertNotLocked(user: Backend.UserRecord): void {
@@ -136,9 +154,9 @@ export default class AuthService {
     };
   }
 
-  static async authenticateWithGoogle({ credential }: Backend.GoogleAuthRequest): Promise<Backend.AuthResult> {
+  static async authenticateWithGoogle({ credential, createIfMissing }: Backend.GoogleAuthRequest): Promise<Backend.AuthResult> {
     const googleProfile = await AuthService.verifyGoogleCredential(credential);
-    const foundUser = await AuthService.findUserForGoogleLogin(googleProfile);
+    const foundUser = await AuthService.findUserForGoogleLogin(googleProfile, createIfMissing === true);
     const user = await AuthService.activateOnLogin(foundUser);
     const tokens = await AuthService.createSessionForUser(user);
 
