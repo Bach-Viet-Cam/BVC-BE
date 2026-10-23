@@ -18,6 +18,8 @@ import PlatformRoute from '../modules/platform/route/PlatformRoute.ts';
 import StudentProgressRoute from '../modules/progress/route/ProgressRoute.ts';
 import RoadmapRoute from '../modules/roadmaps/route/RoadmapRoute.ts';
 import EnsembleRoute from '../modules/ensemble/route/EnsembleRoute.ts';
+import LeaderboardRoute from '../modules/leaderboard/route/LeaderboardRoute.ts';
+import ChallengeRoute from '../modules/challenges/route/ChallengeRoute.ts';
 
 export default class ApiRoute {
   static createRouter(): Router {
@@ -41,6 +43,8 @@ export default class ApiRoute {
     RoadmapRoute.register(v1Router);
     PlatformRoute.register(v1Router);
     EnsembleRoute.register(v1Router);
+    LeaderboardRoute.register(v1Router);
+    ChallengeRoute.register(v1Router);
     new AudioRoute().register(v1Router);
     apiRouter.use('/v1', v1Router);
     return apiRouter;

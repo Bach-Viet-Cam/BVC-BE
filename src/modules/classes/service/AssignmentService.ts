@@ -50,7 +50,7 @@ export default class AssignmentService {
     const now = new Date();
     const canSubmit = AssignmentPolicyService.canSubmit({ isPublished: row.isPublished, deadline: row.deadline, now, maxSubmissions: row.maxSubmissions, submissions: row.submissions });
     const isPiecePracticable = row.piece ? EnsemblePolicyService.canPracticePiece({ piece: row.piece, isViaAssignment: true }) : false;
-    const hasEnsembleTracks = isPiecePracticable && (row.piece?.ensembleTracks.some((track) => track.instrumentId !== membership.instrumentId) ?? false);
+    const hasEnsembleTracks = isPiecePracticable && (row.piece?.sheetMusic.some((sheet) => sheet.instrumentId !== membership.instrumentId) ?? false);
     return AssignmentDTO.toDetail(row, AssignmentService.buildListItem(row, defaultMinAccuracy, now), { canSubmit, hasEnsembleTracks });
   }
 }

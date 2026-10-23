@@ -15,6 +15,30 @@ export default class DateTimeUtil {
     }).format(now);
   }
 
+  static hourInVietnam(now: Date = new Date()): number {
+    const hour = new Intl.DateTimeFormat('en-GB', { timeZone: DateTimeUtil.businessTimeZone, hour: '2-digit', hourCycle: 'h23' }).format(now);
+    return Number(hour);
+  }
+
+  // The instant a Vietnam calendar day starts (00:00 UTC+7)
+  static startOfDayInVietnam(isoDate: string): Date {
+    return new Date(`${isoDate}T00:00:00+07:00`);
+  }
+
+  static dayKeyInVietnam(instant: Date): string {
+    return DateTimeUtil.todayInVietnam(instant);
+  }
+
+  // Monday (ISO week start) of the week containing the given calendar day.
+  static startOfWeekInVietnam(isoDate: string): string {
+    const daysSinceMonday = (DateTimeUtil.toDateOnly(isoDate).getUTCDay() + 6) % 7;
+    return DateTimeUtil.addDays(isoDate, -daysSinceMonday);
+  }
+
+  static diffDays(fromIsoDate: string, toIsoDate: string): number {
+    return Math.round((DateTimeUtil.toDateOnly(toIsoDate).getTime() - DateTimeUtil.toDateOnly(fromIsoDate).getTime()) / DateTimeUtil.dayInMilliseconds);
+  }
+
   static isValidIsoDate(isoDate: string): boolean {
     if (!DateTimeUtil.isoDatePattern.test(isoDate)) return false;
     return DateTimeUtil.toIsoDate(DateTimeUtil.toDateOnly(isoDate)) === isoDate;

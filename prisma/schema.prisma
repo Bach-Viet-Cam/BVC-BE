@@ -37,6 +37,7 @@ model User {
   sessions                  AuthSession[]
   ownedPieces               Piece[]                  @relation("PieceOwner")
   uploadedSheetMusic        SheetMusic[]             @relation("SheetMusicUploader")
+  createdChallenges         Challenge[]              @relation("ChallengeCreatedBy")
   uploadedMediaFiles        MediaFile[]              @relation("MediaFileUploader")
   savedItems                SavedItem[]
   ownedClasses              Class[]
@@ -53,6 +54,7 @@ model User {
   audioUploads              AudioUpload[]
   audioEvaluations          AudioEvaluationRequest[]
   ensembleSessions          EnsembleSession[]
+  leaderboardEntries        LeaderboardEntry[]
   createdNotifications      Notification[]           @relation("NotificationCreator")
   notifications             UserNotification[]       @relation("UserNotifications")
   createdAt                 DateTime                 @default(now()) @map("created_at")
@@ -111,10 +113,10 @@ model Instrument {
   isActive         Boolean           @default(true) @map("is_active")
   pieces           PieceInstrument[]
   sheetMusic       SheetMusic[]
+  challenges       Challenge[]
   classes          Class[]
   classMembers     ClassMember[]
   roadmaps         Roadmap[]
-  ensembleTracks   EnsembleTrack[]
   ensembleSessions EnsembleSession[]
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at")
@@ -251,7 +253,6 @@ model Piece {
   sheetMusic         SheetMusic[]
   savedItems         SavedItem[]
   assignments        Assignment[]
-  ensembleTracks     EnsembleTrack[]
   ensembleSessions   EnsembleSession[]
   // Roadmap exercises are FINGER_EXERCISE pieces; everything else is a SONG
   kind               PieceKind             @default(SONG)
@@ -261,6 +262,7 @@ model Piece {
   createdAt          DateTime              @default(now()) @map("created_at")
   updatedAt          DateTime              @default(now()) @updatedAt @map("updated_at")
 
+  challenges Challenge[]
   @@index([ownerId, updatedAt])
   @@index([visibility, moderation, createdAt])
   @@map("pieces")
@@ -311,6 +313,7 @@ model SheetMusic {
   createdAt            DateTime       @default(now()) @map("created_at")
   updatedAt            DateTime       @updatedAt @map("updated_at")
 
+  challenges Challenge[]
   @@unique([pieceId, name])
   @@unique([pieceId, mainInstrumentId])
   @@index([pieceId, instrumentId])
@@ -382,25 +385,27 @@ model ContentCategory {
 
 // Class name is unique per cohort, case-insensitive (DBR-02): enforced in ClassService.
 model Class {
-  id           String             @id @default(uuid())
-  name         String
-  cohort       String             @default("") @db.VarChar(50)
-  description  String?            @db.VarChar(500)
-  instrumentId String             @map("instrument_id")
-  ownerId      String             @map("owner_id")
-  startDate    DateTime           @map("start_date")
-  endDate      DateTime           @default(now()) @map("end_date")
-  status       ClassStatus        @default(ACTIVE)
-  endedAt      DateTime?          @map("ended_at")
-  roadmapId    String?            @map("roadmap_id")
-  createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime           @default(now()) @updatedAt @map("updated_at")
-  instrument   Instrument         @relation(fields: [instrumentId], references: [id])
-  owner        User               @relation(fields: [ownerId], references: [id])
-  roadmap      Roadmap?           @relation(fields: [roadmapId], references: [id])
-  members      ClassMember[]
-  assignments  Assignment[]
-  importLogs   StudentImportLog[]
+  id                 String             @id @default(uuid())
+  name               String
+  cohort             String             @default("") @db.VarChar(50)
+  description        String?            @db.VarChar(500)
+  instrumentId       String             @map("instrument_id")
+  ownerId            String             @map("owner_id")
+  startDate          DateTime           @map("start_date")
+  endDate            DateTime           @default(now()) @map("end_date")
+  status             ClassStatus        @default(ACTIVE)
+  endedAt            DateTime?          @map("ended_at")
+  roadmapId          String?            @map("roadmap_id")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at")
+  instrument         Instrument         @relation(fields: [instrumentId], references: [id])
+  owner              User               @relation(fields: [ownerId], references: [id])
+  roadmap            Roadmap?           @relation(fields: [roadmapId], references: [id])
+  members            ClassMember[]
+  assignments        Assignment[]
+  challengeClasses   ChallengeClass[]
+  importLogs         StudentImportLog[]
+  leaderboardEntries LeaderboardEntry[]
 
   @@map("classes")
 }
@@ -643,22 +648,6 @@ model SubmissionComment {
   @@map("submission_comments")
 }
 
-model EnsembleTrack {
-  id            String     @id @default(uuid())
-  pieceId       String     @map("piece_id")
-  instrumentId  String     @map("instrument_id")
-  fileUrl       String     @map("file_url")
-  durationSec   Int        @map("duration_sec")
-  offsetMs      Int        @default(0) @map("offset_ms")
-  defaultVolume Float      @default(1) @map("default_volume")
-  createdAt     DateTime   @default(now()) @map("created_at")
-  piece         Piece      @relation(fields: [pieceId], references: [id], onDelete: Cascade)
-  instrument    Instrument @relation(fields: [instrumentId], references: [id])
-
-  @@unique([pieceId, instrumentId])
-  @@map("ensemble_tracks")
-}
-
 model EnsembleSession {
   id            String                @id @default(uuid())
   studentId     String                @map("student_id")
@@ -774,4 +763,96 @@ model AudioEvaluationRequest {
   @@index([templateUploadId])
   @@index([studentUploadId])
   @@map("audio_evaluation_requests")
+}
+
+enum LeaderboardCategory {
+  OVERALL
+  ACCURACY
+  IMPROVEMENT
+  STREAK
+  ACTIVITY
+}
+
+// UC-17 (DBR-14): periodic ranking snapshot of one semester (semester = Class.cohort); the API reads only from here.
+model LeaderboardSnapshot {
+  id           String             @id @default(uuid())
+  semester     String             @db.VarChar(50)
+  periodStart  DateTime           @map("period_start") @db.Date
+  periodEnd    DateTime           @map("period_end") @db.Date
+  weekStart    DateTime           @map("week_start") @db.Date
+  snapshotDate DateTime           @map("snapshot_date") @db.Date
+  startedAt    DateTime           @map("started_at")
+  generatedAt  DateTime           @map("generated_at")
+  durationMs   Int                @map("duration_ms")
+  entries      LeaderboardEntry[]
+
+  @@unique([semester, snapshotDate])
+  @@index([semester, generatedAt])
+  @@map("leaderboard_snapshots")
+}
+
+model LeaderboardEntry {
+  id         String              @id @default(uuid())
+  snapshotId String              @map("snapshot_id")
+  category   LeaderboardCategory
+  studentId  String              @map("student_id")
+  classId    String              @map("class_id")
+  rank       Int
+  // Display order after tie-break; used for paging
+  position   Int
+  // Value shown on the tab
+  value      Float
+  // OVERALL only: raw + normalised criteria
+  criteria   Json?
+  snapshot   LeaderboardSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  student    User                @relation(fields: [studentId], references: [id])
+  class      Class               @relation(fields: [classId], references: [id])
+
+  @@unique([snapshotId, category, studentId])
+  @@index([snapshotId, category, position])
+  @@map("leaderboard_entries")
+}
+
+enum ChallengeStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Challenge {
+  id             String          @id @default(uuid())
+  title          String
+  description    String?
+  instrumentId   String?         @map("instrument_id")
+  pieceId        String?         @map("piece_id")
+  sheetMusicId   String?         @map("sheet_music_id")
+  createdById    String          @map("created_by")
+  status         ChallengeStatus @default(DRAFT)
+  startsAt       DateTime?       @map("starts_at")
+  endsAt         DateTime?       @map("ends_at")
+  minAccuracy    Int?            @map("min_accuracy")
+  requiredBpm    Int?            @map("required_bpm")
+  maxSubmissions Int             @default(3) @map("max_submissions")
+  pausedAt       DateTime?       @map("paused_at")
+  publishedAt    DateTime?       @map("published_at")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
+  instrument     Instrument?     @relation(fields: [instrumentId], references: [id])
+  piece          Piece?          @relation(fields: [pieceId], references: [id])
+  sheetMusic     SheetMusic?     @relation(fields: [sheetMusicId], references: [id])
+  createdBy      User            @relation("ChallengeCreatedBy", fields: [createdById], references: [id])
+  classes        ChallengeClass[]
+
+  @@index([createdById, startsAt])
+  @@index([status, startsAt, endsAt])
+  @@map("challenges")
+}
+
+model ChallengeClass {
+  challengeId String    @map("challenge_id")
+  classId     String    @map("class_id")
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  class       Class     @relation(fields: [classId], references: [id])
+
+  @@id([challengeId, classId])
+  @@map("challenge_classes")
 }
