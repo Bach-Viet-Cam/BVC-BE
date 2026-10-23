@@ -27,9 +27,32 @@ describe('AuthService.findUserForGoogleLogin', () => {
     try {
       await assert.rejects(
         AuthService.findUserForGoogleLogin(googleProfile),
-        (error: unknown) => error instanceof AppError && error.statusCode === 401
+        (error: unknown) =>
+          error instanceof AppError &&
+          error.statusCode === 401 &&
+          error.details?.reason === 'ACCOUNT_NOT_PROVISIONED'
       );
       assert.equal(createIdentity.mock.callCount(), 0);
+    } finally {
+      mock.restoreAll();
+    }
+  });
+
+  it('tạo tài khoản học sinh kèm Google identity khi người dùng đồng ý tạo mới', async () => {
+    mock.method(AuthRepository, 'findIdentityByProvider', async () => null);
+    mock.method(AuthRepository, 'findUserByEmail', async () => null);
+    const createdUser = { ...pendingUser, status: 'ACTIVE' as const };
+    const createStudent = mock.method(AuthRepository, 'createStudentWithIdentity', async () => createdUser);
+    try {
+      assert.equal(await AuthService.findUserForGoogleLogin(googleProfile, true), createdUser);
+      assert.equal(createStudent.mock.callCount(), 1);
+      assert.deepEqual(createStudent.mock.calls[0]?.arguments[0], {
+        email: googleProfile.email,
+        username: googleProfile.username,
+        role: 1,
+        provider: 'google',
+        providerId: googleProfile.providerId
+      });
     } finally {
       mock.restoreAll();
     }

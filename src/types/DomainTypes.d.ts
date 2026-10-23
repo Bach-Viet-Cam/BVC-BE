@@ -9,7 +9,7 @@ declare namespace Backend {
   type UserStatus = 'PENDING' | 'ACTIVE' | 'LOCKED';
   interface UserRecord { id: string; email: string; username: string; role: UserRole; status: UserStatus; studentCode: string | null; }
   interface UserDTO { userId: string; username: string; email: string; role: UserRole; }
-  interface GoogleAuthRequest { credential: string; }
+  interface GoogleAuthRequest { credential: string; createIfMissing?: boolean; }
   interface GoogleProfile { providerId: string; email: string; username: string; }
   interface AuthTokens { refreshToken: string; accessToken: string; }
   interface AuthResult extends AuthTokens { user: UserDTO; }
