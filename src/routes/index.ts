@@ -17,6 +17,7 @@ import LecturerAssignmentRoute from '../modules/assignments/route/AssignmentRout
 import PlatformRoute from '../modules/platform/route/PlatformRoute.ts';
 import RoadmapRoute from '../modules/roadmaps/route/RoadmapRoute.ts';
 import EnsembleRoute from '../modules/ensemble/route/EnsembleRoute.ts';
+import PracticeSubmissionRoute from '../modules/practice/route/PracticeSubmissionRoute.ts';
 
 export default class ApiRoute {
   static createRouter(): Router {
@@ -39,6 +40,7 @@ export default class ApiRoute {
     PlatformRoute.register(v1Router);
     EnsembleRoute.register(v1Router);
     new AudioRoute().register(v1Router);
+    new PracticeSubmissionRoute().register(v1Router);
     apiRouter.use('/v1', v1Router);
     return apiRouter;
   }

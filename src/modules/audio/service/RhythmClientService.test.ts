@@ -18,3 +18,15 @@ test('Rhythm client giữ key ở server và phân biệt queued 404, completed,
   await assert.rejects(new RhythmClientService(async () => Response.json({ evaluationId: 'other', status: 'completed', result, error: null }), 'secret').get('eval-1'));
   await assert.rejects(new RhythmClientService(async () => Response.json({ evaluationId: 'eval-1', status: 'completed', result: null, error: null }), 'secret').get('eval-1'));
 });
+
+test('Rhythm client gửi yêu cầu xử lý lại từ bước lỗi và phân biệt 404 với lỗi khác', async () => {
+  const request: typeof fetch = async (url, options) => {
+    assert.equal(url, 'http://rhythm:8001/api/v1/evaluations/eval-1/retry');
+    assert.equal(options?.method, 'POST');
+    assert.deepEqual(JSON.parse(String(options?.body)), { fromJob: 'feedback', attempt: 2 });
+    return Response.json({}, { status: 202 });
+  };
+  assert.equal(await new RhythmClientService(request, 'secret', 'http://rhythm:8001').retry('eval-1', 'feedback', 2), true);
+  assert.equal(await new RhythmClientService(async () => new Response(null, { status: 404 }), 'secret').retry('eval-1', 'feedback', 2), false);
+  await assert.rejects(new RhythmClientService(async () => new Response(null, { status: 409 }), 'secret').retry('eval-1', 'feedback', 2), (error) => error instanceof AppError && error.statusCode === 503);
+});
