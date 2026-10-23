@@ -8,6 +8,7 @@ export default class PracticeModel {
     sheetMusicId: true,
     assignmentId: true,
     status: true,
+    practiceMode: true,
     stage: true,
     stageStartedAt: true,
     attempt: true,
@@ -58,6 +59,7 @@ export default class PracticeModel {
     maxSubmissions: true,
     targetBpm: true,
     currentVersionId: true,
+    currentVersion: { select: { kind: true } },
     submissions: { where: { studentId }, select: { status: true } }
   }) satisfies Prisma.AssignmentSelect;
 }

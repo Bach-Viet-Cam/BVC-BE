@@ -11,7 +11,7 @@ const result = { overallScore: 82, pitchAccuracyPercent: 80, rhythmAccuracyPerce
 function makeRecord(overrides: Partial<Practice.SubmissionRecord> = {}): Practice.SubmissionRecord {
   return {
     id: 'sub-1', studentId: 'student', pieceId: 'piece', sheetMusicId: 'sheet', assignmentId: null, status: 'PROCESSING',
-    stage: 'QUALITY_CHECK', stageStartedAt: startedAt, attempt: 1, retryCount: 0, retryAvailableAt: null, fileDeletedAt: null,
+    practiceMode: 'SOLO', stage: 'QUALITY_CHECK', stageStartedAt: startedAt, attempt: 1, retryCount: 0, retryAvailableAt: null, fileDeletedAt: null,
     fileUrl: 'https://be/s.wav', evaluationId: 'eval-1', messageId: 'msg-1', publicationState: 'published', rejectReason: null,
     errorCode: null, errorMessage: null, analyzedAt: null, createdAt: startedAt, studentUpload: { id: 'upload', key: 'audio/s.wav' },
     ...overrides

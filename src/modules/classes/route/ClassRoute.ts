@@ -28,6 +28,7 @@ export default class ClassRoute {
     classRouter.post('/:id/end', validateRequest(ClassValidation.classIdSchema), ...lecturerOnly, wrap(ClassController.endClass));
 
     classRouter.get('/:id/members', validateRequest(ClassValidation.listMembersSchema), ...lecturerOnly, wrap(ClassController.listMembers));
+    classRouter.get('/:id/members/lookup', validateRequest(ClassValidation.lookupMemberSchema), ...lecturerOnly, wrap(ClassController.lookupMember));
     classRouter.post('/:id/members', validateRequest(ClassValidation.addMemberSchema), ...lecturerOnly, wrap(ClassController.addMember));
     classRouter.delete('/:id/members/:studentId', validateRequest(ClassValidation.memberParamsSchema), ...lecturerOnly, wrap(ClassController.removeMember));
 

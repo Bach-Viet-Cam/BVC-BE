@@ -5,7 +5,12 @@ const recordId = z.string().trim().min(1).max(64);
 
 export default class PracticeValidation {
   readonly createSchema = z.object({
-    body: z.object({ sheetMusicId: recordId, assignmentId: recordId.optional(), studentUploadId: z.uuid() }).strict(),
+    body: z.object({
+      sheetMusicId: recordId,
+      assignmentId: recordId.optional(),
+      studentUploadId: z.uuid(),
+      practiceMode: z.enum(['SOLO', 'ENSEMBLE']).optional()
+    }).strict(),
     params: z.object({}), query: z.object({})
   });
 

@@ -2,8 +2,9 @@ declare namespace Practice {
   type SubmissionStatus = 'PROCESSING' | 'COMPLETED' | 'REJECTED' | 'FAILED';
   type Stage = 'QUALITY_CHECK' | 'AUDIO_ANALYSIS' | 'COMPARISON' | 'FEEDBACK';
   type ProgressStatus = 'started' | 'done' | 'failed' | 'rejected';
+  type PracticeMode = 'SOLO' | 'ENSEMBLE';
 
-  interface CreateInput { sheetMusicId: string; assignmentId?: string; studentUploadId: string; }
+  interface CreateInput { sheetMusicId: string; assignmentId?: string; studentUploadId: string; practiceMode?: PracticeMode; }
 
   // Body the Rhythm service posts for every job event (see its ProgressCallback schema)
   interface ProgressCallback {
@@ -23,6 +24,7 @@ declare namespace Practice {
     sheetMusicId: string | null;
     assignmentId: string | null;
     status: SubmissionStatus;
+    practiceMode: PracticeMode;
     stage: Stage | null;
     stageStartedAt: Date | null;
     attempt: number;
@@ -51,6 +53,7 @@ declare namespace Practice {
     fileUrl: string;
     evaluationId: string;
     messageId: string;
+    practiceMode: PracticeMode;
   }
 
   interface SubmissionUpdate {
@@ -100,6 +103,7 @@ declare namespace Practice {
     maxSubmissions: number;
     targetBpm: number | null;
     currentVersionId: string | null;
+    currentVersion: { kind: Backend.AssignmentKind } | null;
     submissions: { status: SubmissionStatus }[];
   }
 
@@ -151,6 +155,7 @@ declare namespace Practice {
     sheetMusicId: string | null;
     assignmentId: string | null;
     status: SubmissionStatus;
+    practiceMode: PracticeMode;
     stage: Stage | null;
     stageStartedAt: string | null;
     retryCount: number;

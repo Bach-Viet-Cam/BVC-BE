@@ -49,8 +49,9 @@ export default class AssignmentService {
     const defaultMinAccuracy = await SystemConfigService.getNumber('min_accuracy_default');
     const now = new Date();
     const canSubmit = AssignmentPolicyService.canSubmit({ isPublished: row.isPublished, deadline: row.deadline, now, maxSubmissions: row.maxSubmissions, submissions: row.submissions });
-    const isPiecePracticable = row.piece ? EnsemblePolicyService.canPracticePiece({ piece: row.piece, isViaAssignment: true }) : false;
-    const hasEnsembleTracks = isPiecePracticable && (row.piece?.sheetMusic.some((sheet) => sheet.instrumentId !== membership.instrumentId) ?? false);
+    const piece = row.sheetMusic?.piece;
+    const isPiecePracticable = piece ? EnsemblePolicyService.canPracticePiece({ piece, isViaAssignment: true }) : false;
+    const hasEnsembleTracks = isPiecePracticable && (piece?.sheetMusic.some((sheet) => sheet.instrumentId !== membership.instrumentId) ?? false);
     return AssignmentDTO.toDetail(row, AssignmentService.buildListItem(row, defaultMinAccuracy, now), { canSubmit, hasEnsembleTracks });
   }
 }

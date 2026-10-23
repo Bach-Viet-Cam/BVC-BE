@@ -63,6 +63,12 @@ export default class ClassController {
     return ApiResponse.sendSuccessResponse(response, { data: result });
   }
 
+  static async lookupMember(request: Request, response: Response): Promise<Response> {
+    const { params, query } = ClassController.getValidated<unknown, { id: string }, { email: string }>(request);
+    const result = await MemberService.lookupMember(params.id, ClassController.getLecturerId(request), query.email);
+    return ApiResponse.sendSuccessResponse(response, { data: result });
+  }
+
   static async addMember(request: Request, response: Response): Promise<Response> {
     const { body, params } = ClassController.getValidated<Backend.StudentRowInput, { id: string }>(request);
     const member = await MemberService.addMember(params.id, ClassController.getLecturerId(request), body);

@@ -37,7 +37,7 @@ export default class PracticeSubmissionRepository {
             status: true,
             instrumentId: true,
             assignments: {
-              where: { pieceId, deletedAt: null, status: { in: ['PUBLISHED', 'CLOSED'] } },
+              where: { sheetMusic: { pieceId }, deletedAt: null, status: { in: ['PUBLISHED', 'CLOSED'] } },
               orderBy: { deadline: 'asc' },
               select: PracticeModel.classAssignmentsSelect(studentId)
             }

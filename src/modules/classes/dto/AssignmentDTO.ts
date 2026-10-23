@@ -28,6 +28,7 @@ export interface AssignmentDetail extends AssignmentListItem {
   description: string;
   weekNo: number | null;
   targetBpm: number | null;
+  sheetMusicId: string | null;
   pieceId: string | null;
   pieceTitle: string | null;
   rubric: { name: string; weight: number }[];
@@ -59,9 +60,10 @@ export default class AssignmentDTO {
       ...listItem,
       description: row.description,
       weekNo: row.weekNo,
-      targetBpm: row.targetBpm ?? row.piece?.bpm ?? null,
-      pieceId: row.piece?.id ?? null,
-      pieceTitle: row.piece?.title ?? null,
+      targetBpm: row.targetBpm ?? row.sheetMusic?.piece.bpm ?? null,
+      sheetMusicId: row.sheetMusic?.id ?? null,
+      pieceId: row.sheetMusic?.piece.id ?? null,
+      pieceTitle: row.sheetMusic?.piece.title ?? null,
       rubric: row.rubric?.criteria ?? [],
       canSubmit: extra.canSubmit,
       hasEnsembleTracks: extra.hasEnsembleTracks,

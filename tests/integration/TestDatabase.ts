@@ -100,6 +100,26 @@ export default class TestDatabase {
     });
   }
 
+  static async createSheetMusic(pieceId: string, instrumentId: string, overrides: Partial<{ name: string; visibility: 'PUBLIC' | 'HIDDEN' }> = {}) {
+    const uploader = await TestDatabase.createUser({ role: ROLES.SYSTEM_ADMIN });
+    const level = await TestDatabase.prisma.category.upsert({ where: { type_name: { type: 'LEVEL', name: 'Trình độ test' } }, update: {}, create: { type: 'LEVEL', name: 'Trình độ test' } });
+    const sheetFile = await TestDatabase.prisma.mediaFile.create({
+      data: { kind: 'SHEET', status: 'READY', storageKey: `test/${TestDatabase.nextId()}-sheet.pdf`, originalName: 'sheet.pdf', mimeType: 'application/pdf', sizeBytes: 10, uploadedById: uploader.id }
+    });
+    return TestDatabase.prisma.sheetMusic.create({
+      data: {
+        pieceId,
+        instrumentId,
+        kind: 'LEVEL',
+        name: overrides.name ?? `Bản nhạc ${TestDatabase.nextId()}`,
+        levelId: level.id,
+        sheetFileId: sheetFile.id,
+        visibility: overrides.visibility ?? 'PUBLIC',
+        uploaderId: uploader.id
+      }
+    });
+  }
+
   static async createClass(lecturerId: string, instrumentId: string, overrides: Partial<{ name: string; cohort: string; startDate: string; status: 'ACTIVE' | 'ENDED' }> = {}) {
     const startDate = overrides.startDate ?? DateTimeUtil.addDays(DateTimeUtil.todayInVietnam(), 7);
     return TestDatabase.prisma.class.create({
@@ -118,14 +138,14 @@ export default class TestDatabase {
   static async createAssignment(
     classId: string,
     lecturerId: string,
-    overrides: Partial<{ title: string; kind: 'SOLO' | 'ENSEMBLE' | 'BONUS' | 'OTHER'; status: 'DRAFT' | 'PUBLISHED' | 'CLOSED'; pieceId: string | null; requiredBpm: number | null; deletedAt: Date | null }> = {}
+    overrides: Partial<{ title: string; kind: 'SOLO' | 'ENSEMBLE' | 'BONUS' | 'OTHER'; status: 'DRAFT' | 'PUBLISHED' | 'CLOSED'; sheetMusicId: string | null; requiredBpm: number | null; deletedAt: Date | null }> = {}
   ) {
     const classRecord = await TestDatabase.prisma.class.findUniqueOrThrow({ where: { id: classId }, select: { endDate: true } });
     const status = overrides.status ?? 'PUBLISHED';
     const content = {
       title: overrides.title ?? `Bài tập ${TestDatabase.nextId()}`,
       kind: overrides.kind ?? 'SOLO',
-      pieceId: overrides.pieceId ?? null,
+      sheetMusicId: overrides.sheetMusicId ?? null,
       requiredBpm: overrides.requiredBpm ?? null
     };
     const assignment = await AssignmentRepository.createAssignment(
@@ -146,10 +166,13 @@ export default class TestDatabase {
     studentId: string,
     overrides: Partial<{ status: 'PROCESSING' | 'COMPLETED' | 'REJECTED' | 'FAILED'; accuracy: number | null; submittedAt: Date; versionId: string }> = {}
   ) {
-    const assignment = await TestDatabase.prisma.assignment.findUniqueOrThrow({ where: { id: assignmentId }, include: { class: { select: { instrumentId: true } } } });
+    const assignment = await TestDatabase.prisma.assignment.findUniqueOrThrow({
+      where: { id: assignmentId },
+      include: { class: { select: { instrumentId: true } }, sheetMusic: { select: { pieceId: true } } }
+    });
     const status = overrides.status ?? 'COMPLETED';
-    // Every submission belongs to a piece; assignments without one get a throwaway piece
-    const pieceId = assignment.pieceId ?? (await TestDatabase.createPiece(assignment.class.instrumentId)).id;
+    // Every submission belongs to a piece; assignments without sheet music get a throwaway piece
+    const pieceId = assignment.sheetMusic?.pieceId ?? (await TestDatabase.createPiece(assignment.class.instrumentId)).id;
     return TestDatabase.prisma.submission.create({
       data: {
         assignmentId,

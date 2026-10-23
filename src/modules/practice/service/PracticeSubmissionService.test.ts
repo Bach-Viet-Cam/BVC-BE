@@ -13,7 +13,7 @@ const input: Practice.CreateInput = { sheetMusicId: 'sheet-bau', studentUploadId
 const sheet: Practice.SheetTemplate = { id: 'sheet-bau', pieceId: 'piece-1', instrumentId: 'inst-bau', kind: 'MAIN', referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau' } };
 const candidate: Practice.AssignmentCandidate = {
   id: 'asg-1', title: 'Bài 3', description: '', status: 'PUBLISHED', deadline: new Date('2026-12-01'), maxSubmissions: 3, targetBpm: null,
-  currentVersionId: 'version-1', submissions: []
+  currentVersionId: 'version-1', currentVersion: { kind: 'SOLO' }, submissions: []
 };
 const enrollment: Practice.ClassAssignments = { classRecord: { id: 'class-1', name: 'Lớp K18A', status: 'ACTIVE', instrumentId: 'inst-bau' }, assignments: [candidate] };
 
@@ -40,7 +40,7 @@ function setup(options: Options = {}) {
       created.push(data);
       current = {
         id: 'sub-1', studentId: data.studentId, pieceId: data.pieceId, sheetMusicId: data.sheetMusicId, assignmentId: data.assignmentId,
-        status: 'PROCESSING', stage: 'QUALITY_CHECK', stageStartedAt: now, attempt: 1, retryCount: 0, retryAvailableAt: null,
+        status: 'PROCESSING', practiceMode: data.practiceMode, stage: 'QUALITY_CHECK', stageStartedAt: now, attempt: 1, retryCount: 0, retryAvailableAt: null,
         fileDeletedAt: null, fileUrl: data.fileUrl, evaluationId: data.evaluationId, messageId: data.messageId, publicationState: 'publishing',
         rejectReason: null, errorCode: null, errorMessage: null, analyzedAt: null, createdAt: now, studentUpload: { id: data.studentUploadId, key: 'audio/s.wav' }
       };
@@ -142,7 +142,8 @@ test('Gửi hàng đợi thất bại thì chuyển Lỗi xử lý và cho thử
 });
 
 const failedRecord = (overrides: Partial<Practice.SubmissionRecord> = {}): Practice.SubmissionRecord => ({
-  id: 'sub-1', studentId: 'student', pieceId: 'piece-1', sheetMusicId: 'sheet-bau', assignmentId: null, status: 'FAILED', stage: 'FEEDBACK',
+  id: 'sub-1', studentId: 'student', pieceId: 'piece-1', sheetMusicId: 'sheet-bau', assignmentId: null, status: 'FAILED',
+  practiceMode: 'SOLO', stage: 'FEEDBACK',
   stageStartedAt: now, attempt: 1, retryCount: 0, retryAvailableAt: new Date(now.getTime() - 1), fileDeletedAt: null, fileUrl: 'https://be/s.wav',
   evaluationId: 'eval-1', messageId: 'msg-1', publicationState: 'published', rejectReason: null, errorCode: 'EVALUATION_FAILED',
   errorMessage: 'lỗi', analyzedAt: null, createdAt: now, studentUpload: { id: 'upload', key: 'audio/s.wav' }, ...overrides

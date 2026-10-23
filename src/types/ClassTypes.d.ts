@@ -96,6 +96,14 @@ declare namespace Backend {
     joinedAt: string;
   }
 
+  type MemberLookupStatus = 'NEW' | 'STUDENT' | 'NOT_STUDENT' | 'ALREADY_IN_CLASS';
+
+  interface MemberLookupDTO {
+    status: MemberLookupStatus;
+    fullName: string | null;
+    studentCode: string | null;
+  }
+
   interface MemberListQuery {
     q?: string;
     accountStatus: AccountStatusFilter;

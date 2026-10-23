@@ -11,10 +11,8 @@ const submission = (overrides: Partial<Backend.LeaderboardSubmission> = {}): Bac
   ...overrides
 });
 
-const ensemble = (status: Backend.EnsembleSessionStatus, createdAt: string): Backend.LeaderboardEnsembleSession => ({ status, createdAt: new Date(createdAt) });
 const activity = (overrides: Partial<Backend.LeaderboardActivity> = {}): Backend.LeaderboardActivity => ({
   submissions: [],
-  ensembleSessions: [],
   assignmentIds: [],
   bonusAssignments: [],
   ...overrides
@@ -78,10 +76,12 @@ describe('streaks', () => {
     expect(LeaderboardMetricCalculator.longestStreak(['2026-10-20', '2026-10-21'])).toBe(2);
   });
 
-  it('counts every submission status but not failed ensemble sessions', () => {
+  it('counts every submission status (including REJECTED or FAILED)', () => {
     const acts = activity({
-      submissions: [submission({ status: 'REJECTED', submittedAt: new Date('2026-10-20T05:00:00Z') })],
-      ensembleSessions: [ensemble('FAILED', '2026-10-21T05:00:00Z'), ensemble('COMPLETED', '2026-10-22T05:00:00Z')]
+      submissions: [
+        submission({ status: 'REJECTED', submittedAt: new Date('2026-10-20T05:00:00Z') }),
+        submission({ status: 'FAILED', submittedAt: new Date('2026-10-22T05:00:00Z') })
+      ]
     });
     expect(LeaderboardMetricCalculator.activityDays(acts, 1)).toEqual(['2026-10-20', '2026-10-22']);
   });
@@ -107,10 +107,13 @@ describe('streaks', () => {
 });
 
 describe('LeaderboardMetricCalculator.weeklyActivity', () => {
-  it('counts submissions and non-failed ensemble sessions in the ISO week', () => {
+  it('counts submissions in the ISO week', () => {
     const acts = activity({
-      submissions: [submission({ submittedAt: new Date('2026-10-19T05:00:00Z') }), submission({ submittedAt: new Date('2026-10-18T05:00:00Z') })],
-      ensembleSessions: [ensemble('COMPLETED', '2026-10-25T05:00:00Z'), ensemble('FAILED', '2026-10-21T05:00:00Z'), ensemble('COMPLETED', '2026-10-26T05:00:00Z')]
+      submissions: [
+        submission({ submittedAt: new Date('2026-10-19T05:00:00Z') }),
+        submission({ submittedAt: new Date('2026-10-21T05:00:00Z') }),
+        submission({ submittedAt: new Date('2026-10-18T05:00:00Z') })
+      ]
     });
     expect(LeaderboardMetricCalculator.weeklyActivity(acts, '2026-10-19')).toBe(2);
   });
@@ -161,10 +164,6 @@ describe('LeaderboardMetricCalculator.hasActivity', () => {
   it('any submission of any status inside the window', () => {
     const failed = submission({ status: 'FAILED', submittedAt: new Date('2026-10-01T05:00:00Z') });
     expect(LeaderboardMetricCalculator.hasActivity(activity({ submissions: [failed] }), window)).toBe(true);
-  });
-  it('ensemble failed does not count, other statuses do', () => {
-    expect(LeaderboardMetricCalculator.hasActivity(activity({ ensembleSessions: [ensemble('FAILED', '2026-10-01T05:00:00Z')] }), window)).toBe(false);
-    expect(LeaderboardMetricCalculator.hasActivity(activity({ ensembleSessions: [ensemble('RECORDING', '2026-10-01T05:00:00Z')] }), window)).toBe(true);
   });
   it('outside the window is not activity', () => {
     expect(LeaderboardMetricCalculator.hasActivity(activity({ submissions: [submission({ submittedAt: new Date('2026-12-27T17:00:00Z') })] }), window)).toBe(false);

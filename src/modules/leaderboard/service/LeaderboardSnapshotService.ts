@@ -66,14 +66,12 @@ export default class LeaderboardSnapshotService {
     const classIds = [...new Set(members.map((member) => member.classId))];
     const from = DateTimeUtil.startOfDayInVietnam(semester.startDate);
     const to = DateTimeUtil.startOfDayInVietnam(DateTimeUtil.addDays(semester.endDate, 1));
-    const [submissions, sessions, counted, bonuses] = await Promise.all([
+    const [submissions, counted, bonuses] = await Promise.all([
       LeaderboardSourceRepository.findSubmissions(studentIds, classIds, from, to),
-      LeaderboardSourceRepository.findEnsembleSessions(studentIds, from, to),
       LeaderboardSourceRepository.findCountedAssignments(classIds),
       LeaderboardSourceRepository.findBonusAssignments(classIds)
     ]);
     const submissionsByStudent = groupBy(submissions, (submission) => submission.studentId);
-    const sessionsByStudent = groupBy(sessions, (session) => session.studentId);
     const countedByClass = groupBy(counted, (assignment) => assignment.classId);
     const bonusesByClass = groupBy(bonuses, (assignment) => assignment.classId);
     const window = { from: semester.startDate, to: semester.endDate };
@@ -83,7 +81,6 @@ export default class LeaderboardSnapshotService {
     const metrics: Backend.LeaderboardStudentMetrics[] = [];
     for (const membership of memberships) {
       const studentSubmissions = submissionsByStudent.get(membership.studentId) ?? [];
-      const studentSessions = sessionsByStudent.get(membership.studentId) ?? [];
       const classesOfStudent = membership.classes.map((classInfo) => classInfo.id);
       const activity: Backend.LeaderboardActivity = {
         submissions: studentSubmissions.map((record) => ({
@@ -94,12 +91,11 @@ export default class LeaderboardSnapshotService {
           accuracy: record.accuracy,
           submittedAt: record.submittedAt
         })),
-        ensembleSessions: studentSessions.map(({ status, createdAt }) => ({ status, createdAt })),
         assignmentIds: classesOfStudent.flatMap((id) => (countedByClass.get(id) ?? []).map((assignment) => assignment.id)),
         bonusAssignments: classesOfStudent.flatMap((id) => (bonusesByClass.get(id) ?? []).map(({ id: assignmentId, bonusPoints }) => ({ id: assignmentId, bonusPoints })))
       };
       if (!LeaderboardMetricCalculator.hasActivity(activity, window)) continue;
-      metrics.push(LeaderboardSnapshotService.computeMetrics(membership, activity, { studentSubmissions, studentSessions }, { minAccuracy, today, weekStart }));
+      metrics.push(LeaderboardSnapshotService.computeMetrics(membership, activity, { studentSubmissions }, { minAccuracy, today, weekStart }));
     }
     return LeaderboardSnapshotService.buildEntries(metrics);
   }
@@ -117,7 +113,7 @@ export default class LeaderboardSnapshotService {
   private static computeMetrics(
     membership: Membership,
     activity: Backend.LeaderboardActivity,
-    records: { studentSubmissions: Backend.LeaderboardSubmissionRecord[]; studentSessions: Backend.LeaderboardEnsembleRecord[] },
+    records: { studentSubmissions: Backend.LeaderboardSubmissionRecord[] },
     context: { minAccuracy: number; today: string; weekStart: string }
   ): Backend.LeaderboardStudentMetrics {
     const days = LeaderboardMetricCalculator.activityDays(activity, LeaderboardConstant.streakMinActivitiesPerDay);
@@ -138,13 +134,10 @@ export default class LeaderboardSnapshotService {
   // D2: the class with the most activities; a tie goes to the name that sorts first
   private static pickPrimaryClass(
     membership: Membership,
-    records: { studentSubmissions: Backend.LeaderboardSubmissionRecord[]; studentSessions: Backend.LeaderboardEnsembleRecord[] }
+    records: { studentSubmissions: Backend.LeaderboardSubmissionRecord[] }
   ): string {
     const counts = new Map<string, number>();
-    const classIds = [
-      ...records.studentSubmissions.map((record) => record.classId),
-      ...records.studentSessions.filter((session) => session.status !== 'FAILED').map((session) => session.classId)
-    ];
+    const classIds = records.studentSubmissions.map((record) => record.classId);
     for (const classId of classIds) if (classId) counts.set(classId, (counts.get(classId) ?? 0) + 1);
     const sorted = [...membership.classes].sort((left, right) => (counts.get(right.id) ?? 0) - (counts.get(left.id) ?? 0) || left.name.localeCompare(right.name, 'vi'));
     return sorted[0].id;

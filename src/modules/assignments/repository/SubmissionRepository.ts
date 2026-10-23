@@ -108,12 +108,19 @@ export default class SubmissionRepository {
     });
   }
 
-  static async findClassPieces(instrumentId: string): Promise<Backend.ClassPieceDTO[]> {
-    const pieces = await SubmissionRepository.client.piece.findMany({
-      where: { instruments: { some: { instrumentId } }, visibility: 'PUBLIC', moderation: 'NORMAL', deletedAt: null },
-      orderBy: { title: 'asc' },
-      select: { id: true, title: true, kind: true, bpm: true }
+  static async findClassSheetMusic(instrumentId: string): Promise<Backend.ClassSheetMusicDTO[]> {
+    const sheets = await SubmissionRepository.client.sheetMusic.findMany({
+      where: { instrumentId, visibility: 'PUBLIC', moderation: 'NORMAL', piece: { visibility: 'PUBLIC', moderation: 'NORMAL', deletedAt: null } },
+      orderBy: [{ piece: { title: 'asc' } }, { name: 'asc' }],
+      select: { id: true, name: true, piece: { select: { id: true, title: true, kind: true, bpm: true } } }
     });
-    return pieces.map((piece) => ({ id: piece.id, title: piece.title, kind: piece.kind, defaultBpm: piece.bpm }));
+    return sheets.map((sheet) => ({
+      id: sheet.id,
+      name: sheet.name,
+      pieceId: sheet.piece.id,
+      pieceTitle: sheet.piece.title,
+      kind: sheet.piece.kind,
+      defaultBpm: sheet.piece.bpm
+    }));
   }
 }

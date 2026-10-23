@@ -12,18 +12,6 @@ export interface EnsembleTrackRecord {
   instrument: { name: string };
 }
 
-export interface EnsembleSessionRecord {
-  id: string;
-  pieceId: string;
-  instrumentId: string;
-  assignmentId: string | null;
-  recordingUrl: string | null;
-  trackSettings: unknown;
-  targetBpm: number;
-  status: 'RECORDING' | 'COMPLETED' | 'FAILED';
-  createdAt: Date;
-}
-
 export default class EnsembleRepository {
   static get client() {
     return PrismaClientProvider.instance;
@@ -78,20 +66,24 @@ export default class EnsembleRepository {
     });
   }
 
-  static async findPublishedAssignment(assignmentId: string): Promise<{ id: string; classId: string; pieceId: string | null; targetBpm: number | null } | null> {
+  static async findPublishedAssignment(assignmentId: string): Promise<{ id: string; classId: string; sheetMusic: { pieceId: string } | null; targetBpm: number | null } | null> {
     return EnsembleRepository.client.assignment.findFirst({
       where: { id: assignmentId, isPublished: true },
-      select: { id: true, classId: true, pieceId: true, targetBpm: true }
+      select: { id: true, classId: true, sheetMusic: { select: { pieceId: true } }, targetBpm: true }
     });
   }
 
-  static async createSession(input: { studentId: string; pieceId: string; instrumentId: string; assignmentId: string | null; recordingUrl: string; trackSettings: unknown; targetBpm: number }): Promise<EnsembleSessionRecord> {
-    return EnsembleRepository.client.ensembleSession.create({
-      data: { ...input, trackSettings: input.trackSettings as object, status: 'COMPLETED' }
+  static async findReadyMainSheetId(pieceId: string, instrumentId: string): Promise<string | null> {
+    const sheet = await EnsembleRepository.client.sheetMusic.findFirst({
+      where: {
+        pieceId,
+        instrumentId,
+        kind: 'MAIN',
+        moderation: 'NORMAL',
+        referenceAudio: { status: 'READY' }
+      },
+      select: { id: true }
     });
-  }
-
-  static async findSessionOfStudent(sessionId: string, studentId: string): Promise<EnsembleSessionRecord | null> {
-    return EnsembleRepository.client.ensembleSession.findFirst({ where: { id: sessionId, studentId } });
+    return sheet?.id ?? null;
   }
 }

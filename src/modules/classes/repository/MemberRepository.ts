@@ -41,6 +41,13 @@ export default class MemberRepository {
     return { members: members as Backend.MemberRecord[], total, totalMembers };
   }
 
+  static async findUserByEmail(email: string, client: Prisma.TransactionClient = MemberRepository.client): Promise<(Backend.ExistingUserSnapshot & { username: string }) | null> {
+    return client.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+      select: { ...ClassModel.existingUserSelect, username: true }
+    });
+  }
+
   static async findActiveMembership(classId: string, studentId: string, client: Prisma.TransactionClient = MemberRepository.client): Promise<Backend.MemberRecord | null> {
     const member = await client.classMember.findFirst({
       where: { classId, userId: studentId, ...ClassModel.activeMemberFilter },

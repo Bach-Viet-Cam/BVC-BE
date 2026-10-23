@@ -30,12 +30,9 @@ export default class LeaderboardMetricCalculator {
     return round2(thisAverage - previousAverage);
   }
 
-  // D3: instants of every submission (any status) and every ensemble session except FAILED
+  // D3: instants of every submission (any status)
   static activityInstants(activity: Backend.LeaderboardActivity): Date[] {
-    return [
-      ...activity.submissions.map((submission) => submission.submittedAt),
-      ...activity.ensembleSessions.filter((session) => session.status !== 'FAILED').map((session) => session.createdAt)
-    ];
+    return activity.submissions.map((submission) => submission.submittedAt);
   }
 
   // D6: ascending list of days with at least minPerDay activities

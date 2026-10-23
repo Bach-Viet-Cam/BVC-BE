@@ -139,10 +139,12 @@ export default class ClassSeeder {
       });
     }
 
+    // Assignments point at sheet music; the first seeded sheet of the class song stands in for it
+    const classSheet = await client.sheetMusic.findFirst({ where: { pieceId: ClassSeeder.pieceId }, orderBy: { createdAt: 'asc' }, select: { id: true } });
     for (const item of ClassSeeder.assignments) {
       const data = {
         classId: ClassSeeder.classId,
-        pieceId: item.withPiece ? ClassSeeder.pieceId : null,
+        sheetMusicId: item.withPiece ? (classSheet?.id ?? null) : null,
         title: item.title,
         type: item.type,
         description: item.description ?? '',

@@ -19,9 +19,11 @@ declare namespace Backend {
 }
 
 declare namespace Backend {
-  interface AssignmentPieceDTO {
+  interface AssignmentSheetMusicDTO {
     id: string;
-    title: string;
+    name: string;
+    pieceId: string;
+    pieceTitle: string;
     defaultBpm: number | null;
     isAvailable: boolean;
   }
@@ -42,7 +44,13 @@ declare namespace Backend {
       description: string | null;
       kind: AssignmentKind;
       requiredBpm: number | null;
-      piece: { id: string; title: string; bpm: number; visibility: 'PUBLIC' | 'HIDDEN'; moderation: 'NORMAL' | 'ADMIN_HIDDEN'; deletedAt: Date | null } | null;
+      sheetMusic: {
+        id: string;
+        name: string;
+        visibility: 'PUBLIC' | 'HIDDEN';
+        moderation: 'NORMAL' | 'ADMIN_HIDDEN';
+        piece: { id: string; title: string; bpm: number; visibility: 'PUBLIC' | 'HIDDEN'; moderation: 'NORMAL' | 'ADMIN_HIDDEN'; deletedAt: Date | null };
+      } | null;
     } | null;
   }
 
@@ -50,7 +58,7 @@ declare namespace Backend {
     title: string;
     description?: string | null;
     kind: AssignmentKind;
-    pieceId?: string | null;
+    sheetMusicId?: string | null;
     requiredBpm?: number | null;
   }
 
@@ -69,7 +77,7 @@ declare namespace Backend {
     title: string;
     description: string | null;
     kind: AssignmentKind;
-    piece: AssignmentPieceDTO | null;
+    sheetMusic: AssignmentSheetMusicDTO | null;
     requiredBpm: number | null;
     effectiveBpm: number | null;
     publishedAt: string | null;
@@ -138,9 +146,11 @@ declare namespace Backend {
     submissions: StudentSubmissionDTO[];
   }
 
-  interface ClassPieceDTO {
+  interface ClassSheetMusicDTO {
     id: string;
-    title: string;
+    name: string;
+    pieceId: string;
+    pieceTitle: string;
     kind: PieceKind;
     defaultBpm: number | null;
   }

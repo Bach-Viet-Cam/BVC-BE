@@ -12,6 +12,27 @@ import SubmissionProgressService from './SubmissionProgressService.ts';
 
 const { messages, errorCodes } = PracticeConstant;
 
+const RHYTHM_INSTRUMENT_MAP: Record<string, string> = {
+  DTR: 'dan_tranh',
+  DAN_TRANH: 'dan_tranh',
+  'dan-tranh': 'dan_tranh',
+  DBA: 'dan_bau',
+  DAN_BAU: 'dan_bau',
+  'dan-bau': 'dan_bau',
+  DNH: 'dan_nhi',
+  DAN_NHI: 'dan_nhi',
+  'dan-nhi': 'dan_nhi',
+  DSA: 'sao_truc',
+  SAO_TRUC: 'sao_truc',
+  'sao-truc': 'sao_truc',
+  DTB: 'dan_ty_ba',
+  TY_BA: 'dan_ty_ba',
+  'ty-ba': 'dan_ty_ba',
+  DNG: 'dan_nguyet',
+  DAN_NGUYET: 'dan_nguyet',
+  'dan-nguyet': 'dan_nguyet'
+};
+
 interface PracticeSubmissionDependencies {
   repository?: PracticeSubmissionRepository;
   progress?: SubmissionProgressService;
@@ -43,11 +64,12 @@ export default class PracticeSubmissionService {
     const upload = await this.repository.findOwnedUpload(studentId, input.studentUploadId);
     if (!upload) throw AppError.badRequest(messages.UPLOAD_INVALID);
     const sheet = await this.findTemplate(input);
-    const link = await this.findAssignmentLink(studentId, sheet, input.assignmentId);
+    const practiceMode = input.practiceMode ?? 'SOLO';
+    const link = await this.findAssignmentLink(studentId, sheet, input.assignmentId, practiceMode);
 
     const { submission, busyId } = await this.repository.createIfIdle({
       studentId, pieceId: sheet.pieceId, sheetMusicId: sheet.id, assignmentId: link?.assignmentId ?? null, assignmentVersionId: link?.assignmentVersionId ?? null,
-      studentUploadId: upload.id, fileUrl: upload.url, evaluationId: randomUUID(), messageId: randomUUID()
+      studentUploadId: upload.id, fileUrl: upload.url, evaluationId: randomUUID(), messageId: randomUUID(), practiceMode
     }, this.now());
     if (!submission) throw AppError.conflict(messages.BUSY, { details: { submissionId: busyId ?? '' } });
     return this.dto.toResponse(await this.publish(submission, sheet));
@@ -111,7 +133,7 @@ export default class PracticeSubmissionService {
     const job: Audio.Job = {
       evaluationId: record.evaluationId ?? '', messageId: record.messageId ?? randomUUID(), attempt: record.attempt,
       templateUrl: await this.createReadUrl(sheet.referenceAudio?.storageKey ?? ''),
-      studentUrl: record.fileUrl ?? '', instrumentId: sheet.instrument.code,
+      studentUrl: record.fileUrl ?? '', instrumentId: RHYTHM_INSTRUMENT_MAP[sheet.instrument.code] ?? sheet.instrument.code,
       requestedAt: this.now().toISOString(), callbackUrl: `${EnvConfig.fileStoragePublicBaseUrl}${PracticeConstant.callbackPath}`
     };
     const state = await this.publisher.publish(job);
@@ -123,9 +145,9 @@ export default class PracticeSubmissionService {
 
   // A send counts toward the class assignment only for the MAIN sheet of the class instrument while the assignment is
   // open; any other send is plain practice and stays unlinked, even when the client names an assignment.
-  private async findAssignmentLink(studentId: string, sheet: Practice.SheetTemplate, hintAssignmentId?: string): Promise<{ assignmentId: string; assignmentVersionId: string | null } | null> {
+  private async findAssignmentLink(studentId: string, sheet: Practice.SheetTemplate, hintAssignmentId?: string, mode: Practice.PracticeMode = 'SOLO'): Promise<{ assignmentId: string; assignmentVersionId: string | null } | null> {
     const enrollment = await this.repository.findClassAssignments(studentId, sheet.pieceId);
-    const resolved = PracticeAssignmentResolver.resolve(sheet, enrollment, this.now(), hintAssignmentId);
+    const resolved = PracticeAssignmentResolver.resolve(sheet, enrollment, this.now(), hintAssignmentId, mode);
     if (!resolved || resolved.state !== 'OPEN') return null;
     return { assignmentId: resolved.candidate.id, assignmentVersionId: resolved.candidate.currentVersionId };
   }
