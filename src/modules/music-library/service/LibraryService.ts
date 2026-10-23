@@ -7,6 +7,7 @@ import SavedItemRepository from '../repository/SavedItemRepository.ts';
 import SheetMusicRepository from '../repository/SheetMusicRepository.ts';
 import SheetMusicService from './SheetMusicService.ts';
 import StudentClassService from './StudentClassService.ts';
+import PrismaClientProvider from '../../../config/PrismaClient.ts';
 
 const MESSAGES = MusicLibraryConstant.messages;
 
@@ -89,11 +90,12 @@ export default class LibraryService {
           .map((sheetMusic) => MusicLibraryDTO.toLibrarySheetCard(sheetMusic, savedSheetIds.has(sheetMusic.id)))
       };
     }));
+    const hasEnsembleTracks = (await PrismaClientProvider.instance.ensembleTrack.count({ where: { pieceId } })) > 0;
     return {
       ...await MusicLibraryDTO.toLibraryPieceCard(piece, tabs.length, savedPieceIds.has(pieceId)),
       description: piece.description,
-      // "Luyện hòa tấu" needs at least one public main sheet with a reference recording
-      canPracticeEnsemble: tabs.some((tab) => tab.main?.referenceAudio),
+      // "Luyện hòa tấu" needs at least one public main sheet with a reference recording AND real ensemble accompaniment tracks
+      canPracticeEnsemble: hasEnsembleTracks && tabs.some((tab) => tab.main?.referenceAudio),
       defaultInstrumentId: await LibraryService.resolveDefaultInstrumentId(viewer, tabs.map((tab) => tab.instrument.id)),
       tabs
     };
