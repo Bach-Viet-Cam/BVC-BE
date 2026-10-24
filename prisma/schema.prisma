@@ -679,6 +679,8 @@ model Submission {
 
   @@index([assignmentId, studentId])
   @@index([studentId, pieceId, status])
+  // SCR-01 history: a student's submissions newest first
+  @@index([studentId, createdAt])
   @@map("submissions")
 }
 

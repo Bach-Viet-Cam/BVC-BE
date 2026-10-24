@@ -149,6 +149,71 @@ declare namespace Practice {
     } | null;
   }
 
+  // SCR-01 history: PRACTICE = free practice, SOLO = class assignment, BONUS = bonus assignment, ENSEMBLE = hòa tấu
+  type HistoryKind = 'PRACTICE' | 'BONUS' | 'SOLO' | 'ENSEMBLE';
+  type HistoryAccuracyRange = 'ABOVE_90' | '70_90' | '50_70' | 'BELOW_50';
+
+  // Days are yyyy-MM-dd Vietnam calendar days, both ends inclusive
+  interface HistoryQuery {
+    pieceIds: string[];
+    fromDate?: string;
+    toDate?: string;
+    accuracyRanges: HistoryAccuracyRange[];
+    minAccuracy?: number;
+    maxAccuracy?: number;
+    title?: string;
+    kinds: HistoryKind[];
+    page: number;
+    limit: number;
+  }
+
+  interface HistoryFilter extends Omit<HistoryQuery, 'fromDate' | 'toDate' | 'page' | 'limit'> {
+    from?: Date;
+    to?: Date;
+  }
+
+  interface HistoryRecord {
+    id: string;
+    pieceId: string;
+    sheetMusicId: string | null;
+    assignmentId: string | null;
+    status: SubmissionStatus;
+    practiceMode: PracticeMode;
+    accuracy: number | null;
+    createdAt: Date;
+    piece: { title: string };
+    assignment: { type: string } | null;
+  }
+
+  interface HistoryItemDTO {
+    id: string;
+    pieceId: string;
+    pieceTitle: string;
+    sheetMusicId: string | null;
+    assignmentId: string | null;
+    status: SubmissionStatus;
+    kind: HistoryKind;
+    accuracy: number | null;
+    submittedAt: string;
+  }
+
+  // Unfiltered counts of the student's submissions, for the header summary and the compare button
+  interface HistoryOverall {
+    total: number;
+    completed: number;
+    processing: number;
+    rejected: number;
+    failed: number;
+  }
+
+  interface HistoryDTO {
+    items: HistoryItemDTO[];
+    pagination: Backend.PaginationMeta;
+    overall: HistoryOverall;
+  }
+
+  interface HistoryPieceOptionDTO { id: string; title: string; }
+
   interface SubmissionDTO {
     id: string;
     pieceId: string;
