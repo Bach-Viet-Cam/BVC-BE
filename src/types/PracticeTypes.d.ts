@@ -220,6 +220,23 @@ declare namespace Practice {
 
   interface HistoryPieceOptionDTO { id: string; title: string; }
 
+  // Record screen settings ----------------------------------------------------------------------------
+
+  // ASSIGNMENT: the class assignment of this sheet sets the tempo; DEFAULT: fallback (no class, not assigned, no BPM)
+  interface TargetBpmDTO {
+    targetBpm: number;
+    source: 'ASSIGNMENT' | 'DEFAULT';
+    assignmentId: string | null;
+  }
+
+  interface InstrumentTuneRow { id: string; tuneName: string; pitch: number; displayOrder: number; }
+
+  // Standard pitch of each string of the sheet's instrument (instrument_tunes), for the string tuner
+  interface InstrumentTunesDTO {
+    instrument: { id: string; name: string };
+    tunes: { id: string; name: string; pitchHz: number; displayOrder: number }[];
+  }
+
   // M01 results screen ------------------------------------------------------------------------------
 
   // Submission row with everything the results screen reads

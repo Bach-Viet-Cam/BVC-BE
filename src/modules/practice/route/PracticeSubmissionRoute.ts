@@ -8,11 +8,13 @@ import { requireRoles } from '../../../middlewares/RoleMiddleware.ts';
 import AuthConstant from '../../auth/constant/AuthConstant.ts';
 import { requireAuthenticatedUser } from '../../auth/middleware/AuthMiddleware.ts';
 import PracticeResultController from '../controller/PracticeResultController.ts';
+import PracticeSettingsController from '../controller/PracticeSettingsController.ts';
 import PracticeSubmissionController from '../controller/PracticeSubmissionController.ts';
 import PracticeSubmissionRepository from '../repository/PracticeSubmissionRepository.ts';
 import PracticeContextService from '../service/PracticeContextService.ts';
 import PracticeFileService from '../service/PracticeFileService.ts';
 import PracticeResultService from '../service/PracticeResultService.ts';
+import PracticeSettingsService from '../service/PracticeSettingsService.ts';
 import PracticeSubmissionService from '../service/PracticeSubmissionService.ts';
 import SubmissionHistoryService from '../service/SubmissionHistoryService.ts';
 import SubmissionProgressService from '../service/SubmissionProgressService.ts';
@@ -37,6 +39,7 @@ export default class PracticeSubmissionRoute {
       new PracticeSubmissionService({ repository, progress }), progress, new PracticeContextService(repository), new SubmissionHistoryService(repository)
     );
     const results = new PracticeResultController(new PracticeResultService());
+    const settings = new PracticeSettingsController(new PracticeSettingsService(repository));
     const student = requireRoles(AuthConstant.roles.STUDENT);
     const validation = new PracticeValidation();
     const wrap = AsyncHandler.wrap;
@@ -44,6 +47,9 @@ export default class PracticeSubmissionRoute {
 
     // Registered before '/:id' routes; only students practice, so lecturers and admins get 403
     router.get('/practice/context', validateRequest(validation.contextSchema), auth, requireRoles(AuthConstant.roles.STUDENT), wrap(controller.getContext));
+    // Record screen: tempo to practise at (assignment BPM or the default) and the instrument's string tunings
+    router.get('/practice/target-bpm', validateRequest(validation.contextSchema), auth, student, wrap(settings.getTargetBpm));
+    router.get('/practice/sheets/:sheetMusicId/tunes', validateRequest(validation.sheetParamsSchema), auth, student, wrap(settings.getTunes));
     router.post('/practice/submissions', validateRequest(validation.createSchema), auth, wrap(controller.create));
     // SCR-01 history; registered before '/:id' so "piece-options" is not read as a submission id
     router.get('/practice/submissions', validateRequest(validation.historySchema), auth, student, wrap(controller.listHistory));

@@ -24,6 +24,15 @@ export default class PracticeSubmissionRepository {
     });
   }
 
+  // String tunings of an instrument in display order (pitch breaks ties)
+  async findInstrumentTunes(instrumentId: string): Promise<Practice.InstrumentTuneRow[]> {
+    return this.client.instrumentTune.findMany({
+      where: { instrumentId },
+      orderBy: [{ displayOrder: 'asc' }, { pitch: 'asc' }],
+      select: { id: true, tuneName: true, pitch: true, displayOrder: true }
+    });
+  }
+
   // Reference recording of the MAIN sheet of the same piece and instrument (fallback for a sheet without its own)
   async findMainReferenceAudio(pieceId: string, instrumentId: string): Promise<{ storageKey: string; status: string } | null> {
     const main = await this.client.sheetMusic.findFirst({

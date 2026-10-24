@@ -35,7 +35,7 @@ export default class PracticeContextService {
       },
       enrollment: enrollment ? 'IN_CLASS' : 'NO_CLASS',
       classRecord: enrollment ? { id: enrollment.classRecord.id, name: enrollment.classRecord.name } : null,
-      assignment: resolved ? PracticeContextService.toAssignment(resolved, sheet.piece.bpm) : null
+      assignment: resolved ? PracticeContextService.toAssignment(resolved) : null
     };
   }
 
@@ -53,7 +53,7 @@ export default class PracticeContextService {
     return { isAvailable: true, reason: null };
   }
 
-  private static toAssignment(resolved: Practice.ResolvedAssignment, pieceBpm: number): NonNullable<Practice.ContextDTO['assignment']> {
+  private static toAssignment(resolved: Practice.ResolvedAssignment): NonNullable<Practice.ContextDTO['assignment']> {
     const { candidate, state, usedSubmissions } = resolved;
     return {
       id: candidate.id,
@@ -63,7 +63,8 @@ export default class PracticeContextService {
       maxSubmissions: candidate.maxSubmissions,
       usedSubmissions,
       remainingSubmissions: Math.max(0, candidate.maxSubmissions - usedSubmissions),
-      targetBpm: candidate.targetBpm ?? pieceBpm,
+      // No fallback to the piece BPM: an assignment without a target BPM uses the default tempo (see PracticeSettingsService)
+      targetBpm: candidate.targetBpm,
       state,
       countsTowardAssignment: state === 'OPEN'
     };

@@ -50,7 +50,7 @@ test('Sinh viên trong lớp mở bản chính: trả bài tập với lượt c
   assert.deepEqual(context.sheet.practice, { isAvailable: true, reason: null });
   assert.equal(context.assignment?.usedSubmissions, 1); // FAILED does not count
   assert.equal(context.assignment?.remainingSubmissions, 2);
-  assert.equal(context.assignment?.targetBpm, 90);
+  assert.equal(context.assignment?.targetBpm, null); // no fallback to the piece BPM
   assert.equal(context.assignment?.countsTowardAssignment, true);
 });
 
