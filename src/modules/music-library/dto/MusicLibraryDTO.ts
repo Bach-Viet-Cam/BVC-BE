@@ -59,7 +59,6 @@ export default class MusicLibraryDTO {
       coverUrl: await MusicLibraryDTO.toCoverUrl(piece.coverFile),
       cover: await MusicLibraryDTO.toMediaFile(piece.coverFile),
       genre: MusicLibraryDTO.toCategoryRef(piece.genre),
-      level: MusicLibraryDTO.toCategoryRef(piece.level),
       instruments: MusicLibraryDTO.uniqueInstruments(piece.sheetMusic).map(MusicLibraryDTO.toCategoryRef),
       visibility: piece.visibility,
       moderation: piece.moderation,
@@ -123,7 +122,6 @@ export default class MusicLibraryDTO {
       composer: piece.composer,
       coverUrl: await MusicLibraryDTO.toCoverUrl(piece.coverFile),
       genre: MusicLibraryDTO.toCategoryRef(piece.genre),
-      level: MusicLibraryDTO.toCategoryRef(piece.level),
       instrumentCount,
       isSaved,
       createdAt: piece.createdAt.toISOString()
@@ -159,8 +157,7 @@ export default class MusicLibraryDTO {
         title: piece.title,
         composer: piece.composer,
         coverUrl: await MusicLibraryDTO.toCoverUrl(piece.coverFile),
-        genre: MusicLibraryDTO.toCategoryRef(piece.genre),
-        level: MusicLibraryDTO.toCategoryRef(piece.level)
+        genre: MusicLibraryDTO.toCategoryRef(piece.genre)
       }
     };
   }

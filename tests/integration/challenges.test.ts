@@ -21,7 +21,7 @@ describe('Weekly challenges (lecturer)', () => {
   async function createReadyPiece(instrumentId: string, overrides: { audio?: boolean; analysis?: 'NONE' | 'READY' } = {}) {
     const piece = await TestDatabase.createPiece(instrumentId);
     const uploader = await TestDatabase.createUser({ role: TestDatabase.roles.SYSTEM_ADMIN });
-    const level = await TestDatabase.prisma.category.findFirstOrThrow({ where: { type: 'LEVEL' } });
+    const level = await TestDatabase.prisma.category.upsert({ where: { type_name: { type: 'LEVEL', name: 'Trình độ test' } }, update: {}, create: { type: 'LEVEL', name: 'Trình độ test' } });
     const sequence = TestDatabase.nextId();
     const makeFile = (kind: 'SHEET' | 'AUDIO', suffix: string) =>
       TestDatabase.prisma.mediaFile.create({

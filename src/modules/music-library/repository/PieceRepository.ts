@@ -8,7 +8,6 @@ interface PieceWriteData {
   composer: string | null;
   description: string | null;
   genreId: string;
-  levelId: string;
   visibility?: MusicLibrary.Visibility;
   coverFileId?: string | null;
 }
@@ -71,13 +70,17 @@ export default class PieceRepository {
       HIDDEN: { visibility: 'HIDDEN', moderation: 'NORMAL' },
       ADMIN_HIDDEN: { moderation: 'ADMIN_HIDDEN' }
     };
+    // Instrument and level both belong to sheet music: one sheet must match both
+    const sheetFilter: Prisma.SheetMusicWhereInput = {
+      ...(query.instrumentId ? { instrumentId: query.instrumentId } : {}),
+      ...(query.levelId ? { levelId: query.levelId } : {})
+    };
     return {
       ownerId,
       deletedAt: null,
       ...visibilityFilters[query.visibility],
       ...(query.genreId ? { genreId: query.genreId } : {}),
-      ...(query.levelId ? { levelId: query.levelId } : {}),
-      ...(query.instrumentId ? { sheetMusic: { some: { instrumentId: query.instrumentId } } } : {}),
+      ...(Object.keys(sheetFilter).length > 0 ? { sheetMusic: { some: sheetFilter } } : {}),
       AND: PieceRepository.buildKeywordFilters(query.q, ['titleNormalized', 'composerNormalized'])
     };
   }
@@ -97,13 +100,18 @@ export default class PieceRepository {
   }
 
   static buildLibraryWhere(query: MusicLibrary.LibraryPieceQuery): Prisma.PieceWhereInput {
+    // A piece matches when one of its public sheets has the chosen instrument and level
+    const hasSheetFilter = query.instrumentIds.length > 0 || query.levelIds.length > 0;
+    const sheetFilter: Prisma.SheetMusicWhereInput = {
+      visibility: 'PUBLIC',
+      moderation: 'NORMAL',
+      ...(query.instrumentIds.length > 0 ? { instrumentId: { in: query.instrumentIds } } : {}),
+      ...(query.levelIds.length > 0 ? { levelId: { in: query.levelIds } } : {})
+    };
     return {
       ...MusicLibraryModel.visiblePieceWhere,
       ...(query.genreIds.length > 0 ? { genreId: { in: query.genreIds } } : {}),
-      ...(query.levelIds.length > 0 ? { levelId: { in: query.levelIds } } : {}),
-      ...(query.instrumentIds.length > 0
-        ? { sheetMusic: { some: { instrumentId: { in: query.instrumentIds }, visibility: 'PUBLIC', moderation: 'NORMAL' } } }
-        : {}),
+      ...(hasSheetFilter ? { sheetMusic: { some: sheetFilter } } : {}),
       AND: PieceRepository.buildKeywordFilters(query.q, ['searchText'])
     };
   }

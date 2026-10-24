@@ -14,8 +14,7 @@ describe('UC-05 Quản lý bài hát (giảng viên)', () => {
 
   it('thiếu "Tiêu đề" → 400 MSG-35; tiêu đề 201 ký tự → MSG-37', async () => {
     const basePayload = {
-      genreId: TestContext.catalog.genres['Dân ca Nam Bộ'],
-      levelId: TestContext.catalog.levels['Cơ bản']
+      genreId: TestContext.catalog.genres['Dân ca Nam Bộ']
     };
     const missingTitle = await request(app).post(`${api}/lecturer/pieces`).set(TestContext.auth(lecturer)).send(basePayload);
     expect(missingTitle.status).toBe(400);
@@ -119,16 +118,14 @@ describe('UC-05 Quản lý bài hát (giảng viên)', () => {
 
     const keepTag = await request(app).put(`${api}/lecturer/pieces/${piece.id}`).set(TestContext.auth(lecturer)).send({
       title: 'Lý ngựa ô (sửa)',
-      genreId,
-      levelId: TestContext.catalog.levels['Cơ bản']
+      genreId
     });
     expect(keepTag.status).toBe(200);
     expect(keepTag.body.data.piece.genre.id).toBe(genreId);
 
     const newPiece = await request(app).post(`${api}/lecturer/pieces`).set(TestContext.auth(lecturer)).send({
       title: 'Bài mới',
-      genreId,
-      levelId: TestContext.catalog.levels['Cơ bản']
+      genreId
     });
     expect(newPiece.status).toBe(400);
     expect(newPiece.body.field).toBe('genreId');

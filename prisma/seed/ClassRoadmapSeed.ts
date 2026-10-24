@@ -93,7 +93,6 @@ class SeedRunner {
     const existing = await prisma.piece.findFirst({ where: { title, instruments: { some: { instrumentId } } } });
     if (existing) return existing;
     const genre = await SeedRunner.upsertCategory('GENRE', 'Dân ca Nam Bộ');
-    const level = await SeedRunner.upsertCategory('LEVEL', 'Cơ bản');
     return prisma.piece.create({
       data: {
         ownerId,
@@ -102,7 +101,6 @@ class SeedRunner {
         bpm: 90,
         visibility: isVisible ? 'PUBLIC' : 'HIDDEN',
         genreId: genre.id,
-        levelId: level.id,
         titleNormalized: TextNormalizer.normalize(title),
         searchText: TextNormalizer.normalize(title),
         instruments: { create: [{ instrumentId }] }
