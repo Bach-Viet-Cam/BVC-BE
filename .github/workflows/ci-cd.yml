@@ -75,6 +75,12 @@ jobs:
             Write-Error "CRITICAL: no secrets found in the 'production' environment!"
             exit 1
           }
+          # Uploads must live outside the runner workspace: checkout runs `git clean -ffdx` and would wipe ./uploads
+          if (-not $secrets.UPLOADS_HOST_DIR) {
+            Write-Error "CRITICAL: secret UPLOADS_HOST_DIR is missing; uploads would be lost on the next deploy!"
+            exit 1
+          }
+          New-Item -ItemType Directory -Force -Path $secrets.UPLOADS_HOST_DIR | Out-Null
           # UTF-8 without BOM so docker compose parses the first key correctly
           [System.IO.File]::WriteAllLines("$PWD\.env", [string[]]$lines, (New-Object System.Text.UTF8Encoding $false))
           Write-Host "Wrote .env with keys: $(($secrets.PSObject.Properties.Name | Where-Object { $_ -ne 'github_token' }) -join ', ')"

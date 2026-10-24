@@ -96,7 +96,6 @@ export default class ClassSeeder {
         bpm: 96,
         visibility: 'PUBLIC',
         genreId: genre.id,
-        levelId: level.id,
         titleNormalized: TextNormalizer.normalize(pieceTitle),
         composerNormalized: TextNormalizer.normalize(pieceComposer),
         searchText: TextNormalizer.normalize(`${pieceTitle} ${pieceComposer}`)

@@ -17,8 +17,7 @@ services:
       - APP_ORIGIN=${APP_ORIGIN:-http://localhost:3000}
       - DATABASE_URL=${DATABASE_URL:-postgresql://bvc_admin:change-this-password@bvc-postgres:5432/bachvietcam_staging}
     volumes:
-      # Persist locally stored uploads outside the container filesystem.
-      - ./uploads:/app/uploads
+      - ${UPLOADS_HOST_DIR:-./uploads}:/app/uploads
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

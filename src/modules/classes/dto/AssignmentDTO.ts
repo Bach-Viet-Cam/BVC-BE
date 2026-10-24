@@ -7,6 +7,7 @@ export interface AssignmentListItem {
   title: string;
   className: string;
   type: AssignmentRow['type'];
+  kind: Backend.AssignmentKind | null;
   deadline: string;
   status: StudentAssignmentStatus;
   usedSubmissions: number;
@@ -46,6 +47,7 @@ export default class AssignmentDTO {
       title: row.title,
       className: row.class.name,
       type: row.type,
+      kind: row.currentVersion?.kind ?? null,
       deadline: row.deadline.toISOString(),
       status: extra.status,
       usedSubmissions: extra.usedSubmissions,

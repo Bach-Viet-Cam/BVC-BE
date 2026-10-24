@@ -21,6 +21,7 @@ export interface AssignmentRow {
   bonusPoints: number | null;
   class: { id: string; name: string };
   submissions: SubmissionBrief[];
+  currentVersion: { kind: Backend.AssignmentKind } | null;
 }
 
 export interface StudentSubmissionRow extends SubmissionBrief {
@@ -47,7 +48,11 @@ export default class AssignmentRepository {
   static async findPublishedForStudent(userId: string, classIds: string[]): Promise<AssignmentRow[]> {
     return AssignmentRepository.client.assignment.findMany({
       where: { classId: { in: classIds }, isPublished: true },
-      include: { class: { select: { id: true, name: true } }, submissions: { where: { studentId: userId }, select: { status: true, accuracy: true } } }
+      include: {
+        class: { select: { id: true, name: true } },
+        submissions: { where: { studentId: userId }, select: { status: true, accuracy: true } },
+        currentVersion: { select: { kind: true } }
+      }
     });
   }
 
@@ -56,6 +61,7 @@ export default class AssignmentRepository {
       where: { id: assignmentId },
       include: {
         class: { select: { id: true, name: true } },
+        currentVersion: { select: { kind: true } },
         sheetMusic: {
           select: {
             id: true,

@@ -147,7 +147,6 @@ model Category {
   displayOrder    Int          @default(0) @map("display_order")
   status          ActiveStatus @default(ACTIVE)
   genrePieces     Piece[]      @relation("PieceGenre")
-  levelPieces     Piece[]      @relation("PieceLevel")
   levelSheetMusic SheetMusic[] @relation("SheetMusicLevel")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
@@ -252,8 +251,7 @@ model Piece {
   coverFile          MediaFile?            @relation("PieceCover", fields: [coverFileId], references: [id], onDelete: SetNull)
   genreId            String                @map("genre_id")
   genre              Category              @relation("PieceGenre", fields: [genreId], references: [id])
-  levelId            String                @map("level_id")
-  level              Category              @relation("PieceLevel", fields: [levelId], references: [id])
+  // Level belongs to each sheet music, not to the piece
   // Node in the admin content-category tree
   categoryId         String?               @map("category_id")
   category           ContentCategory?      @relation(fields: [categoryId], references: [id])

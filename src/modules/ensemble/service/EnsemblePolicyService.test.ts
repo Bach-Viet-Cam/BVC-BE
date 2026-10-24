@@ -38,3 +38,30 @@ describe('EnsemblePolicyService.canPracticePiece', () => {
     assert.equal(EnsemblePolicyService.canPracticePiece({ piece: piece('PUBLIC', 'NORMAL', new Date()), isViaAssignment: true }), false);
   });
 });
+
+describe('EnsemblePolicyService.isCountedAssignment', () => {
+  const now = 1_000_000;
+  const future = new Date(now + 60_000);
+  const past = new Date(now - 60_000);
+
+  it('ENSEMBLE + PUBLISHED + còn hạn → true', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'ENSEMBLE', status: 'PUBLISHED', deadline: future, now }), true);
+  });
+
+  it('SOLO → false', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'SOLO', status: 'PUBLISHED', deadline: future, now }), false);
+  });
+
+  it('CLOSED → false', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'ENSEMBLE', status: 'CLOSED', deadline: future, now }), false);
+  });
+
+  it('quá hạn → false', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'ENSEMBLE', status: 'PUBLISHED', deadline: past, now }), false);
+  });
+
+  it('kind null hoặc undefined → false', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: null, status: 'PUBLISHED', deadline: future, now }), false);
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: undefined, status: 'PUBLISHED', deadline: future, now }), false);
+  });
+});

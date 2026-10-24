@@ -85,13 +85,11 @@ export default class TestDatabase {
   static async createPiece(instrumentId: string, overrides: Partial<{ title: string; kind: 'FINGER_EXERCISE' | 'SONG'; isVisible: boolean; bpm: number }> = {}) {
     const owner = await TestDatabase.createUser({ role: ROLES.SYSTEM_ADMIN });
     const genre = await TestDatabase.prisma.category.upsert({ where: { type_name: { type: 'GENRE', name: 'Thể loại test' } }, update: {}, create: { type: 'GENRE', name: 'Thể loại test' } });
-    const level = await TestDatabase.prisma.category.upsert({ where: { type_name: { type: 'LEVEL', name: 'Trình độ test' } }, update: {}, create: { type: 'LEVEL', name: 'Trình độ test' } });
     return TestDatabase.prisma.piece.create({
       data: {
         title: overrides.title ?? `Luyện ngón ${TestDatabase.nextId()}`,
         ownerId: owner.id,
         genreId: genre.id,
-        levelId: level.id,
         kind: overrides.kind ?? 'FINGER_EXERCISE',
         bpm: overrides.bpm ?? 90,
         visibility: (overrides.isVisible ?? true) ? 'PUBLIC' : 'HIDDEN',

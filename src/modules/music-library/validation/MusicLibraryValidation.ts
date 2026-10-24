@@ -30,7 +30,6 @@ const pieceBody = z.object({
   composer: ZodFieldRule.optionalText(LABELS.composer, LIMITS.PIECE_COMPOSER),
   description: ZodFieldRule.optionalText(LABELS.description, LIMITS.PIECE_DESCRIPTION),
   genreId: ZodFieldRule.requiredId(LABELS.genreId),
-  levelId: ZodFieldRule.requiredId(LABELS.levelId),
   visibility: visibilitySchema.optional(),
   coverFileId: z.string().trim().min(1).nullable().optional()
 });

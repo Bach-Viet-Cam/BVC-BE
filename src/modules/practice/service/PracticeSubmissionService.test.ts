@@ -18,7 +18,7 @@ const candidate: Practice.AssignmentCandidate = {
   id: 'asg-1', title: 'Bài 3', description: '', status: 'PUBLISHED', deadline: new Date('2026-12-01'), maxSubmissions: 3, targetBpm: null,
   currentVersionId: 'version-1', currentVersion: { kind: 'SOLO' }, submissions: []
 };
-const enrollment: Practice.ClassAssignments = { classRecord: { id: 'class-1', name: 'Lớp K18A', status: 'ACTIVE', instrumentId: 'inst-bau' }, assignments: [candidate] };
+const enrollment: Practice.ClassAssignments = { classRecord: { id: 'class-1', name: 'Lớp K18A', status: 'ACTIVE', instrumentId: 'inst-bau' }, memberInstrumentId: 'inst-bau', assignments: [candidate] };
 
 interface Options {
   publishState?: Audio.PublicationState;

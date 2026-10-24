@@ -19,4 +19,16 @@ export default class EnsemblePolicyService {
   static resolveTargetBpm(input: { assignmentBpm: number | null; pieceBpm: number }): number {
     return input.assignmentBpm ?? input.pieceBpm;
   }
+
+  static isCountedAssignment(input: {
+    kind: Backend.AssignmentKind | null | undefined;
+    status: 'DRAFT' | 'PUBLISHED' | 'CLOSED' | string;
+    deadline: Date;
+    now?: number;
+  }): boolean {
+    const now = input.now ?? Date.now();
+    return input.kind === 'ENSEMBLE'
+      && input.status === 'PUBLISHED'
+      && input.deadline.getTime() >= now;
+  }
 }
