@@ -73,6 +73,30 @@ export default class PracticeSubmissionRepository {
     });
   }
 
+  // SCR-01: newest first; id breaks ties so pages stay stable
+  async findHistory(studentId: string, filter: Practice.HistoryFilter, page: { skip: number; take: number }): Promise<{ rows: Practice.HistoryRecord[]; total: number }> {
+    const where = PracticeModel.historyWhere(studentId, filter);
+    const [rows, total] = await this.client.$transaction([
+      this.client.submission.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], ...page, select: PracticeModel.historySelect }),
+      this.client.submission.count({ where })
+    ]);
+    return { rows, total };
+  }
+
+  async countByStatus(studentId: string): Promise<Partial<Record<Practice.SubmissionStatus, number>>> {
+    const groups = await this.client.submission.groupBy({ by: ['status'], where: { studentId }, _count: { _all: true } });
+    return Object.fromEntries(groups.map((group) => [group.status, group._count._all]));
+  }
+
+  // Pieces the student has submitted to, for the history piece filter
+  async findSubmittedPieces(studentId: string): Promise<Practice.HistoryPieceOptionDTO[]> {
+    return this.client.piece.findMany({
+      where: { submissions: { some: { studentId } } },
+      orderBy: [{ titleNormalized: 'asc' }, { id: 'asc' }],
+      select: { id: true, title: true }
+    });
+  }
+
   async findOwned(id: string, studentId: string): Promise<Practice.SubmissionRecord | null> {
     return this.client.submission.findFirst({ where: { id, studentId }, select: PracticeModel.submissionSelect });
   }

@@ -12,6 +12,7 @@ import PracticeSubmissionRepository from '../repository/PracticeSubmissionReposi
 import PracticeContextService from '../service/PracticeContextService.ts';
 import PracticeFileService from '../service/PracticeFileService.ts';
 import PracticeSubmissionService from '../service/PracticeSubmissionService.ts';
+import SubmissionHistoryService from '../service/SubmissionHistoryService.ts';
 import SubmissionProgressService from '../service/SubmissionProgressService.ts';
 import PracticeValidation from '../validation/PracticeValidation.ts';
 
@@ -30,7 +31,10 @@ export default class PracticeSubmissionRoute {
   register(router: Router): void {
     const repository = new PracticeSubmissionRepository();
     const progress = new SubmissionProgressService(repository, new PracticeFileService(repository));
-    const controller = new PracticeSubmissionController(new PracticeSubmissionService({ repository, progress }), progress, new PracticeContextService(repository));
+    const controller = new PracticeSubmissionController(
+      new PracticeSubmissionService({ repository, progress }), progress, new PracticeContextService(repository), new SubmissionHistoryService(repository)
+    );
+    const student = requireRoles(AuthConstant.roles.STUDENT);
     const validation = new PracticeValidation();
     const wrap = AsyncHandler.wrap;
     const auth = wrap(requireAuthenticatedUser);
@@ -38,6 +42,9 @@ export default class PracticeSubmissionRoute {
     // Registered before '/:id' routes; only students practice, so lecturers and admins get 403
     router.get('/practice/context', validateRequest(validation.contextSchema), auth, requireRoles(AuthConstant.roles.STUDENT), wrap(controller.getContext));
     router.post('/practice/submissions', validateRequest(validation.createSchema), auth, wrap(controller.create));
+    // SCR-01 history; registered before '/:id' so "piece-options" is not read as a submission id
+    router.get('/practice/submissions', validateRequest(validation.historySchema), auth, student, wrap(controller.listHistory));
+    router.get('/practice/submissions/piece-options', validateRequest(validation.emptySchema), auth, student, wrap(controller.listHistoryPieces));
     // Registered before '/:id' so "active" is not read as a submission id
     router.get('/practice/submissions/active', validateRequest(validation.activeSchema), auth, wrap(controller.getActive));
     router.get('/practice/submissions/:id', validateRequest(validation.idSchema), auth, wrap(controller.get));

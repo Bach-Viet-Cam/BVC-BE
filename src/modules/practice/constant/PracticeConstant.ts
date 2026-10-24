@@ -29,6 +29,13 @@ export default class PracticeConstant {
   static readonly callbackPath = '/api/v1/internal/practice-submissions/progress';
   static readonly lockNamespace = 'practice-submission';
 
+  // SCR-01 history list paging and the accuracy bounds of its filters
+  static readonly historyPageSize = Object.freeze({ DEFAULT: 20, MAX: 50 });
+  static readonly accuracyBounds = Object.freeze({ MIN: 0, MAX: 100 });
+  static readonly historyTitleMax = 200;
+  // History dates are Vietnam calendar days
+  static readonly vietnamOffset = '+07:00';
+
   static readonly errorCodes = Object.freeze({
     PUBLISH_FAILED: 'PUBLISH_FAILED',
     JOB_TIMEOUT: 'JOB_TIMEOUT',
@@ -53,6 +60,8 @@ export default class PracticeConstant {
     JOB_TIMEOUT: 'Bước xử lý chạy quá thời gian cho phép.',
     RETRY_DISPATCH_FAILED: 'Chưa thể gửi yêu cầu xử lý lại.',
     QUALITY_REJECTED: 'Bản thu không đạt chất lượng.',
-    PROCESSING_FAILED: 'Xử lý bản thu thất bại.'
+    PROCESSING_FAILED: 'Xử lý bản thu thất bại.',
+    DATE_RANGE_INVALID: 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.',
+    ACCURACY_RANGE_INVALID: 'Accuracy "Từ" phải nhỏ hơn hoặc bằng accuracy "Đến".'
   });
 }
