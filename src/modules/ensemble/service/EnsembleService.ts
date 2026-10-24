@@ -11,6 +11,7 @@ export interface PracticeContext {
   myInstrumentId: string;
   myInstrumentName: string;
   assignmentId: string | null;
+  isAssignmentCounted: boolean;
 }
 
 export interface EnsembleTracksResult extends Omit<PracticeContext, 'assignmentId'> {
@@ -24,17 +25,38 @@ export default class EnsembleService {
     if (!piece || !EnsemblePolicyService.canPracticePiece({ piece, isViaAssignment: Boolean(assignmentId) })) {
       throw AppError.notFound(EnsembleConstant.messages.PIECE_NOT_FOUND);
     }
-    const memberships = await EnsembleRepository.findMemberships(studentId);
-    if (memberships.length === 0) throw AppError.forbidden(EnsembleConstant.messages.NOT_A_MEMBER);
+    const membership = await EnsembleRepository.findCurrentMembership(studentId);
+    if (!membership) throw AppError.forbidden(EnsembleConstant.messages.NOT_A_MEMBER);
     if (!assignmentId) {
-      const [membership] = memberships;
-      return { pieceId, pieceTitle: piece.title, targetBpm: piece.bpm, myInstrumentId: membership.instrumentId, myInstrumentName: membership.instrument.name, assignmentId: null };
+      return {
+        pieceId,
+        pieceTitle: piece.title,
+        targetBpm: piece.bpm,
+        myInstrumentId: membership.instrumentId,
+        myInstrumentName: membership.instrument.name,
+        assignmentId: null,
+        isAssignmentCounted: false
+      };
     }
     const assignment = await EnsembleRepository.findPublishedAssignment(assignmentId);
-    const membership = assignment ? memberships.find((item) => item.classId === assignment.classId) : undefined;
-    if (!assignment || !membership || assignment.sheetMusic?.pieceId !== pieceId) throw AppError.notFound(EnsembleConstant.messages.ASSIGNMENT_NOT_FOUND);
+    if (!assignment || assignment.classId !== membership.classId || assignment.sheetMusic?.pieceId !== pieceId) {
+      throw AppError.notFound(EnsembleConstant.messages.ASSIGNMENT_NOT_FOUND);
+    }
+    const isAssignmentCounted = EnsemblePolicyService.isCountedAssignment({
+      kind: assignment.currentVersion?.kind,
+      status: assignment.status,
+      deadline: assignment.deadline
+    });
     const targetBpm = EnsemblePolicyService.resolveTargetBpm({ assignmentBpm: assignment.targetBpm, pieceBpm: piece.bpm });
-    return { pieceId, pieceTitle: piece.title, targetBpm, myInstrumentId: membership.instrumentId, myInstrumentName: membership.instrument.name, assignmentId };
+    return {
+      pieceId,
+      pieceTitle: piece.title,
+      targetBpm,
+      myInstrumentId: membership.instrumentId,
+      myInstrumentName: membership.instrument.name,
+      assignmentId,
+      isAssignmentCounted
+    };
   }
 
   static async getTracks(studentId: string, pieceId: string, assignmentId?: string): Promise<EnsembleTracksResult> {
@@ -48,6 +70,7 @@ export default class EnsembleService {
       targetBpm: context.targetBpm,
       myInstrumentId: context.myInstrumentId,
       myInstrumentName: context.myInstrumentName,
+      isAssignmentCounted: context.isAssignmentCounted,
       mySheetMusicId,
       tracks: tracks.map(EnsembleDTO.toTrackItem)
     };

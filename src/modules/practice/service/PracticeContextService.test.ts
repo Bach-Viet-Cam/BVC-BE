@@ -12,6 +12,7 @@ const sheet: Practice.ContextSheet = {
 };
 const enrollment: Practice.ClassAssignments = {
   classRecord: { id: 'class-1', name: 'Lớp Violin K18A', status: 'ACTIVE', instrumentId: 'inst-violin' },
+  memberInstrumentId: 'inst-violin',
   assignments: [{
     id: 'asg-1', title: 'Bài 3', description: '', status: 'PUBLISHED', deadline: new Date('2026-10-28'), maxSubmissions: 3, targetBpm: null,
     currentVersionId: 'v1', currentVersion: { kind: 'SOLO' }, submissions: [{ status: 'COMPLETED' }, { status: 'FAILED' }]

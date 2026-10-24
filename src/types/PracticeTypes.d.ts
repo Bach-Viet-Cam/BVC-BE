@@ -114,6 +114,7 @@ declare namespace Practice {
   interface ClassAssignments {
     classRecord: { id: string; name: string; status: Backend.ClassStatus; instrumentId: string };
     assignments: AssignmentCandidate[];
+    memberInstrumentId: string;
   }
 
   // OPEN counts toward the assignment; ENDED = past deadline, class ended or assignment closed

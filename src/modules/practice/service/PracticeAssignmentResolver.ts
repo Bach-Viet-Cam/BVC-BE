@@ -29,7 +29,9 @@ export default class PracticeAssignmentResolver {
     hintAssignmentId?: string,
     mode: Practice.PracticeMode = 'SOLO'
   ): Practice.ResolvedAssignment | null {
-    if (!enrollment || !PracticeAssignmentResolver.isAssignedSheet(sheet, enrollment.classRecord.instrumentId)) return null;
+    if (!enrollment) return null;
+    const requiredInstrumentId = mode === 'ENSEMBLE' ? enrollment.memberInstrumentId : enrollment.classRecord.instrumentId;
+    if (!PracticeAssignmentResolver.isAssignedSheet(sheet, requiredInstrumentId)) return null;
     const filtered = enrollment.assignments.filter((candidate) => PracticeAssignmentResolver.matchesMode(candidate, mode));
     const resolved = filtered.map((candidate) => ({
       candidate,
