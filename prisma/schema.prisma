@@ -116,11 +116,28 @@ model Instrument {
   classes          Class[]
   classMembers     ClassMember[]
   roadmaps         Roadmap[]
+  tunes            InstrumentTune[]
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at")
 
   @@map("instruments")
 }
+
+model InstrumentTune {
+  id           String     @id @default(uuid()) @map("tune_id")
+  instrumentId String     @map("instrument_id")
+  tuneName     String     @map("tune_name")
+  pitch        Float      @map("pitch")
+  displayOrder Int        @default(0) @map("display_order")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at")
+
+  instrument   Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+
+  @@index([instrumentId])
+  @@map("instrument_tunes")
+}
+
 
 model Category {
   id              String       @id @default(uuid())

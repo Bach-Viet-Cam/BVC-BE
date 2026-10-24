@@ -32,4 +32,15 @@ export default class InstrumentService {
     await InstrumentService.getOrThrow(id);
     return InstrumentDTO.toItem(await InstrumentRepository.updateActive(id, isActive));
   }
+
+  static async getTunes(instrumentId: string): Promise<Backend.InstrumentTuneItem[]> {
+    await InstrumentService.getOrThrow(instrumentId);
+    return (await InstrumentRepository.listTunes(instrumentId)).map(InstrumentDTO.toTuneItem);
+  }
+
+  static async setTunes(instrumentId: string, tunes: Backend.InstrumentTuneInput[]): Promise<Backend.InstrumentTuneItem[]> {
+    await InstrumentService.getOrThrow(instrumentId);
+    return (await InstrumentRepository.replaceTunes(instrumentId, tunes)).map(InstrumentDTO.toTuneItem);
+  }
 }
+

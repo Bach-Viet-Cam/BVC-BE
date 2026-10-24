@@ -17,6 +17,8 @@ export default class InstrumentRoute {
     instrumentRouter.patch('/:id', ...adminOnly, validateRequest(InstrumentValidation.updateSchema), AsyncHandler.wrap(InstrumentController.update));
     instrumentRouter.post('/:id/deactivate', ...adminOnly, validateRequest(InstrumentValidation.idSchema), AsyncHandler.wrap(InstrumentController.deactivate));
     instrumentRouter.post('/:id/activate', ...adminOnly, validateRequest(InstrumentValidation.idSchema), AsyncHandler.wrap(InstrumentController.activate));
+    instrumentRouter.get('/:id/tunes', AsyncHandler.wrap(attachOptionalUser), validateRequest(InstrumentValidation.idSchema), AsyncHandler.wrap(InstrumentController.getTunes));
+    instrumentRouter.put('/:id/tunes', ...adminOnly, validateRequest(InstrumentValidation.tunesSchema), AsyncHandler.wrap(InstrumentController.setTunes));
     router.use('/instruments', instrumentRouter);
   }
 }
