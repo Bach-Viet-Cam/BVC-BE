@@ -27,6 +27,32 @@ export default class RhythmClientService {
     }
   }
 
+  // Pitch data behind a completed evaluation (teacher/student f0 + alignment); null when Rhythm has none for it.
+  // The body is returned unparsed: the caller narrows it, since only the chart depends on its shape.
+  async getAnalysis(evaluationId: string): Promise<unknown | null> {
+    if (!this.apiKey) throw new AppError('Chưa cấu hình kết nối dịch vụ phân tích.', 503);
+    let response: Response;
+    try {
+      response = await this.request(`${this.baseUrl}/api/v1/evaluations/${encodeURIComponent(evaluationId)}/analysis`, {
+        headers: { Authorization: `Bearer ${this.apiKey}` },
+        signal: AbortSignal.timeout(AudioConstant.requestTimeoutMs), redirect: 'error'
+      });
+    } catch {
+      throw new AppError('Chưa thể lấy dữ liệu cao độ từ dịch vụ phân tích.', 503);
+    }
+    if (response.status === 404 || response.status === 409) return null;
+    if (!response.ok) throw new AppError('Chưa thể lấy dữ liệu cao độ từ dịch vụ phân tích.', 503);
+    const declaredBytes = Number(response.headers.get('content-length'));
+    if (declaredBytes > AudioConstant.analysisMaxBytes) throw new AppError('File phân tích cao độ quá lớn.', 503);
+    const body = await response.text();
+    if (body.length > AudioConstant.analysisMaxBytes) throw new AppError('File phân tích cao độ quá lớn.', 503);
+    try {
+      return JSON.parse(body) as unknown;
+    } catch {
+      throw new AppError('File phân tích cao độ không hợp lệ.', 503);
+    }
+  }
+
   // Starts a new attempt from the job that failed (GBR-63); false when the evaluation is unknown to Rhythm
   async retry(evaluationId: string, fromJob: Audio.JobCode, attempt: number): Promise<boolean> {
     if (!this.apiKey) throw new AppError('Chưa cấu hình kết nối dịch vụ phân tích.', 503);

@@ -36,6 +36,22 @@ export default class PracticeConstant {
   // History dates are Vietnam calendar days
   static readonly vietnamOffset = '+07:00';
 
+  // M01 results screen
+  static readonly resultHistoryLimit = 10;
+  // GBR-53: the class rank card needs enough classmates to stay anonymous
+  static readonly minClassPeers = 3;
+  static readonly scoreBucketSize = 10;
+  // Tempo score loses this many points per percent of tempo deviation
+  static readonly tempoScorePenaltyPerPercent = 2;
+  static readonly pitchChart = Object.freeze({ MAX_POINTS: 600, TIME_MAP_POINTS: 100, MIN_VOICED_RATIO: 0.5 });
+  // Rhythm returns this text when Gemini is unavailable (app/feedback/gemini_feedback.py FALLBACK_FEEDBACK)
+  static readonly fallbackFeedback = 'Chưa thể tạo nhận xét AI lúc này. Bạn vẫn có thể xem các chỉ số phân tích để tiếp tục luyện tập.';
+  static readonly issueLabels = Object.freeze({
+    fast: 'Nhanh hơn bản mẫu',
+    slow: 'Chậm hơn bản mẫu',
+    missing: 'Thiếu nốt'
+  } as const satisfies Record<Practice.RhythmIssueStatus, string>);
+
   static readonly errorCodes = Object.freeze({
     PUBLISH_FAILED: 'PUBLISH_FAILED',
     JOB_TIMEOUT: 'JOB_TIMEOUT',
@@ -62,6 +78,8 @@ export default class PracticeConstant {
     QUALITY_REJECTED: 'Bản thu không đạt chất lượng.',
     PROCESSING_FAILED: 'Xử lý bản thu thất bại.',
     DATE_RANGE_INVALID: 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.',
-    ACCURACY_RANGE_INVALID: 'Accuracy "Từ" phải nhỏ hơn hoặc bằng accuracy "Đến".'
+    ACCURACY_RANGE_INVALID: 'Accuracy "Từ" phải nhỏ hơn hoặc bằng accuracy "Đến".',
+    RESULT_PROCESSING: 'Bản thu đang được xử lý. Kết quả sẽ hiển thị khi phân tích hoàn tất.', // MSG-30
+    PITCH_UNAVAILABLE: 'Chưa có dữ liệu cao độ để hiển thị biểu đồ so sánh.' // MSG-26
   });
 }

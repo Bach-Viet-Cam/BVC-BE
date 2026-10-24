@@ -7,10 +7,12 @@ import { validateRequest } from '../../../middlewares/ValidateMiddleware.ts';
 import { requireRoles } from '../../../middlewares/RoleMiddleware.ts';
 import AuthConstant from '../../auth/constant/AuthConstant.ts';
 import { requireAuthenticatedUser } from '../../auth/middleware/AuthMiddleware.ts';
+import PracticeResultController from '../controller/PracticeResultController.ts';
 import PracticeSubmissionController from '../controller/PracticeSubmissionController.ts';
 import PracticeSubmissionRepository from '../repository/PracticeSubmissionRepository.ts';
 import PracticeContextService from '../service/PracticeContextService.ts';
 import PracticeFileService from '../service/PracticeFileService.ts';
+import PracticeResultService from '../service/PracticeResultService.ts';
 import PracticeSubmissionService from '../service/PracticeSubmissionService.ts';
 import SubmissionHistoryService from '../service/SubmissionHistoryService.ts';
 import SubmissionProgressService from '../service/SubmissionProgressService.ts';
@@ -34,6 +36,7 @@ export default class PracticeSubmissionRoute {
     const controller = new PracticeSubmissionController(
       new PracticeSubmissionService({ repository, progress }), progress, new PracticeContextService(repository), new SubmissionHistoryService(repository)
     );
+    const results = new PracticeResultController(new PracticeResultService());
     const student = requireRoles(AuthConstant.roles.STUDENT);
     const validation = new PracticeValidation();
     const wrap = AsyncHandler.wrap;
@@ -49,6 +52,11 @@ export default class PracticeSubmissionRoute {
     router.get('/practice/submissions/active', validateRequest(validation.activeSchema), auth, wrap(controller.getActive));
     router.get('/practice/submissions/:id', validateRequest(validation.idSchema), auth, wrap(controller.get));
     router.post('/practice/submissions/:id/retry', validateRequest(validation.idSchema), auth, wrap(controller.retry));
+    // M01 results screen: one endpoint per card, all scoped to the student's own submission
+    router.get('/practice/submissions/:id/result', validateRequest(validation.idSchema), auth, wrap(results.getResult));
+    router.get('/practice/submissions/:id/history', validateRequest(validation.idSchema), auth, wrap(results.getHistory));
+    router.get('/practice/submissions/:id/class-rank', validateRequest(validation.idSchema), auth, wrap(results.getClassRank));
+    router.get('/practice/submissions/:id/pitch-chart', validateRequest(validation.idSchema), auth, wrap(results.getPitchChart));
     // Rhythm service → backend, authenticated by the shared callback secret
     router.post('/internal/practice-submissions/progress', validateRequest(validation.callbackSchema), requireCallbackSecret, wrap(controller.receiveProgress));
   }

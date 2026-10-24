@@ -80,6 +80,9 @@ declare namespace Practice {
     pieceId: string;
     instrumentId: string;
     kind: 'MAIN' | 'LEVEL';
+    // Template analysis of the reference audio (MAIN sheets only); analysisJobId is the Rhythm analysis id
+    analysisStatus: 'NONE' | 'PROCESSING' | 'READY' | 'ERROR';
+    analysisJobId: string | null;
     referenceAudio: { storageKey: string; status: 'PENDING' | 'READY' } | null;
     instrument: { code: string };
   }
@@ -213,6 +216,115 @@ declare namespace Practice {
   }
 
   interface HistoryPieceOptionDTO { id: string; title: string; }
+
+  // M01 results screen ------------------------------------------------------------------------------
+
+  // Submission row with everything the results screen reads
+  interface ResultRecord {
+    id: string;
+    studentId: string;
+    pieceId: string;
+    sheetMusicId: string | null;
+    assignmentId: string | null;
+    status: SubmissionStatus;
+    accuracy: number | null;
+    result: unknown;
+    aiFeedback: string | null;
+    pitchChart: unknown;
+    evaluationId: string | null;
+    fileDeletedAt: Date | null;
+    analyzedAt: Date | null;
+    createdAt: Date;
+    piece: { id: string; title: string };
+    sheetMusic: { id: string; name: string; referenceAudio: { storageKey: string; status: string } | null } | null;
+    assignment: { id: string; title: string; classId: string; class: { name: string } } | null;
+    studentUpload: { url: string; deletingAt: Date | null } | null;
+  }
+
+  // Submission.result narrowed to the fields the screen uses; missing fields fall back to empty values
+  interface AnalysisResult {
+    overallScore: number;
+    pitchAccuracyPercent: number;
+    rhythmAccuracyPercent: number;
+    teacherTempoBpm: number | null;
+    studentTempoBpm: number | null;
+    aiFeedback: string;
+    rhythmSegments: { startTime: number; endTime: number; status: RhythmIssueStatus }[];
+    pitchErrorSegments: { startTime: number; endTime: number; averageCentsDifference: number }[];
+    durationSec: number | null;
+    warnings: { code: string; message: string }[];
+  }
+
+  type IssueKind = 'pitch' | 'rhythm';
+  type RhythmIssueStatus = 'fast' | 'slow' | 'missing';
+
+  interface ResultIssueDTO {
+    id: string;
+    kind: IssueKind;
+    startSec: number;
+    endSec: number;
+    rhythmStatus: RhythmIssueStatus | null;
+    centsDifference: number | null;
+    label: string;
+  }
+
+  interface ResultDTO {
+    submission: { id: string; status: SubmissionStatus; submittedAt: string; analyzedAt: string | null; attemptNo: number };
+    piece: { id: string; title: string };
+    sheetMusic: { id: string; name: string } | null;
+    assignment: { id: string; title: string; classId: string } | null;
+    recording: { durationSec: number | null };
+    scores: { overall: number; pitch: number; rhythm: number; tempo: number | null } | null;
+    tempo: { teacherBpm: number | null; studentBpm: number | null; deviationPercent: number | null } | null;
+    aiFeedback: { text: string; isFallback: boolean } | null;
+    issues: ResultIssueDTO[];
+    qualityWarnings: { code: string; message: string }[];
+    audio: { teacherUrl: string | null; studentUrl: string | null };
+  }
+
+  interface AttemptRecord { id: string; accuracy: number | null; createdAt: Date; }
+
+  interface AttemptDTO { submissionId: string; attemptNo: number; accuracyPercent: number; submittedAt: string; isCurrent: boolean; }
+
+  interface ResultHistoryDTO {
+    pieceTitle: string;
+    isFirstAttempt: boolean;
+    deltaPercent: number | null;
+    bestPercent: number;
+    attempts: AttemptDTO[];
+  }
+
+  interface ClassRankDTO {
+    className: string;
+    peerCount: number;
+    myScore: number;
+    classAverage: number;
+    betterThanPercent: number;
+    topPercent: number;
+    distribution: { score: number; count: number }[];
+  }
+
+  // [teacherSec, teacherHz, studentHz]; null = unvoiced (no pitch) at that point
+  type PitchPoint = [number, number | null, number | null];
+
+  interface PitchChartDTO {
+    durationSec: number;
+    minHz: number;
+    maxHz: number;
+    points: PitchPoint[];
+    segments: { id: string; kind: IssueKind; startSec: number; endSec: number; label: string }[];
+    // [teacherSec, studentSec] pairs: where the same musical moment sits in each recording, for audio seek
+    timeMap: [number, number][];
+  }
+
+  // Rhythm evaluation analysis file (schemaVersion 1)
+  interface AnalysisFile {
+    sampleRate: number;
+    hopLength: number;
+    teacherF0Hz: (number | null)[];
+    studentF0Hz: (number | null)[];
+    studentFrameByTeacherFrame: number[];
+  }
 
   interface SubmissionDTO {
     id: string;

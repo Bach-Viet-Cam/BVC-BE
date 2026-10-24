@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import EnvConfig from '../../../config/EnvConfig.ts';
 import StorageService from '../../../lib/storage/StorageService.ts';
 import AppError from '../../../utils/AppError.ts';
+import AudioConstant from '../../audio/constant/AudioConstant.ts';
 import RhythmClientService from '../../audio/service/RhythmClientService.ts';
 import RhythmPublisherService from '../../audio/service/RhythmPublisherService.ts';
 import PracticeConstant from '../constant/PracticeConstant.ts';
@@ -11,27 +12,6 @@ import PracticeAssignmentResolver from './PracticeAssignmentResolver.ts';
 import SubmissionProgressService from './SubmissionProgressService.ts';
 
 const { messages, errorCodes } = PracticeConstant;
-
-const RHYTHM_INSTRUMENT_MAP: Record<string, string> = {
-  DTR: 'dan_tranh',
-  DAN_TRANH: 'dan_tranh',
-  'dan-tranh': 'dan_tranh',
-  DBA: 'dan_bau',
-  DAN_BAU: 'dan_bau',
-  'dan-bau': 'dan_bau',
-  DNH: 'dan_nhi',
-  DAN_NHI: 'dan_nhi',
-  'dan-nhi': 'dan_nhi',
-  DSA: 'sao_truc',
-  SAO_TRUC: 'sao_truc',
-  'sao-truc': 'sao_truc',
-  DTB: 'dan_ty_ba',
-  TY_BA: 'dan_ty_ba',
-  'ty-ba': 'dan_ty_ba',
-  DNG: 'dan_nguyet',
-  DAN_NGUYET: 'dan_nguyet',
-  'dan-nguyet': 'dan_nguyet'
-};
 
 interface PracticeSubmissionDependencies {
   repository?: PracticeSubmissionRepository;
@@ -133,8 +113,10 @@ export default class PracticeSubmissionService {
     const job: Audio.Job = {
       evaluationId: record.evaluationId ?? '', messageId: record.messageId ?? randomUUID(), attempt: record.attempt,
       templateUrl: await this.createReadUrl(sheet.referenceAudio?.storageKey ?? ''),
-      studentUrl: record.fileUrl ?? '', instrumentId: RHYTHM_INSTRUMENT_MAP[sheet.instrument.code] ?? sheet.instrument.code,
-      requestedAt: this.now().toISOString(), callbackUrl: `${EnvConfig.fileStoragePublicBaseUrl}${PracticeConstant.callbackPath}`
+      studentUrl: record.fileUrl ?? '', instrumentId: AudioConstant.rhythmInstruments[sheet.instrument.code] ?? sheet.instrument.code,
+      requestedAt: this.now().toISOString(), callbackUrl: `${EnvConfig.fileStoragePublicBaseUrl}${PracticeConstant.callbackPath}`,
+      // Lets Rhythm reuse the stored teacher analysis instead of analysing the reference audio again
+      ...(sheet.analysisStatus === 'READY' && sheet.analysisJobId ? { templateAnalysisId: sheet.analysisJobId } : {})
     };
     const state = await this.publisher.publish(job);
     await this.repository.updatePublication(record.id, { publicationState: state, messageId: job.messageId });
