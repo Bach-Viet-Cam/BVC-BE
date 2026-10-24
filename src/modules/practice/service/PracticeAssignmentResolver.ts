@@ -21,6 +21,21 @@ export default class PracticeAssignmentResolver {
     return { state: usedSubmissions >= candidate.maxSubmissions ? 'EXHAUSTED' : 'OPEN', usedSubmissions };
   }
 
+  // Which of the student's classes this practice belongs to: the class holding the hinted assignment, then a class of
+  // the sheet's instrument that assigned this piece, then a class of that instrument, then the newest class
+  static pickEnrollment(
+    enrollments: Practice.ClassAssignments[],
+    sheet: Pick<Practice.SheetTemplate, 'instrumentId'>,
+    hintAssignmentId?: string
+  ): Practice.ClassAssignments | null {
+    const sameInstrument = enrollments.filter((enrollment) => enrollment.classRecord.instrumentId === sheet.instrumentId);
+    return enrollments.find((enrollment) => hintAssignmentId && enrollment.assignments.some((candidate) => candidate.id === hintAssignmentId))
+      ?? sameInstrument.find((enrollment) => enrollment.assignments.length > 0)
+      ?? sameInstrument[0]
+      ?? enrollments[0]
+      ?? null;
+  }
+
   // Prefers the hinted assignment, then an open one with the nearest deadline, then the latest one
   static resolve(
     sheet: Pick<Practice.SheetTemplate, 'kind' | 'instrumentId'>,

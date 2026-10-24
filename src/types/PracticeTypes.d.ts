@@ -135,6 +135,8 @@ declare namespace Practice {
       instrument: { id: string; name: string };
       level: { id: string; name: string };
       practice: { isAvailable: boolean; reason: string | null };
+      // Reference recording to listen to before recording; isFallback: the sheet has none, so the MAIN sheet's is used
+      referenceAudio: { url: string; isFallback: boolean } | null;
     };
     enrollment: 'NO_CLASS' | 'IN_CLASS';
     classRecord: { id: string; name: string } | null;
@@ -294,13 +296,16 @@ declare namespace Practice {
     attempts: AttemptDTO[];
   }
 
+  // hasEnoughPeers = false: fewer than minPeers classmates have a result, so only myScore is filled (GBR-53)
   interface ClassRankDTO {
     className: string;
     peerCount: number;
+    minPeers: number;
+    hasEnoughPeers: boolean;
     myScore: number;
-    classAverage: number;
-    betterThanPercent: number;
-    topPercent: number;
+    classAverage: number | null;
+    betterThanPercent: number | null;
+    topPercent: number | null;
     distribution: { score: number; count: number }[];
   }
 
