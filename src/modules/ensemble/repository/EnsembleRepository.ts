@@ -58,18 +58,35 @@ export default class EnsembleRepository {
     }));
   }
 
-  static async findMemberships(userId: string): Promise<{ classId: string; instrumentId: string; instrument: { name: string } }[]> {
-    return EnsembleRepository.client.classMember.findMany({
-      where: { userId },
-      select: { classId: true, instrumentId: true, instrument: { select: { name: true } } },
-      orderBy: { createdAt: 'asc' }
+  // Cùng luật với PracticeSubmissionRepository.findClassAssignments: lớp đang theo học mới nhất, bỏ lớp đã bị xóa khỏi
+  static async findCurrentMembership(userId: string): Promise<{ classId: string; instrumentId: string; instrument: { name: string } } | null> {
+    return EnsembleRepository.client.classMember.findFirst({
+      where: { userId, removedAt: null },
+      orderBy: { class: { startDate: 'desc' } },
+      select: { classId: true, instrumentId: true, instrument: { select: { name: true } } }
     });
   }
 
-  static async findPublishedAssignment(assignmentId: string): Promise<{ id: string; classId: string; sheetMusic: { pieceId: string } | null; targetBpm: number | null } | null> {
+  static async findPublishedAssignment(assignmentId: string): Promise<{
+    id: string;
+    classId: string;
+    status: 'DRAFT' | 'PUBLISHED' | 'CLOSED';
+    deadline: Date;
+    currentVersion: { kind: Backend.AssignmentKind } | null;
+    sheetMusic: { pieceId: string } | null;
+    targetBpm: number | null;
+  } | null> {
     return EnsembleRepository.client.assignment.findFirst({
       where: { id: assignmentId, isPublished: true },
-      select: { id: true, classId: true, sheetMusic: { select: { pieceId: true } }, targetBpm: true }
+      select: {
+        id: true,
+        classId: true,
+        status: true,
+        deadline: true,
+        currentVersion: { select: { kind: true } },
+        sheetMusic: { select: { pieceId: true } },
+        targetBpm: true
+      }
     });
   }
 

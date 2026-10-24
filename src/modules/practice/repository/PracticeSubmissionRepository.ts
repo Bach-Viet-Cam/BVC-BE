@@ -30,6 +30,7 @@ export default class PracticeSubmissionRepository {
       where: { userId: studentId, removedAt: null },
       orderBy: { class: { startDate: 'desc' } },
       select: {
+        instrumentId: true,
         class: {
           select: {
             id: true,
@@ -47,7 +48,7 @@ export default class PracticeSubmissionRepository {
     });
     if (!membership) return null;
     const { assignments, ...classRecord } = membership.class;
-    return { classRecord, assignments };
+    return { classRecord, assignments, memberInstrumentId: membership.instrumentId };
   }
 
   // GBR-49: the lock makes "no submission of this piece is processing" and the insert one atomic step

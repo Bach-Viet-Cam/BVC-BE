@@ -8,8 +8,10 @@ const candidate = (id: string, changes: Partial<Practice.AssignmentCandidate> = 
   id, title: id, description: '', status: 'PUBLISHED', deadline: new Date('2026-12-01'), maxSubmissions: 3, targetBpm: null,
   currentVersionId: `${id}-v1`, currentVersion: { kind: 'SOLO' }, submissions: [], ...changes
 });
-const enroll = (assignments: Practice.AssignmentCandidate[], status: Backend.ClassStatus = 'ACTIVE'): Practice.ClassAssignments => ({
-  classRecord: { id: 'class-1', name: 'Violin K18A', status, instrumentId: 'inst-violin' }, assignments
+const enroll = (assignments: Practice.AssignmentCandidate[], status: Backend.ClassStatus = 'ACTIVE', memberInstrumentId = 'inst-violin'): Practice.ClassAssignments => ({
+  classRecord: { id: 'class-1', name: 'Violin K18A', status, instrumentId: 'inst-violin' },
+  assignments,
+  memberInstrumentId
 });
 
 test('Không có lớp hoặc không có bài tập thì không khớp', () => {
@@ -64,5 +66,17 @@ test('Bài tập không có phiên bản hiện tại coi như không phải Hò
   const enrollment = enroll([candidate('legacy', { currentVersion: null, currentVersionId: null })]);
   assert.equal(PracticeAssignmentResolver.resolve(sheet, enrollment, now)?.candidate.id, 'legacy');
   assert.equal(PracticeAssignmentResolver.resolve(sheet, enrollment, now, undefined, 'ENSEMBLE'), null);
+});
+
+test('Hòa tấu: bản nhạc theo nhạc cụ của thành viên được tính dù khác nhạc cụ lớp', () => {
+  const enrollment = { ...enroll([candidate('ens', { currentVersion: { kind: 'ENSEMBLE' } })]), memberInstrumentId: 'inst-erhu' };
+  assert.equal(PracticeAssignmentResolver.resolve({ kind: 'MAIN', instrumentId: 'inst-erhu' }, enrollment, now, undefined, 'ENSEMBLE')?.candidate.id, 'ens');
+  assert.equal(PracticeAssignmentResolver.resolve({ kind: 'MAIN', instrumentId: 'inst-violin' }, enrollment, now, undefined, 'ENSEMBLE'), null);
+});
+
+test('Độc tấu: giữ luật cũ theo nhạc cụ lớp', () => {
+  const enrollment = { ...enroll([candidate('solo')]), memberInstrumentId: 'inst-erhu' };
+  assert.equal(PracticeAssignmentResolver.resolve({ kind: 'MAIN', instrumentId: 'inst-violin' }, enrollment, now)?.candidate.id, 'solo');
+  assert.equal(PracticeAssignmentResolver.resolve({ kind: 'MAIN', instrumentId: 'inst-erhu' }, enrollment, now), null);
 });
 
