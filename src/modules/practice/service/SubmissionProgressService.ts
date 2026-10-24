@@ -1,5 +1,6 @@
 import RhythmClientService from '../../audio/service/RhythmClientService.ts';
 import PracticeConstant from '../constant/PracticeConstant.ts';
+import PracticeResultDTO from '../dto/PracticeResultDTO.ts';
 import PracticeSubmissionRepository from '../repository/PracticeSubmissionRepository.ts';
 import PracticeFileService from './PracticeFileService.ts';
 
@@ -66,16 +67,9 @@ export default class SubmissionProgressService {
   private async complete(record: Practice.SubmissionRecord, result: Audio.Result): Promise<boolean> {
     return this.repository.updateIfCurrent(record.id, { attempt: record.attempt, status: 'PROCESSING' }, {
       status: 'COMPLETED', stage: 'FEEDBACK', accuracy: result.overallScore,
-      tempoDeviation: this.toTempoDeviation(result), result, aiFeedback: result.aiFeedback, analyzedAt: this.now()
+      tempoDeviation: PracticeResultDTO.toTempoDeviation(result.teacherTempoBpm, result.studentTempoBpm),
+      result, aiFeedback: result.aiFeedback, analyzedAt: this.now()
     });
-  }
-
-  // Percent the student was faster (+) or slower (-) than the teacher recording
-  private toTempoDeviation(result: Audio.Result): number | null {
-    const teacherBpm = Number(result.teacherTempoBpm);
-    const studentBpm = Number(result.studentTempoBpm);
-    if (!Number.isFinite(teacherBpm) || !Number.isFinite(studentBpm) || teacherBpm <= 0) return null;
-    return Math.round(((studentBpm - teacherBpm) / teacherBpm) * 1000) / 10;
   }
 
   private isForward(current: Practice.Stage | null, next: Practice.Stage): boolean {

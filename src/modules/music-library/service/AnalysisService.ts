@@ -3,6 +3,7 @@ import EnvConfig from '../../../config/EnvConfig.ts';
 import NotificationService from '../../../lib/NotificationService.ts';
 import StorageService from '../../../lib/storage/StorageService.ts';
 import AppError from '../../../utils/AppError.ts';
+import AudioConstant from '../../audio/constant/AudioConstant.ts';
 import MusicLibraryConstant from '../constant/MusicLibraryConstant.ts';
 import SheetMusicRepository from '../repository/SheetMusicRepository.ts';
 import TemplateAnalysisPublisherService, { type TemplateAnalysisJob } from './TemplateAnalysisPublisherService.ts';
@@ -11,6 +12,7 @@ interface AnalysisTarget {
   id: string;
   kind: MusicLibrary.SheetKind;
   referenceAudio: { id: string; storageKey: string; status: string } | null;
+  instrument: { code: string };
 }
 
 interface RhythmMetadata {
@@ -25,7 +27,6 @@ interface RhythmMetadata {
 
 const POLL_INTERVAL_MS = 5_000;
 const RESUME_INTERVAL_MS = 60_000;
-const INSTRUMENT_CODE = 'dan_bau' as const;
 const NOTIFICATIONS = MusicLibraryConstant.notifications;
 
 export default class AnalysisService {
@@ -41,7 +42,7 @@ export default class AnalysisService {
       sheetMusicId: sheetMusic.id,
       mediaFileId: sheetMusic.referenceAudio.id,
       mediaUrl: StorageService.driver.createReadUrl(sheetMusic.referenceAudio.storageKey),
-      instrumentCode: INSTRUMENT_CODE,
+      instrumentCode: AnalysisService.toRhythmInstrument(sheetMusic.instrument.code),
       requestedAt: new Date().toISOString()
     };
     await SheetMusicRepository.update(sheetMusic.id, {
@@ -110,7 +111,9 @@ export default class AnalysisService {
       return;
     }
     const metadata = await response.json() as RhythmMetadata;
-    if (metadata.analysisId !== analysisId || metadata.sheetMusicId !== sheetMusicId || metadata.instrumentCode !== INSTRUMENT_CODE) {
+    const sheet = await SheetMusicRepository.findForAnalysis(sheetMusicId);
+    const instrumentCode = sheet ? AnalysisService.toRhythmInstrument(sheet.instrument.code) : null;
+    if (metadata.analysisId !== analysisId || metadata.sheetMusicId !== sheetMusicId || metadata.instrumentCode !== instrumentCode) {
       await AnalysisService.finishError(sheetMusicId, analysisId, 'Kết quả Rhythm không khớp với yêu cầu phân tích.');
       return;
     }
@@ -168,6 +171,11 @@ export default class AnalysisService {
       body: `${sheet.piece.title} · ${sheet.name}${ready ? '' : `: ${error}`}`,
       link: `/giang-vien/bai-hat/${sheet.piece.id}/ban-nhac`
     });
+  }
+
+  // Same instrument id the practice jobs send, so Rhythm's template cache matches the student's evaluation
+  private static toRhythmInstrument(code: string): string {
+    return AudioConstant.rhythmInstruments[code] ?? code;
   }
 
   static async clearAnalysis(sheetMusicId: string): Promise<void> {

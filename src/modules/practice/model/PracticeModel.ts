@@ -75,11 +75,35 @@ export default class PracticeModel {
     studentUpload: { select: { id: true, key: true } }
   } satisfies Prisma.SubmissionSelect;
 
+  // M01 results screen: the submission with its piece, sheet audio, assignment class and student recording
+  static readonly resultSelect = {
+    id: true,
+    studentId: true,
+    pieceId: true,
+    sheetMusicId: true,
+    assignmentId: true,
+    status: true,
+    accuracy: true,
+    result: true,
+    aiFeedback: true,
+    pitchChart: true,
+    evaluationId: true,
+    fileDeletedAt: true,
+    analyzedAt: true,
+    createdAt: true,
+    piece: { select: { id: true, title: true } },
+    sheetMusic: { select: { id: true, name: true, referenceAudio: { select: { storageKey: true, status: true } } } },
+    assignment: { select: { id: true, title: true, classId: true, class: { select: { name: true } } } },
+    studentUpload: { select: { url: true, deletingAt: true } }
+  } satisfies Prisma.SubmissionSelect;
+
   static readonly sheetSelect = {
     id: true,
     pieceId: true,
     instrumentId: true,
     kind: true,
+    analysisStatus: true,
+    analysisJobId: true,
     referenceAudio: { select: { storageKey: true, status: true } },
     instrument: { select: { code: true } }
   } satisfies Prisma.SheetMusicSelect;
@@ -91,6 +115,8 @@ export default class PracticeModel {
     kind: true,
     name: true,
     durationSec: true,
+    analysisStatus: true,
+    analysisJobId: true,
     analysisFileUrl: true,
     referenceAudio: { select: { storageKey: true, status: true } },
     instrument: { select: { id: true, code: true, name: true } },

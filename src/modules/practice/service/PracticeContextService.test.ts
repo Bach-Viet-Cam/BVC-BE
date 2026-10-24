@@ -6,7 +6,7 @@ import type PracticeSubmissionRepository from '../repository/PracticeSubmissionR
 
 const now = new Date('2026-10-22T10:00:00Z');
 const sheet: Practice.ContextSheet = {
-  id: 'sheet-1', pieceId: 'piece-1', instrumentId: 'inst-violin', kind: 'MAIN', name: 'Bản chính', durationSec: 120, analysisFileUrl: 'analysis.json',
+  id: 'sheet-1', pieceId: 'piece-1', instrumentId: 'inst-violin', kind: 'MAIN', name: 'Bản chính', durationSec: 120, analysisStatus: 'READY', analysisJobId: 'analysis-1', analysisFileUrl: 'analysis.json',
   referenceAudio: null, instrument: { id: 'inst-violin', code: 'violin', name: 'Violin' }, level: { id: 'lv-1', name: 'Cơ bản' },
   piece: { id: 'piece-1', title: 'Lý ngựa ô', bpm: 90 }
 };

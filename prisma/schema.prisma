@@ -666,6 +666,8 @@ model Submission {
   fileDeletedAt       DateTime?          @map("file_deleted_at")
   result              Json?
   aiFeedback          String?            @map("ai_feedback")
+  // Pitch comparison chart built from the Rhythm analysis file on first view, so the file is read only once
+  pitchChart          Json?              @map("pitch_chart")
   rejectReason        String?            @map("reject_reason")
   errorCode           String?            @map("error_code")
   errorMessage        String?            @map("error_message")
@@ -678,6 +680,7 @@ model Submission {
   comment             SubmissionComment?
 
   @@index([assignmentId, studentId])
+  @@index([assignmentId, status])
   @@index([studentId, pieceId, status])
   // SCR-01 history: a student's submissions newest first
   @@index([studentId, createdAt])

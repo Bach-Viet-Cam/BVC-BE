@@ -10,7 +10,10 @@ import type RhythmPublisherService from '../../audio/service/RhythmPublisherServ
 
 const now = new Date('2026-10-22T10:00:00Z');
 const input: Practice.CreateInput = { sheetMusicId: 'sheet-bau', studentUploadId: '00000000-0000-4000-8000-000000000001' };
-const sheet: Practice.SheetTemplate = { id: 'sheet-bau', pieceId: 'piece-1', instrumentId: 'inst-bau', kind: 'MAIN', referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau' } };
+const sheet: Practice.SheetTemplate = {
+  id: 'sheet-bau', pieceId: 'piece-1', instrumentId: 'inst-bau', kind: 'MAIN', analysisStatus: 'READY', analysisJobId: 'analysis-1',
+  referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau' }
+};
 const candidate: Practice.AssignmentCandidate = {
   id: 'asg-1', title: 'Bài 3', description: '', status: 'PUBLISHED', deadline: new Date('2026-12-01'), maxSubmissions: 3, targetBpm: null,
   currentVersionId: 'version-1', currentVersion: { kind: 'SOLO' }, submissions: []
@@ -82,6 +85,13 @@ test('Gửi bản thu tạo Submission Đang xử lý và gửi job theo bản n
   assert.equal(jobs[0].studentUrl, 'https://be/s.wav');
   assert.equal(jobs[0].attempt, 1);
   assert.match(jobs[0].callbackUrl ?? '', /\/api\/v1\/internal\/practice-submissions\/progress$/);
+  assert.equal(jobs[0].templateAnalysisId, 'analysis-1');
+});
+
+test('Bản nhạc chưa phân tích xong không gửi templateAnalysisId, Rhythm tự phân tích bản thu mẫu', async () => {
+  const { service, jobs } = setup({ sheet: { ...sheet, analysisStatus: 'PROCESSING' } });
+  await service.create('student', input);
+  assert.equal(jobs[0].templateAnalysisId, undefined);
 });
 
 test('GBR-49: bài đang xử lý của cùng bản nhạc trả về 409 kèm mã bản nộp', async () => {
