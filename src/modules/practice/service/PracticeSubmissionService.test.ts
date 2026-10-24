@@ -37,7 +37,7 @@ function setup(options: Options = {}) {
   const repository = {
     findOwnedUpload: async (ownerId: string) => (ownerId === 'student' ? { id: input.studentUploadId, url: 'https://be/s.wav' } : null),
     findSheet: async () => (options.sheet === undefined ? sheet : options.sheet),
-    findClassAssignments: async () => (options.enrollment === undefined ? enrollment : options.enrollment),
+    findClassAssignments: async () => { const found = options.enrollment === undefined ? enrollment : options.enrollment; return found ? [found] : []; },
     createIfIdle: async (data: Practice.SubmissionCreateData) => {
       if (options.busyId) return { submission: null, busyId: options.busyId };
       created.push(data);

@@ -68,6 +68,17 @@ test('Bài tập không có phiên bản hiện tại coi như không phải Hò
   assert.equal(PracticeAssignmentResolver.resolve(sheet, enrollment, now, undefined, 'ENSEMBLE'), null);
 });
 
+test('Sinh viên ở nhiều lớp: chọn lớp chứa bài tập được chỉ định, rồi lớp cùng nhạc cụ đã giao bài này', () => {
+  const other: Practice.ClassAssignments = { classRecord: { id: 'class-2', name: 'Đàn nhị', status: 'ACTIVE', instrumentId: 'inst-nhi' }, assignments: [], memberInstrumentId: 'inst-nhi' };
+  const sameEmpty: Practice.ClassAssignments = { ...enroll([]), classRecord: { ...enroll([]).classRecord, id: 'class-3' } };
+  const assigned = enroll([candidate('asg-1')]);
+  assert.equal(PracticeAssignmentResolver.pickEnrollment([other, sameEmpty, assigned], sheet, 'asg-1'), assigned);
+  assert.equal(PracticeAssignmentResolver.pickEnrollment([other, sameEmpty, assigned], sheet), assigned);
+  assert.equal(PracticeAssignmentResolver.pickEnrollment([other, sameEmpty], sheet), sameEmpty);
+  assert.equal(PracticeAssignmentResolver.pickEnrollment([other], sheet), other);
+  assert.equal(PracticeAssignmentResolver.pickEnrollment([], sheet), null);
+});
+
 test('Hòa tấu: bản nhạc theo nhạc cụ của thành viên được tính dù khác nhạc cụ lớp', () => {
   const enrollment = { ...enroll([candidate('ens', { currentVersion: { kind: 'ENSEMBLE' } })]), memberInstrumentId: 'inst-erhu' };
   assert.equal(PracticeAssignmentResolver.resolve({ kind: 'MAIN', instrumentId: 'inst-erhu' }, enrollment, now, undefined, 'ENSEMBLE')?.candidate.id, 'ens');
@@ -79,4 +90,3 @@ test('Độc tấu: giữ luật cũ theo nhạc cụ lớp', () => {
   assert.equal(PracticeAssignmentResolver.resolve({ kind: 'MAIN', instrumentId: 'inst-violin' }, enrollment, now)?.candidate.id, 'solo');
   assert.equal(PracticeAssignmentResolver.resolve({ kind: 'MAIN', instrumentId: 'inst-erhu' }, enrollment, now), null);
 });
-

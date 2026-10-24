@@ -36,6 +36,9 @@ export default class PracticeConstant {
   // History dates are Vietnam calendar days
   static readonly vietnamOffset = '+07:00';
 
+  // Record screen tempo when the sheet is not assigned to the student's class or the assignment has no target BPM
+  static readonly defaultTargetBpm = 60;
+
   // M01 results screen
   static readonly resultHistoryLimit = 10;
   // GBR-53: the class rank card needs enough classmates to stay anonymous

@@ -128,7 +128,8 @@ export default class PracticeSubmissionService {
   // A send counts toward the class assignment only for the MAIN sheet of the class instrument while the assignment is
   // open; any other send is plain practice and stays unlinked, even when the client names an assignment.
   private async findAssignmentLink(studentId: string, sheet: Practice.SheetTemplate, hintAssignmentId?: string, mode: Practice.PracticeMode = 'SOLO'): Promise<{ assignmentId: string; assignmentVersionId: string | null } | null> {
-    const enrollment = await this.repository.findClassAssignments(studentId, sheet.pieceId);
+    const enrollments = await this.repository.findClassAssignments(studentId, sheet.pieceId);
+    const enrollment = PracticeAssignmentResolver.pickEnrollment(enrollments, sheet, hintAssignmentId);
     const resolved = PracticeAssignmentResolver.resolve(sheet, enrollment, this.now(), hintAssignmentId, mode);
     if (!resolved || resolved.state !== 'OPEN') return null;
     return { assignmentId: resolved.candidate.id, assignmentVersionId: resolved.candidate.currentVersionId };

@@ -24,11 +24,31 @@ export default class PracticeSubmissionRepository {
     });
   }
 
-  // A student has at most one active membership; the class may already be ENDED, which still explains the deadline
-  async findClassAssignments(studentId: string, pieceId: string): Promise<Practice.ClassAssignments | null> {
-    const membership = await this.client.classMember.findFirst({
+  // String tunings of an instrument in display order (pitch breaks ties)
+  async findInstrumentTunes(instrumentId: string): Promise<Practice.InstrumentTuneRow[]> {
+    return this.client.instrumentTune.findMany({
+      where: { instrumentId },
+      orderBy: [{ displayOrder: 'asc' }, { pitch: 'asc' }],
+      select: { id: true, tuneName: true, pitch: true, displayOrder: true }
+    });
+  }
+
+  // Reference recording of the MAIN sheet of the same piece and instrument (fallback for a sheet without its own)
+  async findMainReferenceAudio(pieceId: string, instrumentId: string): Promise<{ storageKey: string; status: string } | null> {
+    const main = await this.client.sheetMusic.findFirst({
+      where: { pieceId, instrumentId, kind: 'MAIN', moderation: 'NORMAL' },
+      select: { referenceAudio: { select: { storageKey: true, status: true } } }
+    });
+    return main?.referenceAudio ?? null;
+  }
+
+  // Every active membership, newest class first, each with its assignments of this piece. A student should have one,
+  // but data can hold several (e.g. imported into two classes), so PracticeAssignmentResolver.pickEnrollment chooses.
+  // A class may already be ENDED, which still explains the deadline.
+  async findClassAssignments(studentId: string, pieceId: string): Promise<Practice.ClassAssignments[]> {
+    const memberships = await this.client.classMember.findMany({
       where: { userId: studentId, removedAt: null },
-      orderBy: { class: { startDate: 'desc' } },
+      orderBy: [{ class: { startDate: 'desc' } }, { joinedAt: 'desc' }],
       select: {
         instrumentId: true,
         class: {
@@ -46,9 +66,10 @@ export default class PracticeSubmissionRepository {
         }
       }
     });
-    if (!membership) return null;
-    const { assignments, ...classRecord } = membership.class;
-    return { classRecord, assignments, memberInstrumentId: membership.instrumentId };
+    return memberships.map((membership) => {
+      const { assignments, ...classRecord } = membership.class;
+      return { classRecord, assignments, memberInstrumentId: membership.instrumentId };
+    });
   }
 
   // GBR-49: the lock makes "no submission of this piece is processing" and the insert one atomic step

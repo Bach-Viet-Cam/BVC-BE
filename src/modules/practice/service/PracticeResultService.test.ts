@@ -140,6 +140,11 @@ test('Xếp hạng lớp chỉ có khi bài nộp thuộc bài tập của lớp
   const rank = await setup({ peers: [60, 70, 90] }).service.getClassRank('student', 'sub-3');
   assert.equal(rank?.className, 'TRD301');
   assert.equal(rank?.betterThanPercent, 67);
+  // Lớp chưa đủ bạn có kết quả: vẫn trả thẻ (để giải thích), không có xếp hạng
+  const early = await setup({ peers: [] }).service.getClassRank('student', 'sub-3');
+  assert.equal(early?.hasEnoughPeers, false);
+  assert.equal(early?.myScore, 83);
+  assert.equal(early?.betterThanPercent, null);
 });
 
 test('Biểu đồ cao độ: dựng từ file phân tích rồi lưu lại; lần sau dùng bản đã lưu, không gọi Rhythm', async () => {

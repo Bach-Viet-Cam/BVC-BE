@@ -136,6 +136,8 @@ declare namespace Practice {
       instrument: { id: string; name: string };
       level: { id: string; name: string };
       practice: { isAvailable: boolean; reason: string | null };
+      // Reference recording to listen to before recording; isFallback: the sheet has none, so the MAIN sheet's is used
+      referenceAudio: { url: string; isFallback: boolean } | null;
     };
     enrollment: 'NO_CLASS' | 'IN_CLASS';
     classRecord: { id: string; name: string } | null;
@@ -218,6 +220,23 @@ declare namespace Practice {
 
   interface HistoryPieceOptionDTO { id: string; title: string; }
 
+  // Record screen settings ----------------------------------------------------------------------------
+
+  // ASSIGNMENT: the class assignment of this sheet sets the tempo; DEFAULT: fallback (no class, not assigned, no BPM)
+  interface TargetBpmDTO {
+    targetBpm: number;
+    source: 'ASSIGNMENT' | 'DEFAULT';
+    assignmentId: string | null;
+  }
+
+  interface InstrumentTuneRow { id: string; tuneName: string; pitch: number; displayOrder: number; }
+
+  // Standard pitch of each string of the sheet's instrument (instrument_tunes), for the string tuner
+  interface InstrumentTunesDTO {
+    instrument: { id: string; name: string };
+    tunes: { id: string; name: string; pitchHz: number; displayOrder: number }[];
+  }
+
   // M01 results screen ------------------------------------------------------------------------------
 
   // Submission row with everything the results screen reads
@@ -295,13 +314,16 @@ declare namespace Practice {
     attempts: AttemptDTO[];
   }
 
+  // hasEnoughPeers = false: fewer than minPeers classmates have a result, so only myScore is filled (GBR-53)
   interface ClassRankDTO {
     className: string;
     peerCount: number;
+    minPeers: number;
+    hasEnoughPeers: boolean;
     myScore: number;
-    classAverage: number;
-    betterThanPercent: number;
-    topPercent: number;
+    classAverage: number | null;
+    betterThanPercent: number | null;
+    topPercent: number | null;
     distribution: { score: number; count: number }[];
   }
 

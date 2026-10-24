@@ -18,8 +18,11 @@ test('Vị trí trong lớp: tốt hơn bao nhiêu % bạn cùng lớp, top %, �
   assert.equal(rank.distribution.find((bucket) => bucket.score === 80)?.count, 2); // 75 and 82
 });
 
-test('GBR-53: dưới 3 bạn cùng lớp có kết quả thì ẩn thẻ', () => {
-  assert.equal(service.calculate('TRD301', 80, [70, 90]), null);
+test('GBR-53: dưới 3 bạn cùng lớp có kết quả thì chỉ trả điểm của mình, không xếp hạng', () => {
+  assert.deepEqual(service.calculate('TRD301', 80.4, [70, 90]), {
+    className: 'TRD301', peerCount: 2, minPeers: 3, hasEnoughPeers: false, myScore: 80,
+    classAverage: null, betterThanPercent: null, topPercent: null, distribution: []
+  });
 });
 
 test('Đứng đầu lớp vẫn hiển thị top 1%, không phải top 0%', () => {
