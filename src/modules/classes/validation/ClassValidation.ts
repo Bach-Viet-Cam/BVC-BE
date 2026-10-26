@@ -97,6 +97,14 @@ export default class ClassValidation {
     query: emptyQuery
   });
 
+  static readonly lookupMemberSchema = z.object({
+    body: z.unknown(),
+    params: classParams,
+    query: z.object({
+      email: requiredText('email', limits.EMAIL_MAX).pipe(z.email(ClassConstant.rowReasons.INVALID_EMAIL + '.'))
+    })
+  });
+
   static readonly memberParamsSchema = z.object({
     body: z.unknown(),
     params: z.object({ id: z.uuid(), studentId: z.uuid() }),

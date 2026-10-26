@@ -93,8 +93,8 @@ export default class AssignmentQueryService {
     };
   }
 
-  static async listClassPieces(classId: string, lecturerId: string): Promise<Backend.ClassPieceDTO[]> {
+  static async listClassSheetMusic(classId: string, lecturerId: string): Promise<Backend.ClassSheetMusicDTO[]> {
     const classRecord = await ClassAccessService.assertOwnedClass(classId, lecturerId);
-    return SubmissionRepository.findClassPieces(classRecord.instrumentId);
+    return SubmissionRepository.findClassSheetMusic(classRecord.instrumentId);
   }
 }

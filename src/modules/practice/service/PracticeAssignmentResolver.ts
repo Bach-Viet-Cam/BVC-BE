@@ -3,7 +3,13 @@ import AssignmentPolicyService from '../../classes/service/AssignmentPolicyServi
 // Decides whether a practice send counts toward a class assignment.
 // It counts only for the MAIN sheet of the class instrument, while the class is active, the assignment is
 // published and before its deadline (the class end date) with attempts left. Anything else is free practice.
+// Bài nộp hòa tấu chỉ ghép bài tập loại Hòa tấu và ngược lại.
 export default class PracticeAssignmentResolver {
+  static matchesMode(candidate: Practice.AssignmentCandidate, mode: Practice.PracticeMode): boolean {
+    const isEnsemble = candidate.currentVersion?.kind === 'ENSEMBLE';
+    return mode === 'ENSEMBLE' ? isEnsemble : !isEnsemble;
+  }
+
   static isAssignedSheet(sheet: Pick<Practice.SheetTemplate, 'kind' | 'instrumentId'>, classInstrumentId: string): boolean {
     return sheet.kind === 'MAIN' && sheet.instrumentId === classInstrumentId;
   }
@@ -15,15 +21,34 @@ export default class PracticeAssignmentResolver {
     return { state: usedSubmissions >= candidate.maxSubmissions ? 'EXHAUSTED' : 'OPEN', usedSubmissions };
   }
 
+  // Which of the student's classes this practice belongs to: the class holding the hinted assignment, then a class of
+  // the sheet's instrument that assigned this piece, then a class of that instrument, then the newest class
+  static pickEnrollment(
+    enrollments: Practice.ClassAssignments[],
+    sheet: Pick<Practice.SheetTemplate, 'instrumentId'>,
+    hintAssignmentId?: string
+  ): Practice.ClassAssignments | null {
+    const sameInstrument = enrollments.filter((enrollment) => enrollment.classRecord.instrumentId === sheet.instrumentId);
+    return enrollments.find((enrollment) => hintAssignmentId && enrollment.assignments.some((candidate) => candidate.id === hintAssignmentId))
+      ?? sameInstrument.find((enrollment) => enrollment.assignments.length > 0)
+      ?? sameInstrument[0]
+      ?? enrollments[0]
+      ?? null;
+  }
+
   // Prefers the hinted assignment, then an open one with the nearest deadline, then the latest one
   static resolve(
     sheet: Pick<Practice.SheetTemplate, 'kind' | 'instrumentId'>,
     enrollment: Practice.ClassAssignments | null,
     now: Date,
-    hintAssignmentId?: string
+    hintAssignmentId?: string,
+    mode: Practice.PracticeMode = 'SOLO'
   ): Practice.ResolvedAssignment | null {
-    if (!enrollment || !PracticeAssignmentResolver.isAssignedSheet(sheet, enrollment.classRecord.instrumentId)) return null;
-    const resolved = enrollment.assignments.map((candidate) => ({
+    if (!enrollment) return null;
+    const requiredInstrumentId = mode === 'ENSEMBLE' ? enrollment.memberInstrumentId : enrollment.classRecord.instrumentId;
+    if (!PracticeAssignmentResolver.isAssignedSheet(sheet, requiredInstrumentId)) return null;
+    const filtered = enrollment.assignments.filter((candidate) => PracticeAssignmentResolver.matchesMode(candidate, mode));
+    const resolved = filtered.map((candidate) => ({
       candidate,
       ...PracticeAssignmentResolver.stateOf(candidate, enrollment.classRecord.status, now)
     }));
@@ -33,3 +58,4 @@ export default class PracticeAssignmentResolver {
     return byDeadline.find((item) => item.state === 'OPEN') ?? byDeadline.at(-1) ?? null;
   }
 }
+

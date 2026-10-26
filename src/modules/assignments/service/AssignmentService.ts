@@ -18,7 +18,7 @@ const notifications = AssignmentConstant.notifications;
 export default class AssignmentService {
   static async createAssignment(lecturerId: string, input: Backend.CreateAssignmentInput): Promise<Backend.AssignmentBaseDTO> {
     const classRecord = await ClassAccessService.assertOwnedClass(input.classId, lecturerId, { requireActive: true });
-    await AssignmentService.assertPieceSelectable(input.pieceId, classRecord.instrumentId);
+    await AssignmentService.assertSheetMusicSelectable(input.sheetMusicId, classRecord.instrumentId);
     await AssignmentService.assertKindAvailable(input.classId, input.kind);
 
     const assignmentId = await PrismaClientProvider.instance.$transaction(async (transaction) => {
@@ -42,7 +42,7 @@ export default class AssignmentService {
     const record = await AssignmentAccessService.assertOwnedAssignment(assignmentId, lecturerId, { requireActiveClass: true });
     // User decision 19/10: saving without any change creates no version and sends no notification.
     if (AssignmentService.isUnchanged(record, input)) return AssignmentService.loadBaseDTO(assignmentId);
-    await AssignmentService.assertPieceSelectable(input.pieceId, record.class.instrumentId);
+    await AssignmentService.assertSheetMusicSelectable(input.sheetMusicId, record.class.instrumentId);
     await AssignmentService.assertKindAvailable(record.classId, input.kind, assignmentId);
 
     await PrismaClientProvider.instance.$transaction(async (transaction) => {
@@ -124,7 +124,7 @@ export default class AssignmentService {
       current.title === input.title &&
       current.description === (input.description ?? null) &&
       current.kind === input.kind &&
-      (current.piece?.id ?? null) === (input.pieceId ?? null) &&
+      (current.sheetMusic?.id ?? null) === (input.sheetMusicId ?? null) &&
       current.requiredBpm === (input.requiredBpm ?? null)
     );
   }
@@ -136,11 +136,11 @@ export default class AssignmentService {
     }
   }
 
-  // A15: any visible piece of the class instrument (songs and finger exercises).
-  static async assertPieceSelectable(pieceId: string | null | undefined, instrumentId: string): Promise<void> {
-    if (!pieceId) return;
-    if (!(await AssignmentRepository.isPieceSelectable(pieceId, instrumentId))) {
-      throw AppError.fieldError(400, { field: 'pieceId', code: 'MSG-48', message: messages.PIECE_UNAVAILABLE });
+  // A15: any visible sheet music written for the class instrument (songs and finger exercises).
+  static async assertSheetMusicSelectable(sheetMusicId: string | null | undefined, instrumentId: string): Promise<void> {
+    if (!sheetMusicId) return;
+    if (!(await AssignmentRepository.isSheetMusicSelectable(sheetMusicId, instrumentId))) {
+      throw AppError.fieldError(400, { field: 'sheetMusicId', code: 'MSG-48', message: messages.SHEET_MUSIC_UNAVAILABLE });
     }
   }
 

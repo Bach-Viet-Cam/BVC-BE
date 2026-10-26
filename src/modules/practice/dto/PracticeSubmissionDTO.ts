@@ -8,6 +8,7 @@ export default class PracticeSubmissionDTO {
       sheetMusicId: record.sheetMusicId,
       assignmentId: record.assignmentId,
       status: record.status,
+      practiceMode: record.practiceMode,
       stage: record.stage,
       stageStartedAt: record.stageStartedAt?.toISOString() ?? null,
       retryCount: record.retryCount,

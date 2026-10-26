@@ -14,7 +14,6 @@ interface PieceSeed {
   composer: string;
   description: string;
   genre: string;
-  level: string;
   isPublic: boolean;
   hasCover?: boolean;
   adminHiddenReason?: string;
@@ -53,7 +52,7 @@ export default class DatabaseSeeder {
 
   static readonly pieces: PieceSeed[] = [
     {
-      title: 'Lý ngựa ô', composer: 'Dân gian', genre: 'Dân ca Nam Bộ', level: 'Cơ bản', isPublic: true, hasCover: true,
+      title: 'Lý ngựa ô', composer: 'Dân gian', genre: 'Dân ca Nam Bộ', isPublic: true, hasCover: true,
       description: 'Làn điệu dân ca Nam Bộ vui tươi, phù hợp làm bài nhập môn.',
       sheets: [
         { instrument: 'DAN_TRANH', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 12 },
@@ -63,7 +62,7 @@ export default class DatabaseSeeder {
       ]
     },
     {
-      title: 'Trống cơm', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', level: 'Cơ bản', isPublic: true,
+      title: 'Trống cơm', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', isPublic: true,
       description: 'Dân ca quan họ Bắc Ninh với tiết tấu rộn ràng.',
       sheets: [
         { instrument: 'DAN_BAU', kind: 'MAIN', name: 'Đàn bầu – bản gốc', level: 'Cơ bản', audioSec: 9 },
@@ -71,7 +70,7 @@ export default class DatabaseSeeder {
       ]
     },
     {
-      title: 'Bèo dạt mây trôi', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', level: 'Trung cấp', isPublic: true, hasCover: true,
+      title: 'Bèo dạt mây trôi', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', isPublic: true, hasCover: true,
       description: 'Bài dân ca trữ tình, giai điệu chậm, nhiều luyến láy.',
       sheets: [
         { instrument: 'DAN_BAU', kind: 'MAIN', name: 'Đàn bầu – bản gốc', level: 'Trung cấp', audioSec: 14 },
@@ -80,7 +79,7 @@ export default class DatabaseSeeder {
       ]
     },
     {
-      title: 'Lưu thủy kim tiền', composer: 'Dân gian', genre: 'Nhạc tài tử', level: 'Nâng cao', isPublic: true,
+      title: 'Lưu thủy kim tiền', composer: 'Dân gian', genre: 'Nhạc tài tử', isPublic: true,
       description: 'Bài bản nhạc tài tử Nam Bộ.',
       sheets: [
         { instrument: 'TY_BA', kind: 'MAIN', name: 'Tỳ bà – bản gốc', level: 'Nâng cao', audioSec: 15 },
@@ -88,27 +87,27 @@ export default class DatabaseSeeder {
       ]
     },
     {
-      title: 'Dạ cổ hoài lang', composer: 'Cao Văn Lầu', genre: 'Nhạc tài tử', level: 'Trung cấp', isPublic: true,
+      title: 'Dạ cổ hoài lang', composer: 'Cao Văn Lầu', genre: 'Nhạc tài tử', isPublic: true,
       description: 'Bản nhạc tiền thân của điệu vọng cổ.',
       sheets: [{ instrument: 'DAN_TRANH', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 16 }]
     },
     {
-      title: 'Lý chiều chiều', composer: 'Dân gian', genre: 'Dân ca Trung Bộ', level: 'Cơ bản', isPublic: true,
+      title: 'Lý chiều chiều', composer: 'Dân gian', genre: 'Dân ca Trung Bộ', isPublic: true,
       description: 'Dân ca Thừa Thiên Huế.',
       sheets: [{ instrument: 'SAO_TRUC', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Cơ bản', audioSec: 8 }]
     },
     {
-      title: 'Lý cây bông', composer: 'Dân gian', genre: 'Dân ca Nam Bộ', level: 'Cơ bản', isPublic: true,
+      title: 'Lý cây bông', composer: 'Dân gian', genre: 'Dân ca Nam Bộ', isPublic: true,
       description: 'Chưa có bản nhạc công khai – dùng để thử cảnh báo khi công khai bài hát.',
       sheets: []
     },
     {
-      title: 'Xuân và tuổi trẻ', composer: 'La Hối', genre: 'Nhạc mới', level: 'Trung cấp', isPublic: false,
+      title: 'Xuân và tuổi trẻ', composer: 'La Hối', genre: 'Nhạc mới', isPublic: false,
       description: 'Bài hát đang soạn, chưa công khai.',
       sheets: [{ instrument: 'DAN_TRANH', kind: 'MAIN', name: 'Đàn tranh – bản nháp', level: 'Trung cấp' }]
     },
     {
-      title: 'Hò kéo pháo', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', level: 'Trung cấp', isPublic: true,
+      title: 'Hò kéo pháo', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', isPublic: true,
       description: 'Bài bị admin ẩn – dùng để thử luồng kiểm duyệt và thông báo cho giảng viên.',
       adminHiddenReason: 'Bản thu mẫu đang được kiểm tra bản quyền.',
       sheets: [{ instrument: 'SAO_TRUC', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Trung cấp', audioSec: 10 }]
@@ -170,7 +169,6 @@ export default class DatabaseSeeder {
           composer: pieceSeed.composer,
           description: pieceSeed.description,
           genreId: findCategoryId(pieceSeed.genre),
-          levelId: findCategoryId(pieceSeed.level),
           visibility: pieceSeed.isPublic ? 'PUBLIC' : 'HIDDEN',
           moderation: pieceSeed.adminHiddenReason ? 'ADMIN_HIDDEN' : 'NORMAL',
           moderationReason: pieceSeed.adminHiddenReason ?? null,

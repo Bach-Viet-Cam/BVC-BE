@@ -32,9 +32,9 @@ const requiredBpm = z
   .optional()
   .transform((value) => value ?? null);
 
-const pieceId = z.uuid().nullable().optional().transform((value) => value || null);
+const sheetMusicId = z.uuid().nullable().optional().transform((value) => value || null);
 
-const content = { title, description, kind, pieceId, requiredBpm };
+const content = { title, description, kind, sheetMusicId, requiredBpm };
 const idParams = z.object({ id: z.uuid() });
 const emptyQuery = z.object({});
 
@@ -67,7 +67,7 @@ export default class AssignmentValidation {
     })
   });
 
-  static readonly piecesSchema = z.object({ body: z.unknown(), params: z.object({}), query: z.object({ classId: z.uuid() }) });
+  static readonly sheetMusicSchema =z.object({ body: z.unknown(), params: z.object({}), query: z.object({ classId: z.uuid() }) });
 
   static readonly studentSubmissionsSchema = z.object({
     body: z.unknown(),

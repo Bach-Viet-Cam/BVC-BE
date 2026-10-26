@@ -20,7 +20,7 @@ export default class PieceService {
     return piece;
   }
 
-  // R-01: only the owner edits the piece itself (title, cover, categories, visibility)
+  // R-01: only the owner edits the piece itself (title, cover, genre, visibility)
   static async getOwnedPiece(lecturerId: string, pieceId: string): Promise<MusicLibrary.PieceRecord> {
     const piece = await PieceService.getActivePiece(pieceId);
     if (piece.ownerId !== lecturerId) throw AppError.forbidden();
@@ -50,7 +50,6 @@ export default class PieceService {
 
   static async createPiece(lecturerId: string, pieceInput: MusicLibrary.PieceInput): Promise<PieceMutationResult> {
     await CatalogService.assertCategory('GENRE', pieceInput.genreId, 'genreId');
-    await CatalogService.assertCategory('LEVEL', pieceInput.levelId, 'levelId');
     const coverFile = pieceInput.coverFileId
       ? await UploadService.requireAttachableFile(pieceInput.coverFileId, lecturerId, 'COVER', 'coverFileId')
       : null;
@@ -59,7 +58,6 @@ export default class PieceService {
       composer: pieceInput.composer ?? null,
       description: pieceInput.description ?? null,
       genreId: pieceInput.genreId,
-      levelId: pieceInput.levelId,
       visibility: pieceInput.visibility ?? 'HIDDEN',
       coverFileId: coverFile?.id ?? null
     });
@@ -76,7 +74,6 @@ export default class PieceService {
     const piece = await PieceService.getOwnedPiece(lecturerId, pieceId);
     PieceService.assertVisibilityChangeAllowed(piece, pieceInput.visibility);
     await CatalogService.assertCategory('GENRE', pieceInput.genreId, 'genreId', piece.genre.id);
-    await CatalogService.assertCategory('LEVEL', pieceInput.levelId, 'levelId', piece.level.id);
 
     const isCoverChanged = pieceInput.coverFileId !== undefined && pieceInput.coverFileId !== (piece.coverFile?.id ?? null);
     const nextCoverFile = isCoverChanged && pieceInput.coverFileId
@@ -87,7 +84,6 @@ export default class PieceService {
       composer: pieceInput.composer ?? null,
       description: pieceInput.description ?? null,
       genreId: pieceInput.genreId,
-      levelId: pieceInput.levelId,
       ...(pieceInput.visibility ? { visibility: pieceInput.visibility } : {}),
       ...(isCoverChanged ? { coverFileId: nextCoverFile?.id ?? null } : {})
     });

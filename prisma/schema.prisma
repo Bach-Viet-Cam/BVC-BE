@@ -53,7 +53,6 @@ model User {
   submissions               Submission[]
   audioUploads              AudioUpload[]
   audioEvaluations          AudioEvaluationRequest[]
-  ensembleSessions          EnsembleSession[]
   leaderboardEntries        LeaderboardEntry[]
   createdNotifications      Notification[]           @relation("NotificationCreator")
   notifications             UserNotification[]       @relation("UserNotifications")
@@ -117,12 +116,28 @@ model Instrument {
   classes          Class[]
   classMembers     ClassMember[]
   roadmaps         Roadmap[]
-  ensembleSessions EnsembleSession[]
+  tunes            InstrumentTune[]
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at")
 
   @@map("instruments")
 }
+
+model InstrumentTune {
+  id           String     @id @default(uuid()) @map("tune_id")
+  instrumentId String     @map("instrument_id")
+  tuneName     String     @map("tune_name")
+  pitch        Float      @map("pitch")
+  displayOrder Int        @default(0) @map("display_order")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at")
+
+  instrument   Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+
+  @@index([instrumentId])
+  @@map("instrument_tunes")
+}
+
 
 model Category {
   id              String       @id @default(uuid())
@@ -132,7 +147,6 @@ model Category {
   displayOrder    Int          @default(0) @map("display_order")
   status          ActiveStatus @default(ACTIVE)
   genrePieces     Piece[]      @relation("PieceGenre")
-  levelPieces     Piece[]      @relation("PieceLevel")
   levelSheetMusic SheetMusic[] @relation("SheetMusicLevel")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
@@ -237,8 +251,7 @@ model Piece {
   coverFile          MediaFile?            @relation("PieceCover", fields: [coverFileId], references: [id], onDelete: SetNull)
   genreId            String                @map("genre_id")
   genre              Category              @relation("PieceGenre", fields: [genreId], references: [id])
-  levelId            String                @map("level_id")
-  level              Category              @relation("PieceLevel", fields: [levelId], references: [id])
+  // Level belongs to each sheet music, not to the piece
   // Node in the admin content-category tree
   categoryId         String?               @map("category_id")
   category           ContentCategory?      @relation(fields: [categoryId], references: [id])
@@ -252,12 +265,9 @@ model Piece {
   instruments        PieceInstrument[]
   sheetMusic         SheetMusic[]
   savedItems         SavedItem[]
-  assignments        Assignment[]
-  ensembleSessions   EnsembleSession[]
   // Roadmap exercises are FINGER_EXERCISE pieces; everything else is a SONG
   kind               PieceKind             @default(SONG)
   roadmapUses        RoadmapWeekExercise[]
-  assignmentVersions AssignmentVersion[]
   submissions        Submission[]
   deletedAt          DateTime?             @map("deleted_at")
   createdAt          DateTime              @default(now()) @map("created_at")
@@ -315,6 +325,8 @@ model SheetMusic {
   createdAt            DateTime       @default(now()) @map("created_at")
   updatedAt            DateTime       @updatedAt @map("updated_at")
 
+  assignments          Assignment[]
+  assignmentVersions   AssignmentVersion[]
   challenges Challenge[]
   @@unique([pieceId, name])
   @@unique([pieceId, mainInstrumentId])
@@ -373,10 +385,9 @@ enum SubmissionStage {
   FEEDBACK
 }
 
-enum EnsembleSessionStatus {
-  RECORDING
-  COMPLETED
-  FAILED
+enum PracticeMode {
+  SOLO
+  ENSEMBLE
 }
 
 model ContentCategory {
@@ -535,7 +546,7 @@ model RoadmapWeekExercise {
 model Assignment {
   id               String              @id @default(uuid())
   classId          String              @map("class_id")
-  pieceId          String?             @map("piece_id")
+  sheetMusicId     String?             @map("sheet_music_id")
   title            String
   type             AssignmentType
   description      String              @default("")
@@ -547,7 +558,7 @@ model Assignment {
   isPublished      Boolean             @default(false) @map("is_published")
   bonusPoints      Int?                @map("bonus_points")
   createdAt        DateTime            @default(now()) @map("created_at")
-  // Lecturer lifecycle (M03). title / type / description / pieceId / targetBpm / isPublished mirror the current version
+  // Lecturer lifecycle (M03). title / type / description / sheetMusicId / targetBpm / isPublished mirror the current version
   // so the student-side readers keep working; deadline mirrors the class end date.
   status           AssignmentStatus    @default(PUBLISHED)
   createdById      String?             @map("created_by")
@@ -557,13 +568,12 @@ model Assignment {
   deletedAt        DateTime?           @map("deleted_at")
   updatedAt        DateTime            @default(now()) @updatedAt @map("updated_at")
   class            Class               @relation(fields: [classId], references: [id], onDelete: Cascade)
-  piece            Piece?              @relation(fields: [pieceId], references: [id])
+  sheetMusic       SheetMusic?         @relation(fields: [sheetMusicId], references: [id])
   createdBy        User?               @relation("AssignmentCreatedBy", fields: [createdById], references: [id])
   currentVersion   AssignmentVersion?  @relation("AssignmentCurrentVersion", fields: [currentVersionId], references: [id])
   versions         AssignmentVersion[] @relation("AssignmentVersions")
   rubric           Rubric?
   submissions      Submission[]
-  ensembleSessions EnsembleSession[]
 
   @@map("assignments")
 }
@@ -589,13 +599,13 @@ model AssignmentVersion {
   title        String         @db.VarChar(200)
   description  String?        @db.VarChar(1000)
   kind         AssignmentKind
-  pieceId      String?        @map("piece_id")
+  sheetMusicId String?        @map("sheet_music_id")
   requiredBpm  Int?           @map("required_bpm")
   createdById  String         @map("created_by")
   createdAt    DateTime       @default(now()) @map("created_at")
   assignment   Assignment     @relation("AssignmentVersions", fields: [assignmentId], references: [id], onDelete: Cascade)
   currentOf    Assignment?    @relation("AssignmentCurrentVersion")
-  piece        Piece?         @relation(fields: [pieceId], references: [id])
+  sheetMusic   SheetMusic?    @relation(fields: [sheetMusicId], references: [id])
   createdBy    User           @relation("AssignmentVersionCreatedBy", fields: [createdById], references: [id])
   submissions  Submission[]
 
@@ -633,6 +643,7 @@ model Submission {
   studentId           String             @map("student_id")
   studentUploadId     String?            @map("student_upload_id")
   status              SubmissionStatus   @default(PROCESSING)
+  practiceMode        PracticeMode       @default(SOLO) @map("practice_mode")
   accuracy            Float?
   fileUrl             String?            @map("file_url")
   createdAt           DateTime           @default(now()) @map("created_at")
@@ -653,6 +664,8 @@ model Submission {
   fileDeletedAt       DateTime?          @map("file_deleted_at")
   result              Json?
   aiFeedback          String?            @map("ai_feedback")
+  // Pitch comparison chart built from the Rhythm analysis file on first view, so the file is read only once
+  pitchChart          Json?              @map("pitch_chart")
   rejectReason        String?            @map("reject_reason")
   errorCode           String?            @map("error_code")
   errorMessage        String?            @map("error_message")
@@ -665,7 +678,10 @@ model Submission {
   comment             SubmissionComment?
 
   @@index([assignmentId, studentId])
+  @@index([assignmentId, status])
   @@index([studentId, pieceId, status])
+  // SCR-01 history: a student's submissions newest first
+  @@index([studentId, createdAt])
   @@map("submissions")
 }
 
@@ -681,26 +697,6 @@ model SubmissionComment {
   lecturer     User       @relation(fields: [lecturerId], references: [id])
 
   @@map("submission_comments")
-}
-
-model EnsembleSession {
-  id            String                @id @default(uuid())
-  studentId     String                @map("student_id")
-  pieceId       String                @map("piece_id")
-  instrumentId  String                @map("instrument_id")
-  assignmentId  String?               @map("assignment_id")
-  recordingUrl  String?               @map("recording_url")
-  trackSettings Json                  @default("[]") @map("track_settings")
-  targetBpm     Int                   @map("target_bpm")
-  status        EnsembleSessionStatus @default(RECORDING)
-  createdAt     DateTime              @default(now()) @map("created_at")
-  student       User                  @relation(fields: [studentId], references: [id])
-  piece         Piece                 @relation(fields: [pieceId], references: [id])
-  instrument    Instrument            @relation(fields: [instrumentId], references: [id])
-  assignment    Assignment?           @relation(fields: [assignmentId], references: [id])
-
-  @@index([studentId])
-  @@map("ensemble_sessions")
 }
 
 enum NotificationType {

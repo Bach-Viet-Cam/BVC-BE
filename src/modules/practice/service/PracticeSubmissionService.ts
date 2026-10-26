@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import EnvConfig from '../../../config/EnvConfig.ts';
 import StorageService from '../../../lib/storage/StorageService.ts';
 import AppError from '../../../utils/AppError.ts';
+import AudioConstant from '../../audio/constant/AudioConstant.ts';
 import RhythmClientService from '../../audio/service/RhythmClientService.ts';
 import RhythmPublisherService from '../../audio/service/RhythmPublisherService.ts';
 import PracticeConstant from '../constant/PracticeConstant.ts';
@@ -43,11 +44,12 @@ export default class PracticeSubmissionService {
     const upload = await this.repository.findOwnedUpload(studentId, input.studentUploadId);
     if (!upload) throw AppError.badRequest(messages.UPLOAD_INVALID);
     const sheet = await this.findTemplate(input);
-    const link = await this.findAssignmentLink(studentId, sheet, input.assignmentId);
+    const practiceMode = input.practiceMode ?? 'SOLO';
+    const link = await this.findAssignmentLink(studentId, sheet, input.assignmentId, practiceMode);
 
     const { submission, busyId } = await this.repository.createIfIdle({
-      studentId, pieceId: input.pieceId, sheetMusicId: sheet.id, assignmentId: link?.assignmentId ?? null, assignmentVersionId: link?.assignmentVersionId ?? null,
-      studentUploadId: upload.id, fileUrl: upload.url, evaluationId: randomUUID(), messageId: randomUUID()
+      studentId, pieceId: sheet.pieceId, sheetMusicId: sheet.id, assignmentId: link?.assignmentId ?? null, assignmentVersionId: link?.assignmentVersionId ?? null,
+      studentUploadId: upload.id, fileUrl: upload.url, evaluationId: randomUUID(), messageId: randomUUID(), practiceMode
     }, this.now());
     if (!submission) throw AppError.conflict(messages.BUSY, { details: { submissionId: busyId ?? '' } });
     return this.dto.toResponse(await this.publish(submission, sheet));
@@ -59,9 +61,11 @@ export default class PracticeSubmissionService {
     return this.dto.toResponse(await this.progress.reconcile(record));
   }
 
-  // GBR-49: the processing submission of this piece, if any, so the record screen can stay locked
-  async getActive(studentId: string, pieceId: string): Promise<Practice.SubmissionDTO | null> {
-    const record = await this.repository.findActiveProcessing(studentId, pieceId);
+  // GBR-49: the processing submission of this sheet's piece, if any, so the record screen can stay locked
+  async getActive(studentId: string, sheetMusicId: string): Promise<Practice.SubmissionDTO | null> {
+    const sheet = await this.repository.findSheet(sheetMusicId);
+    if (!sheet) return null;
+    const record = await this.repository.findActiveProcessing(studentId, sheet.pieceId);
     if (!record) return null;
     const current = await this.progress.reconcile(record);
     return current.status === 'PROCESSING' ? this.dto.toResponse(current) : null;
@@ -96,7 +100,7 @@ export default class PracticeSubmissionService {
         : false;
       if (isKnownToRhythm) return (await this.repository.findById(record.id)) ?? record;
       // The job never reached Rhythm (publish failed or lost): send it again as this attempt
-      const sheet = record.sheetMusicId ? await this.repository.findSheet(record.pieceId, record.sheetMusicId) : null;
+      const sheet = record.sheetMusicId ? await this.repository.findSheet(record.sheetMusicId) : null;
       if (!sheet) throw AppError.notFound(messages.SHEET_NOT_FOUND);
       return await this.publish({ ...record, messageId: randomUUID() }, sheet);
     } catch {
@@ -109,9 +113,10 @@ export default class PracticeSubmissionService {
     const job: Audio.Job = {
       evaluationId: record.evaluationId ?? '', messageId: record.messageId ?? randomUUID(), attempt: record.attempt,
       templateUrl: await this.createReadUrl(sheet.referenceAudio?.storageKey ?? ''),
-      templateAnalysisId: sheet.analysisJobId,
-      studentUrl: record.fileUrl ?? '', instrumentId: sheet.instrument.code,
-      requestedAt: this.now().toISOString(), callbackUrl: `${EnvConfig.fileStoragePublicBaseUrl}${PracticeConstant.callbackPath}`
+      studentUrl: record.fileUrl ?? '', instrumentId: AudioConstant.rhythmInstruments[sheet.instrument.code] ?? sheet.instrument.code,
+      requestedAt: this.now().toISOString(), callbackUrl: `${EnvConfig.fileStoragePublicBaseUrl}${PracticeConstant.callbackPath}`,
+      // Lets Rhythm reuse the stored teacher analysis instead of analysing the reference audio again
+      ...(sheet.analysisStatus === 'READY' && sheet.analysisJobId ? { templateAnalysisId: sheet.analysisJobId } : {})
     };
     const state = await this.publisher.publish(job);
     await this.repository.updatePublication(record.id, { publicationState: state, messageId: job.messageId });
@@ -122,16 +127,17 @@ export default class PracticeSubmissionService {
 
   // A send counts toward the class assignment only for the MAIN sheet of the class instrument while the assignment is
   // open; any other send is plain practice and stays unlinked, even when the client names an assignment.
-  private async findAssignmentLink(studentId: string, sheet: Practice.SheetTemplate, hintAssignmentId?: string): Promise<{ assignmentId: string; assignmentVersionId: string | null } | null> {
-    const enrollment = await this.repository.findClassAssignments(studentId, sheet.pieceId);
-    const resolved = PracticeAssignmentResolver.resolve(sheet, enrollment, this.now(), hintAssignmentId);
+  private async findAssignmentLink(studentId: string, sheet: Practice.SheetTemplate, hintAssignmentId?: string, mode: Practice.PracticeMode = 'SOLO'): Promise<{ assignmentId: string; assignmentVersionId: string | null } | null> {
+    const enrollments = await this.repository.findClassAssignments(studentId, sheet.pieceId);
+    const enrollment = PracticeAssignmentResolver.pickEnrollment(enrollments, sheet, hintAssignmentId);
+    const resolved = PracticeAssignmentResolver.resolve(sheet, enrollment, this.now(), hintAssignmentId, mode);
     if (!resolved || resolved.state !== 'OPEN') return null;
     return { assignmentId: resolved.candidate.id, assignmentVersionId: resolved.candidate.currentVersionId };
   }
 
   // The student may submit to any instrument's sheet of the piece; its reference recording is the template
   private async findTemplate(input: Practice.CreateInput): Promise<Practice.SheetTemplate> {
-    const sheet = await this.repository.findSheet(input.pieceId, input.sheetMusicId);
+    const sheet = await this.repository.findSheet(input.sheetMusicId);
     if (!sheet) throw AppError.notFound(messages.SHEET_NOT_FOUND);
     if (sheet.referenceAudio?.status !== 'READY') throw new AppError(messages.NO_REFERENCE_AUDIO, 422);
     return sheet;

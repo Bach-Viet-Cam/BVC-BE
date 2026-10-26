@@ -6,26 +6,41 @@ import type PracticeSubmissionRepository from '../repository/PracticeSubmissionR
 
 const now = new Date('2026-10-22T10:00:00Z');
 const sheet: Practice.ContextSheet = {
-  id: 'sheet-1', pieceId: 'piece-1', instrumentId: 'inst-violin', kind: 'MAIN', name: 'Bản chính', durationSec: 120, analysisFileUrl: 'analysis.json',
+  id: 'sheet-1', pieceId: 'piece-1', instrumentId: 'inst-violin', kind: 'MAIN', name: 'Bản chính', durationSec: 120, analysisStatus: 'READY', analysisJobId: 'analysis-1', analysisFileUrl: 'analysis.json',
   referenceAudio: null, instrument: { id: 'inst-violin', code: 'violin', name: 'Violin' }, level: { id: 'lv-1', name: 'Cơ bản' },
   piece: { id: 'piece-1', title: 'Lý ngựa ô', bpm: 90 }
 };
 const enrollment: Practice.ClassAssignments = {
   classRecord: { id: 'class-1', name: 'Lớp Violin K18A', status: 'ACTIVE', instrumentId: 'inst-violin' },
+  memberInstrumentId: 'inst-violin',
   assignments: [{
     id: 'asg-1', title: 'Bài 3', description: '', status: 'PUBLISHED', deadline: new Date('2026-10-28'), maxSubmissions: 3, targetBpm: null,
-    currentVersionId: 'v1', submissions: [{ status: 'COMPLETED' }, { status: 'FAILED' }]
+    currentVersionId: 'v1', currentVersion: { kind: 'SOLO' }, submissions: [{ status: 'COMPLETED' }, { status: 'FAILED' }]
   }]
 };
-const query = { pieceId: 'piece-1', sheetMusicId: 'sheet-1' };
+const query = { sheetMusicId: 'sheet-1' };
 
-function service(options: { sheet?: Practice.ContextSheet | null; enrollment?: Practice.ClassAssignments | null }) {
+function service(options: {
+  sheet?: Practice.ContextSheet | null;
+  enrollment?: Practice.ClassAssignments | null;
+  mainAudio?: { storageKey: string; status: string } | null;
+}) {
   const repository = {
     findContextSheet: async () => (options.sheet === undefined ? sheet : options.sheet),
-    findClassAssignments: async () => (options.enrollment === undefined ? enrollment : options.enrollment)
+    findClassAssignments: async () => { const found = options.enrollment === undefined ? enrollment : options.enrollment; return found ? [found] : []; },
+    findMainReferenceAudio: async () => options.mainAudio ?? null
   } as unknown as PracticeSubmissionRepository;
-  return new PracticeContextService(repository, () => now);
+  return new PracticeContextService(repository, () => now, (key) => `https://be/uploads/${key}`);
 }
+
+test('Bản thu mẫu: dùng bản thu của chính bản nhạc; bản phụ chưa có thì dùng bản thu của bản chính', async () => {
+  const own = await service({ sheet: { ...sheet, referenceAudio: { storageKey: 'media/main.wav', status: 'READY' } } }).get('student', query);
+  assert.deepEqual(own.sheet.referenceAudio, { url: 'https://be/uploads/media/main.wav', isFallback: false });
+  const fallback = await service({ sheet: { ...sheet, kind: 'LEVEL' }, mainAudio: { storageKey: 'media/main.wav', status: 'READY' } }).get('student', query);
+  assert.deepEqual(fallback.sheet.referenceAudio, { url: 'https://be/uploads/media/main.wav', isFallback: true });
+  const pending = await service({ sheet: { ...sheet, referenceAudio: { storageKey: 'media/main.wav', status: 'PENDING' } } }).get('student', query);
+  assert.equal(pending.sheet.referenceAudio, null);
+});
 
 test('Sinh viên trong lớp mở bản chính: trả bài tập với lượt còn lại và tốc độ mặc định của bài nhạc', async () => {
   const context = await service({}).get('student', query);
@@ -35,7 +50,7 @@ test('Sinh viên trong lớp mở bản chính: trả bài tập với lượt c
   assert.deepEqual(context.sheet.practice, { isAvailable: true, reason: null });
   assert.equal(context.assignment?.usedSubmissions, 1); // FAILED does not count
   assert.equal(context.assignment?.remainingSubmissions, 2);
-  assert.equal(context.assignment?.targetBpm, 90);
+  assert.equal(context.assignment?.targetBpm, null); // no fallback to the piece BPM
   assert.equal(context.assignment?.countsTowardAssignment, true);
 });
 

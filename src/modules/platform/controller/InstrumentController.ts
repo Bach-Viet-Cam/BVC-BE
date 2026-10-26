@@ -44,4 +44,20 @@ export default class InstrumentController {
       message: PlatformConstant.messages.INSTRUMENT_ACTIVATED
     });
   }
+
+  static async getTunes(request: Request, response: Response): Promise<Response> {
+    const validated = request.validated as { params: { id: string } };
+    return ApiResponse.sendSuccessResponse(response, {
+      data: await InstrumentService.getTunes(validated.params.id)
+    });
+  }
+
+  static async setTunes(request: Request, response: Response): Promise<Response> {
+    const validated = request.validated as { body: { tunes: Backend.InstrumentTuneInput[] }; params: { id: string } };
+    return ApiResponse.sendSuccessResponse(response, {
+      data: await InstrumentService.setTunes(validated.params.id, validated.body.tunes),
+      message: PlatformConstant.messages.INSTRUMENT_TUNES_UPDATED
+    });
+  }
 }
+

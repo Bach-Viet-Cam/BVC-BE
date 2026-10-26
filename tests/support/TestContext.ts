@@ -82,7 +82,6 @@ export default class TestContext {
         composer: 'Dân gian',
         description: 'Dân ca Nam Bộ',
         genreId: TestContext.catalog.genres['Dân ca Nam Bộ'],
-        levelId: TestContext.catalog.levels['Cơ bản'],
         ...overrides
       });
     if (response.status !== 201) throw new Error(`create piece failed: ${JSON.stringify(response.body)}`);
@@ -104,12 +103,13 @@ export default class TestContext {
   }
 
   // A public piece with a public main sheet (with recording) for DAN_TRANH
-  static async createPublishedPiece(lecturer: TestUser, overrides: Record<string, unknown> = {}) {
+  static async createPublishedPiece(lecturer: TestUser, overrides: Record<string, unknown> = {}, sheetOverrides: Record<string, unknown> = {}) {
     const piece = await TestContext.createPiece(lecturer, overrides);
     const sheetResponse = await TestContext.createSheet(lecturer, piece.id, {
       name: 'Bản chính',
       referenceAudioId: await TestContext.uploadWav(lecturer, 6),
-      visibility: 'PUBLIC'
+      visibility: 'PUBLIC',
+      ...sheetOverrides
     });
     if (sheetResponse.status !== 201) throw new Error(`create sheet failed: ${JSON.stringify(sheetResponse.body)}`);
     await request(TestContext.app)

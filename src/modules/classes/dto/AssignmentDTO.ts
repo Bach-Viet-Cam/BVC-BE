@@ -7,6 +7,7 @@ export interface AssignmentListItem {
   title: string;
   className: string;
   type: AssignmentRow['type'];
+  kind: Backend.AssignmentKind | null;
   deadline: string;
   status: StudentAssignmentStatus;
   usedSubmissions: number;
@@ -28,6 +29,7 @@ export interface AssignmentDetail extends AssignmentListItem {
   description: string;
   weekNo: number | null;
   targetBpm: number | null;
+  sheetMusicId: string | null;
   pieceId: string | null;
   pieceTitle: string | null;
   rubric: { name: string; weight: number }[];
@@ -45,6 +47,7 @@ export default class AssignmentDTO {
       title: row.title,
       className: row.class.name,
       type: row.type,
+      kind: row.currentVersion?.kind ?? null,
       deadline: row.deadline.toISOString(),
       status: extra.status,
       usedSubmissions: extra.usedSubmissions,
@@ -59,9 +62,10 @@ export default class AssignmentDTO {
       ...listItem,
       description: row.description,
       weekNo: row.weekNo,
-      targetBpm: row.targetBpm ?? row.piece?.bpm ?? null,
-      pieceId: row.piece?.id ?? null,
-      pieceTitle: row.piece?.title ?? null,
+      targetBpm: row.targetBpm ?? row.sheetMusic?.piece.bpm ?? null,
+      sheetMusicId: row.sheetMusic?.id ?? null,
+      pieceId: row.sheetMusic?.piece.id ?? null,
+      pieceTitle: row.sheetMusic?.piece.title ?? null,
       rubric: row.rubric?.criteria ?? [],
       canSubmit: extra.canSubmit,
       hasEnsembleTracks: extra.hasEnsembleTracks,

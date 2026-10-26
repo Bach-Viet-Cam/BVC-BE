@@ -10,26 +10,47 @@ export default class PracticeSubmissionRepository {
     return this.client.audioUpload.findFirst({ where: { id: uploadId, ownerId, deletingAt: null }, select: { id: true, url: true } });
   }
 
-  async findSheet(pieceId: string, sheetMusicId: string): Promise<Practice.SheetTemplate | null> {
+  async findSheet(sheetMusicId: string): Promise<Practice.SheetTemplate | null> {
     return this.client.sheetMusic.findFirst({
-      where: { id: sheetMusicId, pieceId, visibility: 'PUBLIC', moderation: 'NORMAL', piece: { deletedAt: null } },
+      where: { id: sheetMusicId, visibility: 'PUBLIC', moderation: 'NORMAL', piece: { deletedAt: null } },
       select: PracticeModel.sheetSelect
     });
   }
 
-  async findContextSheet(pieceId: string, sheetMusicId: string): Promise<Practice.ContextSheet | null> {
+  async findContextSheet(sheetMusicId: string): Promise<Practice.ContextSheet | null> {
     return this.client.sheetMusic.findFirst({
-      where: { id: sheetMusicId, pieceId, visibility: 'PUBLIC', moderation: 'NORMAL', piece: { deletedAt: null } },
+      where: { id: sheetMusicId, visibility: 'PUBLIC', moderation: 'NORMAL', piece: { deletedAt: null } },
       select: PracticeModel.contextSheetSelect
     });
   }
 
-  // A student has at most one active membership; the class may already be ENDED, which still explains the deadline
-  async findClassAssignments(studentId: string, pieceId: string): Promise<Practice.ClassAssignments | null> {
-    const membership = await this.client.classMember.findFirst({
+  // String tunings of an instrument in display order (pitch breaks ties)
+  async findInstrumentTunes(instrumentId: string): Promise<Practice.InstrumentTuneRow[]> {
+    return this.client.instrumentTune.findMany({
+      where: { instrumentId },
+      orderBy: [{ displayOrder: 'asc' }, { pitch: 'asc' }],
+      select: { id: true, tuneName: true, pitch: true, displayOrder: true }
+    });
+  }
+
+  // Reference recording of the MAIN sheet of the same piece and instrument (fallback for a sheet without its own)
+  async findMainReferenceAudio(pieceId: string, instrumentId: string): Promise<{ storageKey: string; status: string } | null> {
+    const main = await this.client.sheetMusic.findFirst({
+      where: { pieceId, instrumentId, kind: 'MAIN', moderation: 'NORMAL' },
+      select: { referenceAudio: { select: { storageKey: true, status: true } } }
+    });
+    return main?.referenceAudio ?? null;
+  }
+
+  // Every active membership, newest class first, each with its assignments of this piece. A student should have one,
+  // but data can hold several (e.g. imported into two classes), so PracticeAssignmentResolver.pickEnrollment chooses.
+  // A class may already be ENDED, which still explains the deadline.
+  async findClassAssignments(studentId: string, pieceId: string): Promise<Practice.ClassAssignments[]> {
+    const memberships = await this.client.classMember.findMany({
       where: { userId: studentId, removedAt: null },
-      orderBy: { class: { startDate: 'desc' } },
+      orderBy: [{ class: { startDate: 'desc' } }, { joinedAt: 'desc' }],
       select: {
+        instrumentId: true,
         class: {
           select: {
             id: true,
@@ -37,7 +58,7 @@ export default class PracticeSubmissionRepository {
             status: true,
             instrumentId: true,
             assignments: {
-              where: { pieceId, deletedAt: null, status: { in: ['PUBLISHED', 'CLOSED'] } },
+              where: { sheetMusic: { pieceId }, deletedAt: null, status: { in: ['PUBLISHED', 'CLOSED'] } },
               orderBy: { deadline: 'asc' },
               select: PracticeModel.classAssignmentsSelect(studentId)
             }
@@ -45,9 +66,10 @@ export default class PracticeSubmissionRepository {
         }
       }
     });
-    if (!membership) return null;
-    const { assignments, ...classRecord } = membership.class;
-    return { classRecord, assignments };
+    return memberships.map((membership) => {
+      const { assignments, ...classRecord } = membership.class;
+      return { classRecord, assignments, memberInstrumentId: membership.instrumentId };
+    });
   }
 
   // GBR-49: the lock makes "no submission of this piece is processing" and the insert one atomic step
@@ -70,6 +92,30 @@ export default class PracticeSubmissionRepository {
   async findActiveProcessing(studentId: string, pieceId: string): Promise<Practice.SubmissionRecord | null> {
     return this.client.submission.findFirst({
       where: { studentId, pieceId, status: 'PROCESSING' }, orderBy: { createdAt: 'desc' }, select: PracticeModel.submissionSelect
+    });
+  }
+
+  // SCR-01: newest first; id breaks ties so pages stay stable
+  async findHistory(studentId: string, filter: Practice.HistoryFilter, page: { skip: number; take: number }): Promise<{ rows: Practice.HistoryRecord[]; total: number }> {
+    const where = PracticeModel.historyWhere(studentId, filter);
+    const [rows, total] = await this.client.$transaction([
+      this.client.submission.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], ...page, select: PracticeModel.historySelect }),
+      this.client.submission.count({ where })
+    ]);
+    return { rows, total };
+  }
+
+  async countByStatus(studentId: string): Promise<Partial<Record<Practice.SubmissionStatus, number>>> {
+    const groups = await this.client.submission.groupBy({ by: ['status'], where: { studentId }, _count: { _all: true } });
+    return Object.fromEntries(groups.map((group) => [group.status, group._count._all]));
+  }
+
+  // Pieces the student has submitted to, for the history piece filter
+  async findSubmittedPieces(studentId: string): Promise<Practice.HistoryPieceOptionDTO[]> {
+    return this.client.piece.findMany({
+      where: { submissions: { some: { studentId } } },
+      orderBy: [{ titleNormalized: 'asc' }, { id: 'asc' }],
+      select: { id: true, title: true }
     });
   }
 

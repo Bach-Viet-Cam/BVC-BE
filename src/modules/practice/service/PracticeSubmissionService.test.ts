@@ -9,13 +9,16 @@ import type RhythmClientService from '../../audio/service/RhythmClientService.ts
 import type RhythmPublisherService from '../../audio/service/RhythmPublisherService.ts';
 
 const now = new Date('2026-10-22T10:00:00Z');
-const input: Practice.CreateInput = { pieceId: 'piece-1', sheetMusicId: 'sheet-bau', studentUploadId: '00000000-0000-4000-8000-000000000001' };
-const sheet: Practice.SheetTemplate = { id: 'sheet-bau', pieceId: 'piece-1', instrumentId: 'inst-bau', kind: 'MAIN', analysisJobId: null, referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau' } };
+const input: Practice.CreateInput = { sheetMusicId: 'sheet-bau', studentUploadId: '00000000-0000-4000-8000-000000000001' };
+const sheet: Practice.SheetTemplate = {
+  id: 'sheet-bau', pieceId: 'piece-1', instrumentId: 'inst-bau', kind: 'MAIN', analysisStatus: 'READY', analysisJobId: 'analysis-1',
+  referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau' }
+};
 const candidate: Practice.AssignmentCandidate = {
   id: 'asg-1', title: 'Bài 3', description: '', status: 'PUBLISHED', deadline: new Date('2026-12-01'), maxSubmissions: 3, targetBpm: null,
-  currentVersionId: 'version-1', submissions: []
+  currentVersionId: 'version-1', currentVersion: { kind: 'SOLO' }, submissions: []
 };
-const enrollment: Practice.ClassAssignments = { classRecord: { id: 'class-1', name: 'Lớp K18A', status: 'ACTIVE', instrumentId: 'inst-bau' }, assignments: [candidate] };
+const enrollment: Practice.ClassAssignments = { classRecord: { id: 'class-1', name: 'Lớp K18A', status: 'ACTIVE', instrumentId: 'inst-bau' }, memberInstrumentId: 'inst-bau', assignments: [candidate] };
 
 interface Options {
   publishState?: Audio.PublicationState;
@@ -34,13 +37,13 @@ function setup(options: Options = {}) {
   const repository = {
     findOwnedUpload: async (ownerId: string) => (ownerId === 'student' ? { id: input.studentUploadId, url: 'https://be/s.wav' } : null),
     findSheet: async () => (options.sheet === undefined ? sheet : options.sheet),
-    findClassAssignments: async () => (options.enrollment === undefined ? enrollment : options.enrollment),
+    findClassAssignments: async () => { const found = options.enrollment === undefined ? enrollment : options.enrollment; return found ? [found] : []; },
     createIfIdle: async (data: Practice.SubmissionCreateData) => {
       if (options.busyId) return { submission: null, busyId: options.busyId };
       created.push(data);
       current = {
         id: 'sub-1', studentId: data.studentId, pieceId: data.pieceId, sheetMusicId: data.sheetMusicId, assignmentId: data.assignmentId,
-        status: 'PROCESSING', stage: 'QUALITY_CHECK', stageStartedAt: now, attempt: 1, retryCount: 0, retryAvailableAt: null,
+        status: 'PROCESSING', practiceMode: data.practiceMode, stage: 'QUALITY_CHECK', stageStartedAt: now, attempt: 1, retryCount: 0, retryAvailableAt: null,
         fileDeletedAt: null, fileUrl: data.fileUrl, evaluationId: data.evaluationId, messageId: data.messageId, publicationState: 'publishing',
         rejectReason: null, errorCode: null, errorMessage: null, analyzedAt: null, createdAt: now, studentUpload: { id: data.studentUploadId, key: 'audio/s.wav' }
       };
@@ -83,6 +86,13 @@ test('Gửi bản thu tạo Submission Đang xử lý và gửi job theo bản n
   assert.equal(jobs[0].studentUrl, 'https://be/s.wav');
   assert.equal(jobs[0].attempt, 1);
   assert.match(jobs[0].callbackUrl ?? '', /\/api\/v1\/internal\/practice-submissions\/progress$/);
+  assert.equal(jobs[0].templateAnalysisId, 'analysis-1');
+});
+
+test('Bản nhạc chưa phân tích xong không gửi templateAnalysisId, Rhythm tự phân tích bản thu mẫu', async () => {
+  const { service, jobs } = setup({ sheet: { ...sheet, analysisStatus: 'PROCESSING' } });
+  await service.create('student', input);
+  assert.equal(jobs[0].templateAnalysisId, undefined);
 });
 
 test('Gá»­i analysis ID hiá»‡n táº¡i cá»§a template cÃ¹ng template URL', async () => {
@@ -150,7 +160,8 @@ test('Gửi hàng đợi thất bại thì chuyển Lỗi xử lý và cho thử
 });
 
 const failedRecord = (overrides: Partial<Practice.SubmissionRecord> = {}): Practice.SubmissionRecord => ({
-  id: 'sub-1', studentId: 'student', pieceId: 'piece-1', sheetMusicId: 'sheet-bau', assignmentId: null, status: 'FAILED', stage: 'FEEDBACK',
+  id: 'sub-1', studentId: 'student', pieceId: 'piece-1', sheetMusicId: 'sheet-bau', assignmentId: null, status: 'FAILED',
+  practiceMode: 'SOLO', stage: 'FEEDBACK',
   stageStartedAt: now, attempt: 1, retryCount: 0, retryAvailableAt: new Date(now.getTime() - 1), fileDeletedAt: null, fileUrl: 'https://be/s.wav',
   evaluationId: 'eval-1', messageId: 'msg-1', publicationState: 'published', rejectReason: null, errorCode: 'EVALUATION_FAILED',
   errorMessage: 'lỗi', analyzedAt: null, createdAt: now, studentUpload: { id: 'upload', key: 'audio/s.wav' }, ...overrides

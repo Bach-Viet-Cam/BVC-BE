@@ -3,14 +3,24 @@ import ApiResponse from '../../../utils/ApiResponse.ts';
 import PracticeConstant from '../constant/PracticeConstant.ts';
 import PracticeSubmissionService from '../service/PracticeSubmissionService.ts';
 import PracticeContextService from '../service/PracticeContextService.ts';
+import SubmissionHistoryService from '../service/SubmissionHistoryService.ts';
 import SubmissionProgressService from '../service/SubmissionProgressService.ts';
 
 export default class PracticeSubmissionController {
   constructor(
     private readonly submissions: PracticeSubmissionService,
     private readonly progress: SubmissionProgressService,
-    private readonly context: PracticeContextService
+    private readonly context: PracticeContextService,
+    private readonly history: SubmissionHistoryService
   ) {}
+
+  readonly listHistory = async (request: Request, response: Response): Promise<Response> => ApiResponse.sendSuccessResponse(response, {
+    data: await this.history.list(request.auth!.user.userId, (request.validated as { query: Practice.HistoryQuery }).query)
+  });
+
+  readonly listHistoryPieces = async (request: Request, response: Response): Promise<Response> => ApiResponse.sendSuccessResponse(response, {
+    data: await this.history.listPieceOptions(request.auth!.user.userId)
+  });
 
   readonly create = async (request: Request, response: Response): Promise<Response> => ApiResponse.sendSuccessResponse(response, {
     statusCode: 202,
@@ -19,11 +29,11 @@ export default class PracticeSubmissionController {
   });
 
   readonly getContext = async (request: Request, response: Response): Promise<Response> => ApiResponse.sendSuccessResponse(response, {
-    data: await this.context.get(request.auth!.user.userId, (request.validated as { query: { pieceId: string; sheetMusicId: string; assignmentId?: string } }).query)
+    data: await this.context.get(request.auth!.user.userId, (request.validated as { query: { sheetMusicId: string; assignmentId?: string } }).query)
   });
 
   readonly getActive = async (request: Request, response: Response): Promise<Response> => ApiResponse.sendSuccessResponse(response, {
-    data: await this.submissions.getActive(request.auth!.user.userId, (request.validated as { query: { pieceId: string } }).query.pieceId)
+    data: await this.submissions.getActive(request.auth!.user.userId, (request.validated as { query: { sheetMusicId: string } }).query.sheetMusicId)
   });
 
   readonly get = async (request: Request, response: Response): Promise<Response> => ApiResponse.sendSuccessResponse(response, {

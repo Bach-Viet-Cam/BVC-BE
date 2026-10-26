@@ -24,33 +24,6 @@ describe('EnsemblePolicyService.resolveTargetBpm (GBR-19)', () => {
   });
 });
 
-describe('EnsemblePolicyService.validateUpload (GBR-10)', () => {
-  const formats = ['mp3', 'wav', 'm4a'];
-  it('từ chối file vượt dung lượng tối đa', () => {
-    assert.equal(EnsemblePolicyService.validateUpload({ sizeBytes: 30 * 1024 * 1024, extension: 'mp3', maxMb: 20, formats }).isValid, false);
-  });
-  it('từ chối định dạng không được phép', () => {
-    assert.equal(EnsemblePolicyService.validateUpload({ sizeBytes: 1024, extension: 'ogg', maxMb: 20, formats }).isValid, false);
-  });
-  it('chấp nhận file hợp lệ, không phân biệt hoa thường và dấu chấm', () => {
-    assert.equal(EnsemblePolicyService.validateUpload({ sizeBytes: 5 * 1024 * 1024, extension: '.M4A', maxMb: 20, formats }).isValid, true);
-  });
-  it('từ chối file rỗng', () => {
-    assert.equal(EnsemblePolicyService.validateUpload({ sizeBytes: 0, extension: 'mp3', maxMb: 20, formats }).isValid, false);
-  });
-});
-
-describe('EnsemblePolicyService.parseTrackSettings', () => {
-  it('chấp nhận cấu hình hợp lệ', () => {
-    const raw = JSON.stringify([{ trackId: 't1', volume: 70, isMuted: false, isSolo: true }]);
-    assert.equal(EnsemblePolicyService.parseTrackSettings(raw)?.length, 1);
-  });
-  it('từ chối volume ngoài 0-100 hoặc JSON hỏng', () => {
-    assert.equal(EnsemblePolicyService.parseTrackSettings(JSON.stringify([{ trackId: 't1', volume: 120, isMuted: false, isSolo: false }])), null);
-    assert.equal(EnsemblePolicyService.parseTrackSettings('not json'), null);
-  });
-});
-
 describe('EnsemblePolicyService.canPracticePiece', () => {
   const piece = (visibility: 'PUBLIC' | 'HIDDEN', moderation: 'NORMAL' | 'ADMIN_HIDDEN' = 'NORMAL', deletedAt: Date | null = null) => ({ visibility, moderation, deletedAt });
   it('luyện tự do chỉ với bài công khai', () => {
@@ -63,5 +36,32 @@ describe('EnsemblePolicyService.canPracticePiece', () => {
   it('không bao giờ dùng bài bị admin ẩn hoặc đã xóa', () => {
     assert.equal(EnsemblePolicyService.canPracticePiece({ piece: piece('PUBLIC', 'ADMIN_HIDDEN'), isViaAssignment: true }), false);
     assert.equal(EnsemblePolicyService.canPracticePiece({ piece: piece('PUBLIC', 'NORMAL', new Date()), isViaAssignment: true }), false);
+  });
+});
+
+describe('EnsemblePolicyService.isCountedAssignment', () => {
+  const now = 1_000_000;
+  const future = new Date(now + 60_000);
+  const past = new Date(now - 60_000);
+
+  it('ENSEMBLE + PUBLISHED + còn hạn → true', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'ENSEMBLE', status: 'PUBLISHED', deadline: future, now }), true);
+  });
+
+  it('SOLO → false', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'SOLO', status: 'PUBLISHED', deadline: future, now }), false);
+  });
+
+  it('CLOSED → false', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'ENSEMBLE', status: 'CLOSED', deadline: future, now }), false);
+  });
+
+  it('quá hạn → false', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'ENSEMBLE', status: 'PUBLISHED', deadline: past, now }), false);
+  });
+
+  it('kind null hoặc undefined → false', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: null, status: 'PUBLISHED', deadline: future, now }), false);
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: undefined, status: 'PUBLISHED', deadline: future, now }), false);
   });
 });

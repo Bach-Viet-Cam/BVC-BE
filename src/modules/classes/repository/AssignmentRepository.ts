@@ -21,6 +21,7 @@ export interface AssignmentRow {
   bonusPoints: number | null;
   class: { id: string; name: string };
   submissions: SubmissionBrief[];
+  currentVersion: { kind: Backend.AssignmentKind } | null;
 }
 
 export interface StudentSubmissionRow extends SubmissionBrief {
@@ -31,7 +32,7 @@ export interface StudentSubmissionRow extends SubmissionBrief {
 
 export interface AssignmentDetailRow extends AssignmentRow {
   submissions: StudentSubmissionRow[];
-  piece: (PieceAvailability & { id: string; title: string; bpm: number; sheetMusic: { instrumentId: string }[] }) | null;
+  sheetMusic: { id: string; piece: PieceAvailability & { id: string; title: string; bpm: number; sheetMusic: { instrumentId: string }[] } } | null;
   rubric: { criteria: { name: string; weight: number }[] } | null;
 }
 
@@ -47,7 +48,11 @@ export default class AssignmentRepository {
   static async findPublishedForStudent(userId: string, classIds: string[]): Promise<AssignmentRow[]> {
     return AssignmentRepository.client.assignment.findMany({
       where: { classId: { in: classIds }, isPublished: true },
-      include: { class: { select: { id: true, name: true } }, submissions: { where: { studentId: userId }, select: { status: true, accuracy: true } } }
+      include: {
+        class: { select: { id: true, name: true } },
+        submissions: { where: { studentId: userId }, select: { status: true, accuracy: true } },
+        currentVersion: { select: { kind: true } }
+      }
     });
   }
 
@@ -56,21 +61,27 @@ export default class AssignmentRepository {
       where: { id: assignmentId },
       include: {
         class: { select: { id: true, name: true } },
-        piece: {
+        currentVersion: { select: { kind: true } },
+        sheetMusic: {
           select: {
             id: true,
-            title: true,
-            bpm: true,
-            visibility: true,
-            moderation: true,
-            deletedAt: true,
-            sheetMusic: {
-              where: {
-                kind: 'MAIN',
-                referenceAudioId: { not: null },
-                moderation: 'NORMAL'
-              },
-              select: { instrumentId: true }
+            piece: {
+              select: {
+                id: true,
+                title: true,
+                bpm: true,
+                visibility: true,
+                moderation: true,
+                deletedAt: true,
+                sheetMusic: {
+                  where: {
+                    kind: 'MAIN',
+                    referenceAudioId: { not: null },
+                    moderation: 'NORMAL'
+                  },
+                  select: { instrumentId: true }
+                }
+              }
             }
           }
         },

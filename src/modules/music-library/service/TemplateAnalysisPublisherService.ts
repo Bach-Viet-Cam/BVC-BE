@@ -7,7 +7,7 @@ export interface TemplateAnalysisJob {
   sheetMusicId: string;
   mediaFileId: string;
   mediaUrl: string;
-  instrumentCode: 'dan_bau';
+  instrumentCode: string;
   requestedAt: string;
 }
 

@@ -29,9 +29,9 @@ describe('UC-07 / UC-08 Thư viện công khai', () => {
 
   it('lọc nhiều điều kiện kết hợp đúng (OR trong cùng nhóm, AND giữa các nhóm)', async () => {
     const { genres, levels, instruments } = TestContext.catalog;
-    await TestContext.createPublishedPiece(lecturer, { title: 'A', genreId: genres['Dân ca Nam Bộ'], levelId: levels['Cơ bản'] });
-    await TestContext.createPublishedPiece(lecturer, { title: 'B', genreId: genres['Dân ca Bắc Bộ'], levelId: levels['Cơ bản'] });
-    await TestContext.createPublishedPiece(lecturer, { title: 'C', genreId: genres['Nhạc tài tử'], levelId: levels['Nâng cao'] });
+    await TestContext.createPublishedPiece(lecturer, { title: 'A', genreId: genres['Dân ca Nam Bộ'] }, { levelId: levels['Cơ bản'] });
+    await TestContext.createPublishedPiece(lecturer, { title: 'B', genreId: genres['Dân ca Bắc Bộ'] }, { levelId: levels['Cơ bản'] });
+    await TestContext.createPublishedPiece(lecturer, { title: 'C', genreId: genres['Nhạc tài tử'] }, { levelId: levels['Nâng cao'] });
 
     const twoGenres = await request(app).get(`${api}/library/pieces`)
       .query(`genreIds=${genres['Dân ca Nam Bộ']}&genreIds=${genres['Nhạc tài tử']}&sort=title_asc`);

@@ -29,7 +29,6 @@ declare namespace MusicLibrary {
     composer?: string | null;
     description?: string | null;
     genreId: string;
-    levelId: string;
     visibility?: Visibility;
     coverFileId?: string | null;
   }
