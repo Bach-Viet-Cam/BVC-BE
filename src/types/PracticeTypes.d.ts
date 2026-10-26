@@ -88,7 +88,7 @@ declare namespace Practice {
   }
 
   // Sheet shown on the record screen, with the piece it belongs to
-  interface ContextSheet extends Omit<SheetTemplate, 'instrument' | 'analysisJobId'> {
+  interface ContextSheet extends Omit<SheetTemplate, 'instrument'> {
     name: string;
     durationSec: number | null;
     analysisFileUrl: string | null;
