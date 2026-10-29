@@ -82,6 +82,7 @@ test('Gửi bản thu tạo Submission Đang xử lý và gửi job theo bản n
   assert.equal(jobs.length, 1);
   assert.equal(jobs[0].instrumentId, 'dan_bau'); // sheet instrument, not the class instrument
   assert.equal(jobs[0].templateUrl, 'https://storage/media/teacher.wav?signed');
+  assert.equal(jobs[0].templateAnalysisId, null);
   assert.equal(jobs[0].studentUrl, 'https://be/s.wav');
   assert.equal(jobs[0].attempt, 1);
   assert.match(jobs[0].callbackUrl ?? '', /\/api\/v1\/internal\/practice-submissions\/progress$/);
@@ -92,6 +93,13 @@ test('Bản nhạc chưa phân tích xong không gửi templateAnalysisId, Rhyth
   const { service, jobs } = setup({ sheet: { ...sheet, analysisStatus: 'PROCESSING' } });
   await service.create('student', input);
   assert.equal(jobs[0].templateAnalysisId, undefined);
+});
+
+test('Gá»­i analysis ID hiá»‡n táº¡i cá»§a template cÃ¹ng template URL', async () => {
+  const { service, jobs } = setup({ sheet: { ...sheet, analysisJobId: '00000000-0000-4000-8000-000000000099' } });
+  await service.create('student', input);
+  assert.equal(jobs[0].templateAnalysisId, '00000000-0000-4000-8000-000000000099');
+  assert.equal(jobs[0].templateUrl, 'https://storage/media/teacher.wav?signed');
 });
 
 test('GBR-49: bài đang xử lý của cùng bản nhạc trả về 409 kèm mã bản nộp', async () => {
