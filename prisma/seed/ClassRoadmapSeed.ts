@@ -12,6 +12,7 @@ import TextNormalizer from '../../src/utils/TextNormalizer.ts';
 const prisma = PrismaClientProvider.instance;
 const ROLES = { STUDENT: 1, TEACHER: 2, SYSTEM_ADMIN: 3 };
 const INSTRUMENTS = ['Đàn tranh', 'Đàn bầu', 'Tỳ bà', 'Sáo trúc'];
+const INSTRUMENT_CODES: Record<string, string> = { 'Đàn tranh': 'DTR', 'Đàn bầu': 'DBA', 'Tỳ bà': 'DTB', 'Sáo trúc': 'DSA' };
 const STUDENT_NAMES = [
   'Trần Minh Anh', 'Phạm Gia Hân', 'Ngô Thảo My', 'Lê Quốc Bảo', 'Vũ Hải Đăng', 'Nguyễn Thị Lan', 'Đỗ Văn Hùng',
   'Hoàng Mai Chi', 'Bùi Tuấn Kiệt', 'Đặng Ngọc Hà', 'Phan Thanh Tùng', 'Võ Khánh Linh', 'Trịnh Đức Minh', 'Lý Bảo Ngọc',
@@ -50,6 +51,10 @@ const SEED_ASSIGNMENTS: Array<{ title: string; kind: 'SOLO' | 'ENSEMBLE' | 'BONU
   { title: 'Bài cũ (đã xóa)', kind: 'OTHER', status: 'PUBLISHED', deleted: true, description: 'Đã thay bằng bài khác.' }
 ];
 const SEED_ACCURACIES = [95, 88, 82, 76, 71, 64, 58, 45, 33, 20];
+// Lecturer home: a second running class (attention list across classes) and today's solo / ensemble submissions.
+const HOME_CLASS_ASSIGNMENTS = SEED_ASSIGNMENTS.filter((item) => item.kind === 'SOLO' || item.kind === 'ENSEMBLE');
+const TODAY_SUBMITTERS = { SOLO: { from: 3, count: 6 }, ENSEMBLE: { from: 0, count: 3 } } as const;
+const TODAY_ACCURACIES = [78, 52, 66, 41, 90, 57];
 const SEED_COMMENTS = ['Nhịp ổn, chú ý ngón vê ở ô nhịp 5.', 'Tempo còn nhanh dần, tập lại với metronome.', 'Tốt, giữ cách bấm như lần này.'];
 
 class SeedRunner {
@@ -143,12 +148,12 @@ class SeedRunner {
     await RoadmapService.saveVersion(instrumentId, adminId, weeks, null);
   }
 
-  static async seedAssignments(classId: string, lecturerId: string, pieceId: string | null): Promise<void> {
+  static async seedAssignments(classId: string, lecturerId: string, pieceId: string | null, items: typeof SEED_ASSIGNMENTS = SEED_ASSIGNMENTS): Promise<void> {
     const classRecord = await prisma.class.findUniqueOrThrow({ where: { id: classId }, select: { endDate: true } });
     const members = await prisma.classMember.findMany({ where: { classId, removedAt: null }, orderBy: { joinedAt: 'asc' }, select: { userId: true } });
     const classInstrument = await prisma.class.findUniqueOrThrow({ where: { id: classId }, select: { instrumentId: true } });
     const sheet = pieceId ? await prisma.sheetMusic.findFirst({ where: { pieceId, instrumentId: classInstrument.instrumentId }, select: { id: true } }) : null;
-    for (const [index, item] of SEED_ASSIGNMENTS.entries()) {
+    for (const [index, item] of items.entries()) {
       const existing = await prisma.assignment.findFirst({ where: { classId, currentVersion: { title: item.title } } });
       if (existing) continue;
       const content = { title: item.title, description: item.description, kind: item.kind, sheetMusicId: index === 0 ? (sheet?.id ?? null) : null };
@@ -171,7 +176,8 @@ class SeedRunner {
   static async seedSubmissions(assignmentId: string, versionId: string, pieceId: string, lecturerId: string, studentIds: string[], offset: number): Promise<void> {
     for (const [index, studentId] of studentIds.slice(0, 10).entries()) {
       const accuracy = SEED_ACCURACIES[(index + offset) % SEED_ACCURACIES.length];
-      const submittedAt = new Date(Date.now() - (index + 1) * 3600 * 1000);
+      // From yesterday back: today's submissions come from seedTodaySubmissions only
+      const submittedAt = new Date(DateTimeUtil.startOfDayInVietnam(DateTimeUtil.todayInVietnam()).getTime() - (index + 1) * 3600 * 1000);
       const submission = await prisma.submission.create({
         data: { assignmentId, assignmentVersionId: versionId, pieceId, studentId, fileUrl: SAMPLE_AUDIO_URL, status: 'COMPLETED', accuracy, tempoDeviation: (index % 4) * 2.5, createdAt: submittedAt, analyzedAt: submittedAt }
       });
@@ -183,6 +189,40 @@ class SeedRunner {
       }
       if (offset === 0 && index < SEED_COMMENTS.length) {
         await prisma.submissionComment.create({ data: { submissionId: submission.id, lecturerId, content: SEED_COMMENTS[index] } });
+      }
+    }
+  }
+
+  // "Lượt nộp bài mới": once per Vietnam calendar day, a few members submit the solo / ensemble assignment.
+  static async seedTodaySubmissions(classId: string, pieceId: string | null): Promise<void> {
+    if (!pieceId) return; // submissions always belong to a piece
+    const startOfToday = DateTimeUtil.startOfDayInVietnam(DateTimeUtil.todayInVietnam());
+    const members = await prisma.classMember.findMany({ where: { classId, removedAt: null }, orderBy: { joinedAt: 'asc' }, select: { userId: true } });
+    const assignments = await prisma.assignment.findMany({
+      where: { classId, status: 'PUBLISHED', deletedAt: null, currentVersion: { kind: { in: ['SOLO', 'ENSEMBLE'] } } },
+      select: { id: true, currentVersionId: true, currentVersion: { select: { kind: true } } }
+    });
+    for (const assignment of assignments) {
+      const kind = assignment.currentVersion?.kind as keyof typeof TODAY_SUBMITTERS;
+      if (await prisma.submission.findFirst({ where: { assignmentId: assignment.id, createdAt: { gte: startOfToday } } })) continue;
+      const { from, count } = TODAY_SUBMITTERS[kind];
+      for (const [index, member] of members.slice(from, from + count).entries()) {
+        // Spread over the last hours, never before midnight
+        const submittedAt = new Date(Math.max(startOfToday.getTime(), Date.now() - (index + 1) * 20 * 60 * 1000));
+        await prisma.submission.create({
+          data: {
+            assignmentId: assignment.id,
+            assignmentVersionId: assignment.currentVersionId as string,
+            pieceId,
+            studentId: member.userId,
+            fileUrl: SAMPLE_AUDIO_URL,
+            status: 'COMPLETED',
+            accuracy: TODAY_ACCURACIES[index % TODAY_ACCURACIES.length],
+            tempoDeviation: (index % 3) * 2,
+            createdAt: submittedAt,
+            analyzedAt: submittedAt
+          }
+        });
       }
     }
   }
@@ -250,7 +290,7 @@ class SeedRunner {
     const instruments = [];
     for (const name of INSTRUMENTS) {
       const existing = await prisma.instrument.findFirst({ where: { name } });
-      instruments.push(existing ?? (await prisma.instrument.create({ data: { name, code: TextNormalizer.normalize(name).replace(/\s+/g, '_').toUpperCase() } })));
+      instruments.push(existing ?? (await prisma.instrument.create({ data: { name, code: INSTRUMENT_CODES[name] } })));
     }
 
     const students = [];
@@ -273,7 +313,13 @@ class SeedRunner {
       startDate: DateTimeUtil.addDays(today, 7), status: 'ACTIVE'
     });
 
+    const secondRunningClass = await SeedRunner.upsertClass({
+      name: 'TRD302 — Đàn bầu', cohort: 'FA26', instrumentId: instruments[1].id, lecturerId: lecturer.id,
+      startDate: DateTimeUtil.addDays(today, -14), status: 'ACTIVE', description: 'Lớp đàn bầu học kỳ Fall 2026.'
+    });
+
     await SeedRunner.enroll(runningClass.id, runningClass.instrumentId, students.slice(0, 20).map((student) => student.id), lecturer.id);
+    await SeedRunner.enroll(secondRunningClass.id, secondRunningClass.instrumentId, students.slice(10, 22).map((student) => student.id), lecturer.id);
     await SeedRunner.enroll(finishedClass.id, finishedClass.instrumentId, students.slice(15, 25).map((student) => student.id), lecturer.id);
     await SeedRunner.enroll(otherClass.id, otherClass.instrumentId, students.slice(20, 30).map((student) => student.id), otherLecturer.id);
 
@@ -291,7 +337,12 @@ class SeedRunner {
     await SeedRunner.seedAssignments(runningClass.id, lecturer.id, tranhSong?.id ?? null);
     await SeedRunner.seedWeeklyHistory(runningClass.id, tranhSong?.id ?? null);
 
-    console.log(`Seeded: 3 users (admin/lecturers), ${students.length} students, ${instruments.length} instruments, 3 classes, library pieces, roadmaps v1 for ${ROADMAP_INSTRUMENTS.join(', ')}, TRD301 assignments with submissions.`);
+    const bauSong = await prisma.piece.findFirst({ where: { instruments: { some: { instrumentId: secondRunningClass.instrumentId } }, kind: 'SONG' } });
+    await SeedRunner.seedAssignments(secondRunningClass.id, lecturer.id, bauSong?.id ?? null, HOME_CLASS_ASSIGNMENTS);
+    await SeedRunner.seedTodaySubmissions(runningClass.id, tranhSong?.id ?? null);
+    await SeedRunner.seedTodaySubmissions(secondRunningClass.id, bauSong?.id ?? null);
+
+    console.log(`Seeded: 3 users (admin/lecturers), ${students.length} students, ${instruments.length} instruments, 4 classes, library pieces, roadmaps v1 for ${ROADMAP_INSTRUMENTS.join(', ')}, TRD301 / TRD302 assignments with submissions (incl. today's).`);
     console.log(`Lecturer #1 login email: ${lecturer.email}`);
   }
 }
