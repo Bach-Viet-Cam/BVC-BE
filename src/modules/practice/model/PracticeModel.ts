@@ -15,6 +15,15 @@ export default class PracticeModel {
     assignment: { select: { type: true } }
   } satisfies Prisma.SubmissionSelect;
 
+  static readonly dashboardSelect = {
+    assignmentId: true,
+    status: true,
+    practiceMode: true,
+    accuracy: true,
+    createdAt: true,
+    assignment: { select: { title: true, deletedAt: true } }
+  } satisfies Prisma.SubmissionSelect;
+
   // Same boundaries as the FE chips: >90, 70–90, 50–<70, <50. NULL accuracy (not analyzed) never matches.
   static readonly accuracyRangeWhere = Object.freeze({
     ABOVE_90: { accuracy: { gt: 90 } },

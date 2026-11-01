@@ -35,6 +35,9 @@ export default class PracticeConstant {
   // Record screen tempo when the sheet is not assigned to the student's class or the assignment has no target BPM
   static readonly defaultTargetBpm = 60;
 
+  // Student home dashboard: days in the activity chart and analysed submissions in each progress line
+  static readonly dashboard = Object.freeze({ RECENT_DAYS: 7, TREND_POINTS: 10 });
+
   // M01 results screen
   static readonly resultHistoryLimit = 10;
   // GBR-53: the class rank card needs enough classmates to stay anonymous

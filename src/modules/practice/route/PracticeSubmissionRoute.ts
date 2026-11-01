@@ -16,6 +16,8 @@ import PracticeFileService from '../service/PracticeFileService.ts';
 import PracticeResultService from '../service/PracticeResultService.ts';
 import PracticeSettingsService from '../service/PracticeSettingsService.ts';
 import PracticeSubmissionService from '../service/PracticeSubmissionService.ts';
+import StudentDashboardController from '../controller/StudentDashboardController.ts';
+import StudentDashboardService from '../service/StudentDashboardService.ts';
 import SubmissionHistoryService from '../service/SubmissionHistoryService.ts';
 import SubmissionProgressService from '../service/SubmissionProgressService.ts';
 import PracticeValidation from '../validation/PracticeValidation.ts';
@@ -40,6 +42,7 @@ export default class PracticeSubmissionRoute {
     );
     const results = new PracticeResultController(new PracticeResultService());
     const settings = new PracticeSettingsController(new PracticeSettingsService(repository));
+    const dashboard = new StudentDashboardController(new StudentDashboardService(repository));
     const student = requireRoles(AuthConstant.roles.STUDENT);
     const validation = new PracticeValidation();
     const wrap = AsyncHandler.wrap;
@@ -50,6 +53,8 @@ export default class PracticeSubmissionRoute {
     // Record screen: tempo to practise at (assignment BPM or the default) and the instrument's string tunings
     router.get('/practice/target-bpm', validateRequest(validation.contextSchema), auth, student, wrap(settings.getTargetBpm));
     router.get('/practice/sheets/:sheetMusicId/tunes', validateRequest(validation.sheetParamsSchema), auth, student, wrap(settings.getTunes));
+    // Student home: today's activity and progress
+    router.get('/practice/dashboard', validateRequest(validation.emptySchema), auth, student, wrap(dashboard.get));
     router.post('/practice/submissions', validateRequest(validation.createSchema), auth, wrap(controller.create));
     // SCR-01 history; registered before '/:id' so "piece-options" is not read as a submission id
     router.get('/practice/submissions', validateRequest(validation.historySchema), auth, student, wrap(controller.listHistory));

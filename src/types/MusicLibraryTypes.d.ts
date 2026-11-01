@@ -66,6 +66,7 @@ declare namespace MusicLibrary {
     sort: LibrarySort;
   }
   interface SavedQuery extends Pagination { type: SavedTargetType; }
+  interface TrendingCount { pieceId: string; submissionCount: number; }
   interface AnalysisCallbackInput {
     jobId?: string;
     status: 'READY' | 'ERROR';

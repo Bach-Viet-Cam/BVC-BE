@@ -125,6 +125,8 @@ export default class MusicLibraryValidation {
     }))
   });
 
+  static readonly trendingSchema = z.object({ body: z.unknown(), params: emptyObject, query: emptyObject });
+
   static readonly idSchema = MusicLibraryValidation.pieceIdSchema;
 
   // ----- Saved items -----

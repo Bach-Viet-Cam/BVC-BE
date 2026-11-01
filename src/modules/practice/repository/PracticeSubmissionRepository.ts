@@ -110,6 +110,13 @@ export default class PracticeSubmissionRepository {
     return Object.fromEntries(groups.map((group) => [group.status, group._count._all]));
   }
 
+  // Student home dashboard: every submission of the student, oldest first
+  async findDashboardRows(studentId: string): Promise<Practice.DashboardRecord[]> {
+    return this.client.submission.findMany({
+      where: { studentId }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: PracticeModel.dashboardSelect
+    });
+  }
+
   // Pieces the student has submitted to, for the history piece filter
   async findSubmittedPieces(studentId: string): Promise<Practice.HistoryPieceOptionDTO[]> {
     return this.client.piece.findMany({

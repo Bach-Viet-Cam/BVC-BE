@@ -140,6 +140,26 @@ describe('UC-07 / UC-08 Thư viện công khai', () => {
     expect(fallbackDetail.body.data.defaultInstrumentId).toBe(instruments.DAN_TRANH);
   });
 
+  it('top bài hot: xếp theo số lượt nộp trong tuần này, bỏ lượt nộp tuần trước và bài đã ẩn', async () => {
+    const student = await TestContext.createUser('STUDENT', 'sv-hot@test.local');
+    const { piece: quiet } = await TestContext.createPublishedPiece(lecturer, { title: 'Ít nộp' });
+    const { piece: hot } = await TestContext.createPublishedPiece(lecturer, { title: 'Nhiều nộp' });
+    const { piece: hidden } = await TestContext.createPublishedPiece(lecturer, { title: 'Đã ẩn' });
+    const lastWeek = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000);
+    const submissions = [
+      { pieceId: quiet.id }, { pieceId: quiet.id, createdAt: lastWeek }, { pieceId: quiet.id, createdAt: lastWeek },
+      { pieceId: hot.id }, { pieceId: hot.id }, { pieceId: hidden.id }, { pieceId: hidden.id }, { pieceId: hidden.id }
+    ];
+    await TestContext.prisma.submission.createMany({ data: submissions.map((submission) => ({ ...submission, studentId: student.id })) });
+    await request(app).patch(`${api}/lecturer/pieces/${hidden.id}/visibility`).set(TestContext.auth(lecturer)).send({ visibility: 'HIDDEN' });
+
+    const trending = await request(app).get(`${api}/library/pieces/trending`);
+    expect(trending.status).toBe(200);
+    expect(trending.body.data.items.map((item: { title: string; weeklySubmissionCount: number }) => [item.title, item.weeklySubmissionCount]))
+      .toEqual([['Nhiều nộp', 2], ['Ít nộp', 1]]);
+    expect(trending.body.data.items[0]).toMatchObject({ instrumentCount: 1, isSaved: false });
+  });
+
   it('thư viện trống → MSG-06; bộ lọc trả về danh mục và nhạc cụ đang hoạt động', async () => {
     const empty = await request(app).get(`${api}/library/pieces`).query({ q: 'abc' });
     expect(empty.body.data.emptyState).toEqual({ code: 'MSG-06', message: 'Thư viện chưa có bài hát.' });

@@ -146,6 +146,26 @@ export default class PieceRepository {
     });
   }
 
+  static async findVisibleByIds(pieceIds: string[]): Promise<MusicLibrary.LibraryPieceRecord[]> {
+    if (pieceIds.length === 0) return [];
+    return PieceRepository.client.piece.findMany({
+      where: { id: { in: pieceIds }, ...MusicLibraryModel.visiblePieceWhere },
+      select: MusicLibraryModel.libraryPieceSelect
+    });
+  }
+
+  // Visible pieces ranked by submissions received since the given instant; id breaks ties
+  static async findTrendingCounts(since: Date, limit: number): Promise<MusicLibrary.TrendingCount[]> {
+    const groups = await PieceRepository.client.submission.groupBy({
+      by: ['pieceId'],
+      where: { createdAt: { gte: since }, piece: MusicLibraryModel.visiblePieceWhere },
+      _count: { pieceId: true },
+      orderBy: [{ _count: { pieceId: 'desc' } }, { pieceId: 'asc' }],
+      take: limit
+    });
+    return groups.map((group) => ({ pieceId: group.pieceId, submissionCount: group._count.pieceId }));
+  }
+
   // R-05: instruments that have at least one visible sheet, per piece
   static async findVisibleInstrumentPairs(pieceIds: string[]): Promise<{ pieceId: string; instrumentId: string }[]> {
     if (pieceIds.length === 0) return [];

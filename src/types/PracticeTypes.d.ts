@@ -220,6 +220,59 @@ declare namespace Practice {
 
   interface HistoryPieceOptionDTO { id: string; title: string; }
 
+  // Student home dashboard ----------------------------------------------------------------------------
+
+  interface DashboardRecord {
+    assignmentId: string | null;
+    status: SubmissionStatus;
+    practiceMode: PracticeMode;
+    accuracy: number | null;
+    createdAt: Date;
+    assignment: { title: string; deletedAt: Date | null } | null;
+  }
+
+  // Only analysed submissions (COMPLETED with an accuracy) count toward accuracy figures
+  interface DashboardTodayDTO {
+    submitted: number;
+    completed: number;
+    bestAccuracy: number | null;
+    averageAccuracy: number | null;
+  }
+
+  // date is a yyyy-MM-dd Vietnam calendar day
+  interface DashboardDayDTO { date: string; submitted: number; averageAccuracy: number | null; }
+
+  interface DashboardAssignmentDTO {
+    assignmentId: string;
+    title: string;
+    submissionCount: number;
+    firstAccuracy: number | null;
+    latestAccuracy: number | null;
+    // latest minus first analysed accuracy; null with fewer than two analysed submissions
+    deltaPercent: number | null;
+  }
+
+  interface DashboardPointDTO { accuracy: number; submittedAt: string; }
+
+  interface DashboardModeDTO {
+    completed: number;
+    // Most recent analysed submissions, oldest first
+    points: DashboardPointDTO[];
+    latestAccuracy: number | null;
+    averageAccuracy: number | null;
+    deltaPercent: number | null;
+  }
+
+  interface DashboardDTO {
+    totalSubmissions: number;
+    today: DashboardTodayDTO;
+    recentDays: DashboardDayDTO[];
+    mostSubmittedAssignment: DashboardAssignmentDTO | null;
+    mostImprovedAssignment: DashboardAssignmentDTO | null;
+    solo: DashboardModeDTO;
+    ensemble: DashboardModeDTO;
+  }
+
   // Record screen settings ----------------------------------------------------------------------------
 
   // ASSIGNMENT: the class assignment of this sheet sets the tempo; DEFAULT: fallback (no class, not assigned, no BPM)
