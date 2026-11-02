@@ -34,4 +34,49 @@ export default class SeedAudioService {
     mkdirSync(path.dirname(filePath), { recursive: true });
     writeFileSync(filePath, audio);
   }
+
+  static writePercussion(filePath: string, bpm: number, durationSec: number): void {
+    const sampleRate = SeedAudioService.sampleRate;
+    const sampleCount = Math.floor(durationSec * sampleRate);
+    const dataSize = sampleCount * SeedAudioService.bytesPerSample;
+    const audio = Buffer.alloc(SeedAudioService.headerSize + dataSize);
+
+    audio.write('RIFF', 0);
+    audio.writeUInt32LE(36 + dataSize, 4);
+    audio.write('WAVE', 8);
+    audio.write('fmt ', 12);
+    audio.writeUInt32LE(16, 16);
+    audio.writeUInt16LE(1, 20);
+    audio.writeUInt16LE(1, 22);
+    audio.writeUInt32LE(sampleRate, 24);
+    audio.writeUInt32LE(sampleRate * SeedAudioService.bytesPerSample, 28);
+    audio.writeUInt16LE(SeedAudioService.bytesPerSample, 32);
+    audio.writeUInt16LE(16, 34);
+    audio.write('data', 36);
+    audio.writeUInt32LE(dataSize, 40);
+
+    const beatIntervalSamples = Math.floor((60 / bpm) * sampleRate);
+    for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
+      const beatIndex = Math.floor(sampleIndex / beatIntervalSamples);
+      const sampleInBeat = sampleIndex % beatIntervalSamples;
+      const isDownbeat = beatIndex % 4 === 0;
+      const freq = isDownbeat ? 480 : 880;
+      const decayTime = isDownbeat ? 0.08 : 0.04;
+      const decaySamples = decayTime * sampleRate;
+
+      let sample = 0;
+      if (sampleInBeat < decaySamples) {
+        const t = sampleInBeat / sampleRate;
+        const env = Math.exp(-sampleInBeat / (decaySamples * 0.3));
+        const tone = Math.sin(2 * Math.PI * freq * t);
+        const noise = (Math.random() * 2 - 1) * 0.25;
+        sample = (tone + noise) * env * (isDownbeat ? 0.85 : 0.5);
+      }
+      const amplitude = Math.round(Math.max(-1, Math.min(1, sample)) * 32767);
+      audio.writeInt16LE(amplitude, SeedAudioService.headerSize + sampleIndex * SeedAudioService.bytesPerSample);
+    }
+
+    mkdirSync(path.dirname(filePath), { recursive: true });
+    writeFileSync(filePath, audio);
+  }
 }
