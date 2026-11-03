@@ -1,5 +1,6 @@
 import MessageConstant from '../../../constants/MessageConstant.ts';
 import AppError from '../../../utils/AppError.ts';
+import DateTimeUtil from '../../../utils/DateTimeUtil.ts';
 import MusicLibraryConstant from '../constant/MusicLibraryConstant.ts';
 import MusicLibraryDTO from '../dto/MusicLibraryDTO.ts';
 import PieceRepository from '../repository/PieceRepository.ts';
@@ -49,6 +50,26 @@ export default class LibraryService {
       savedPieceIds.has(piece.id)
     )));
     return { ...MusicLibraryDTO.toPaginated(pieceCards, total, query), emptyState: await LibraryService.buildEmptyState(query, total) };
+  }
+
+  // Library banner: this week's most submitted pieces (Monday 00:00 UTC+7 until now), most submissions first
+  static async listTrendingPieces(viewer: LibraryViewer, now: Date = new Date()) {
+    const weekStart = DateTimeUtil.startOfWeekInVietnam(DateTimeUtil.todayInVietnam(now));
+    const counts = await PieceRepository.findTrendingCounts(DateTimeUtil.startOfDayInVietnam(weekStart), MusicLibraryConstant.trendingLimit);
+    const pieceIds = counts.map(({ pieceId }) => pieceId);
+    const [pieces, instrumentPairs, savedPieceIds] = await Promise.all([
+      PieceRepository.findVisibleByIds(pieceIds),
+      PieceRepository.findVisibleInstrumentPairs(pieceIds),
+      LibraryService.findSavedIds(viewer, 'PIECE', pieceIds)
+    ]);
+    const items = await Promise.all(counts.flatMap(({ pieceId, submissionCount }) => {
+      const piece = pieces.find(({ id }) => id === pieceId);
+      if (!piece) return [];
+      const instrumentCount = instrumentPairs.filter((instrumentPair) => instrumentPair.pieceId === pieceId).length;
+      return [MusicLibraryDTO.toLibraryPieceCard(piece, instrumentCount, savedPieceIds.has(pieceId))
+        .then((card) => ({ ...card, description: piece.description, weeklySubmissionCount: submissionCount }))];
+    }));
+    return { weekStart, items };
   }
 
   static async buildMainCard(mainSheetMusic: MusicLibrary.SheetMusicRecord | undefined, savedSheetIds: Set<string>) {

@@ -25,66 +25,15 @@ const prisma = PrismaClientProvider.instance;
 
 export default class DatabaseSeeder {
   static readonly instruments = [
-    { code: 'DAN_TRANH', name: 'Đàn Tranh', fminHz: 98, fmaxHz: 1568, toleranceCents: 30, description: 'Đàn 16 dây gảy bằng móng.' },
-    { code: 'DAN_BAU', name: 'Đàn Bầu', fminHz: 65, fmaxHz: 1047, toleranceCents: 35, description: 'Đàn một dây, kỹ thuật bồi âm.' },
-    { code: 'SAO_TRUC', name: 'Sáo Trúc', fminHz: 261, fmaxHz: 2093, toleranceCents: 30, description: 'Sáo ngang làm từ ống trúc.' },
-    { code: 'TY_BA', name: 'Tỳ Bà', fminHz: 110, fmaxHz: 1760, toleranceCents: 30, description: 'Đàn 4 dây hình quả lê.' },
-    { code: 'DAN_NHI', name: 'Đàn Nhị', fminHz: 196, fmaxHz: 1568, toleranceCents: 30, description: 'Đàn 2 dây kéo bằng cung.' },
-    { code: 'DAN_NGUYET', name: 'Đàn Nguyệt', fminHz: 130, fmaxHz: 1047, toleranceCents: 30, description: 'Đàn 2 dây, thân tròn như mặt trăng.' }
+    { code: 'DTR', name: 'Đàn tranh', fminHz: 98, fmaxHz: 1568, toleranceCents: 30, description: 'Đàn 16 dây gảy bằng móng.' },
+    { code: 'DBA', name: 'Đàn bầu', fminHz: 65, fmaxHz: 1047, toleranceCents: 35, description: 'Đàn một dây, kỹ thuật bồi âm.' },
+    { code: 'DSA', name: 'Sáo trúc', fminHz: 261, fmaxHz: 2093, toleranceCents: 30, description: 'Sáo ngang làm từ ống trúc.' },
+    { code: 'DTB', name: 'Tỳ bà', fminHz: 110, fmaxHz: 1760, toleranceCents: 30, description: 'Đàn 4 dây hình quả lê.' },
+    { code: 'DNH', name: 'Đàn nhị', fminHz: 293, fmaxHz: 1760, toleranceCents: 35, description: 'Đàn hai dây kéo bằng cung vĩ.' }
   ];
 
-  // Default tunes (Hz, A4 = 440) per instrument code. Seeded only when the instrument has no tunes yet, so admin edits are kept.
-  // Default tunes (Hz, A4 = 440) per instrument code, named by note as used in Vietnamese traditional music.
-  // Seeded only when the instrument has no tunes yet, so admin edits are kept.
-  static readonly instrumentTunes: Record<string, Array<{ tuneName: string; pitch: number }>> = {
-    DAN_BAU: [
-      { tuneName: 'Dây (Đô3)', pitch: 130.81 },
-      { tuneName: 'Bồi âm (Đô4)', pitch: 261.63 },
-      { tuneName: 'Bồi âm (Sol4)', pitch: 392.0 },
-      { tuneName: 'Bồi âm (Đô5)', pitch: 523.25 },
-      { tuneName: 'Bồi âm (Mi5)', pitch: 659.26 }
-    ],
-    DAN_TRANH: [
-      { tuneName: 'Dây 1 (Sol2)', pitch: 98.0 },
-      { tuneName: 'Dây 2 (La2)', pitch: 110.0 },
-      { tuneName: 'Dây 3 (Đô3)', pitch: 130.81 },
-      { tuneName: 'Dây 4 (Rê3)', pitch: 146.83 },
-      { tuneName: 'Dây 5 (Mi3)', pitch: 164.81 },
-      { tuneName: 'Dây 6 (Sol3)', pitch: 196.0 },
-      { tuneName: 'Dây 7 (La3)', pitch: 220.0 },
-      { tuneName: 'Dây 8 (Đô4)', pitch: 261.63 },
-      { tuneName: 'Dây 9 (Rê4)', pitch: 293.66 },
-      { tuneName: 'Dây 10 (Mi4)', pitch: 329.63 },
-      { tuneName: 'Dây 11 (Sol4)', pitch: 392.0 },
-      { tuneName: 'Dây 12 (La4)', pitch: 440.0 },
-      { tuneName: 'Dây 13 (Đô5)', pitch: 523.25 },
-      { tuneName: 'Dây 14 (Rê5)', pitch: 587.33 },
-      { tuneName: 'Dây 15 (Mi5)', pitch: 659.26 },
-      { tuneName: 'Dây 16 (Sol5)', pitch: 783.99 }
-    ],
-    DAN_NHI: [
-      { tuneName: 'Dây trong (Sol4)', pitch: 392.0 },
-      { tuneName: 'Dây ngoài (Rê4)', pitch: 293.66 }
-    ],
-    DAN_NGUYET: [
-      { tuneName: 'Dây trên (Đô3 - thấp)', pitch: 130.81 },
-      { tuneName: 'Dây cao (Sol3 - cao)', pitch: 196.0 }
-    ],
-    TY_BA: [
-      { tuneName: 'Dây 1 (Đô3)', pitch: 130.81 },
-      { tuneName: 'Dây 2 (Mi3)', pitch: 164.81 },
-      { tuneName: 'Dây 3 (Sol3)', pitch: 196.0 },
-      { tuneName: 'Dây 4 (Đô4)', pitch: 261.63 }
-    ],
-    SAO_TRUC: [
-      { tuneName: 'Lỗ 1 (Rê5)', pitch: 587.33 },
-      { tuneName: 'Lỗ 2 (Mi5)', pitch: 659.26 },
-      { tuneName: 'Lỗ 3 (Fa#5)', pitch: 739.99 },
-      { tuneName: 'Lỗ 4 (Sol5)', pitch: 783.99 },
-      { tuneName: 'Lỗ 5 (La5)', pitch: 880.0 },
-      { tuneName: 'Lỗ 6 (Si5)', pitch: 987.77 }
-    ]
-  };
+  // Codes used before the short form; renamed in place so re-seeding an existing DB does not duplicate instruments.
+  static readonly legacyInstrumentCodes: Record<string, string> = { DAN_TRANH: 'DTR', DAN_BAU: 'DBA', SAO_TRUC: 'DSA', TY_BA: 'DTB' };
 
   static readonly genres = ['Dân ca Bắc Bộ', 'Dân ca Trung Bộ', 'Dân ca Nam Bộ', 'Nhạc tài tử', 'Nhạc cung đình', 'Nhạc mới'];
   static readonly levels = ['Cơ bản', 'Trung cấp', 'Nâng cao'];
@@ -136,46 +85,46 @@ export default class DatabaseSeeder {
       title: 'Lý ngựa ô', composer: 'Dân gian', genre: 'Dân ca Nam Bộ', isPublic: true, hasCover: true,
       description: 'Làn điệu dân ca Nam Bộ vui tươi, phù hợp làm bài nhập môn.',
       sheets: [
-        { instrument: 'DAN_TRANH', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 12 },
-        { instrument: 'DAN_TRANH', kind: 'LEVEL', name: 'Đàn tranh – đơn giản', level: 'Cơ bản' },
-        { instrument: 'DAN_TRANH', kind: 'LEVEL', name: 'Đàn tranh – luyến láy', level: 'Nâng cao', audioSec: 10 },
-        { instrument: 'SAO_TRUC', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Trung cấp', audioSec: 11 }
+        { instrument: 'DTR', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 12 },
+        { instrument: 'DTR', kind: 'LEVEL', name: 'Đàn tranh – đơn giản', level: 'Cơ bản' },
+        { instrument: 'DTR', kind: 'LEVEL', name: 'Đàn tranh – luyến láy', level: 'Nâng cao', audioSec: 10 },
+        { instrument: 'DSA', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Trung cấp', audioSec: 11 }
       ]
     },
     {
       title: 'Trống cơm', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', isPublic: true,
       description: 'Dân ca quan họ Bắc Ninh với tiết tấu rộn ràng.',
       sheets: [
-        { instrument: 'DAN_BAU', kind: 'MAIN', name: 'Đàn bầu – bản gốc', level: 'Cơ bản', audioSec: 9 },
-        { instrument: 'SAO_TRUC', kind: 'LEVEL', name: 'Sáo trúc – nhập môn', level: 'Cơ bản' }
+        { instrument: 'DBA', kind: 'MAIN', name: 'Đàn bầu – bản gốc', level: 'Cơ bản', audioSec: 9 },
+        { instrument: 'DSA', kind: 'LEVEL', name: 'Sáo trúc – nhập môn', level: 'Cơ bản' }
       ]
     },
     {
       title: 'Bèo dạt mây trôi', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', isPublic: true, hasCover: true,
       description: 'Bài dân ca trữ tình, giai điệu chậm, nhiều luyến láy.',
       sheets: [
-        { instrument: 'DAN_BAU', kind: 'MAIN', name: 'Đàn bầu – bản gốc', level: 'Trung cấp', audioSec: 14 },
-        { instrument: 'DAN_TRANH', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 13 },
-        { instrument: 'DAN_TRANH', kind: 'LEVEL', name: 'Đàn tranh – rút gọn', level: 'Cơ bản' }
+        { instrument: 'DBA', kind: 'MAIN', name: 'Đàn bầu – bản gốc', level: 'Trung cấp', audioSec: 14 },
+        { instrument: 'DTR', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 13 },
+        { instrument: 'DTR', kind: 'LEVEL', name: 'Đàn tranh – rút gọn', level: 'Cơ bản' }
       ]
     },
     {
       title: 'Lưu thủy kim tiền', composer: 'Dân gian', genre: 'Nhạc tài tử', isPublic: true,
       description: 'Bài bản nhạc tài tử Nam Bộ.',
       sheets: [
-        { instrument: 'TY_BA', kind: 'MAIN', name: 'Tỳ bà – bản gốc', level: 'Nâng cao', audioSec: 15 },
-        { instrument: 'DAN_TRANH', kind: 'LEVEL', name: 'Đàn tranh – luyện tập', level: 'Trung cấp', isHidden: true }
+        { instrument: 'DTB', kind: 'MAIN', name: 'Tỳ bà – bản gốc', level: 'Nâng cao', audioSec: 15 },
+        { instrument: 'DTR', kind: 'LEVEL', name: 'Đàn tranh – luyện tập', level: 'Trung cấp', isHidden: true }
       ]
     },
     {
       title: 'Dạ cổ hoài lang', composer: 'Cao Văn Lầu', genre: 'Nhạc tài tử', isPublic: true,
       description: 'Bản nhạc tiền thân của điệu vọng cổ.',
-      sheets: [{ instrument: 'DAN_TRANH', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 16 }]
+      sheets: [{ instrument: 'DTR', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 16 }]
     },
     {
       title: 'Lý chiều chiều', composer: 'Dân gian', genre: 'Dân ca Trung Bộ', isPublic: true,
       description: 'Dân ca Thừa Thiên Huế.',
-      sheets: [{ instrument: 'SAO_TRUC', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Cơ bản', audioSec: 8 }]
+      sheets: [{ instrument: 'DSA', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Cơ bản', audioSec: 8 }]
     },
     {
       title: 'Lý cây bông', composer: 'Dân gian', genre: 'Dân ca Nam Bộ', isPublic: true,
@@ -185,17 +134,21 @@ export default class DatabaseSeeder {
     {
       title: 'Xuân và tuổi trẻ', composer: 'La Hối', genre: 'Nhạc mới', isPublic: false,
       description: 'Bài hát đang soạn, chưa công khai.',
-      sheets: [{ instrument: 'DAN_TRANH', kind: 'MAIN', name: 'Đàn tranh – bản nháp', level: 'Trung cấp' }]
+      sheets: [{ instrument: 'DTR', kind: 'MAIN', name: 'Đàn tranh – bản nháp', level: 'Trung cấp' }]
     },
     {
       title: 'Hò kéo pháo', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', isPublic: true,
       description: 'Bài bị admin ẩn – dùng để thử luồng kiểm duyệt và thông báo cho giảng viên.',
       adminHiddenReason: 'Bản thu mẫu đang được kiểm tra bản quyền.',
-      sheets: [{ instrument: 'SAO_TRUC', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Trung cấp', audioSec: 10 }]
+      sheets: [{ instrument: 'DSA', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Trung cấp', audioSec: 10 }]
     }
   ];
 
   static async seedCatalog(): Promise<void> {
+    for (const [legacyCode, code] of Object.entries(DatabaseSeeder.legacyInstrumentCodes)) {
+      if (await prisma.instrument.findUnique({ where: { code } })) continue;
+      await prisma.instrument.updateMany({ where: { code: legacyCode }, data: { code } });
+    }
     for (const instrument of DatabaseSeeder.instruments) {
       const record = await prisma.instrument.upsert({ where: { code: instrument.code }, update: {}, create: instrument });
       const tunes = DatabaseSeeder.instrumentTunes[instrument.code] ?? [];

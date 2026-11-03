@@ -9,6 +9,10 @@ export default class LibraryController {
     return ApiResponse.sendSuccessResponse(response, { data: await LibraryService.listPieces(request.auth?.user, query) });
   }
 
+  static async listTrendingPieces(request: Request, response: Response): Promise<Response> {
+    return ApiResponse.sendSuccessResponse(response, { data: await LibraryService.listTrendingPieces(request.auth?.user) });
+  }
+
   static async getPiece(request: Request, response: Response): Promise<Response> {
     const { id } = request.validated!.params as { id: string };
     return ApiResponse.sendSuccessResponse(response, { data: await LibraryService.getPieceDetail(request.auth?.user, id) });

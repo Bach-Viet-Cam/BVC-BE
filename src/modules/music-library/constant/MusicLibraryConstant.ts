@@ -8,6 +8,9 @@ export default class MusicLibraryConstant {
 
   static readonly pageSizes = Object.freeze({ LECTURER_PIECES: 20, LIBRARY_PIECES: 12, SAVED_ITEMS: 20, MAX: 100 });
 
+  // Library banner: visible pieces with the most submissions since Monday (Vietnam time) of the current week
+  static readonly trendingLimit = 5;
+
   static readonly fieldLimits = Object.freeze({
     SEARCH: 100,
     PIECE_TITLE: 200,

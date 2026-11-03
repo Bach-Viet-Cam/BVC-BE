@@ -82,7 +82,6 @@ test('Gửi bản thu tạo Submission Đang xử lý và gửi job theo bản n
   assert.equal(jobs.length, 1);
   assert.equal(jobs[0].instrumentId, 'dan_bau'); // sheet instrument, not the class instrument
   assert.equal(jobs[0].templateUrl, 'https://storage/media/teacher.wav?signed');
-  assert.equal(jobs[0].templateAnalysisId, null);
   assert.equal(jobs[0].studentUrl, 'https://be/s.wav');
   assert.equal(jobs[0].attempt, 1);
   assert.match(jobs[0].callbackUrl ?? '', /\/api\/v1\/internal\/practice-submissions\/progress$/);

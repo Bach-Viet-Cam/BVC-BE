@@ -64,7 +64,9 @@ export default class MusicLibraryRoute {
     const optionalUser = wrap(attachOptionalUser);
     libraryRouter.get('/filters', wrap(LibraryController.getFilters));
     libraryRouter.get('/pieces', validateRequest(MusicLibraryValidation.libraryPieceListSchema), optionalUser, wrap(LibraryController.listPieces));
-    libraryRouter.get('/pieces/:id', validateRequest(MusicLibraryValidation.idSchema), optionalUser, wrap(LibraryController.getPiece));
+    // Registered before '/pieces/:id' so "trending" is not read as a piece id
+    libraryRouter.get('/pieces/trending', validateRequest(MusicLibraryValidation.trendingSchema), optionalUser, wrap(LibraryController.listTrendingPieces));
+    libraryRouter.get('/pieces/:id',validateRequest(MusicLibraryValidation.idSchema), optionalUser, wrap(LibraryController.getPiece));
     libraryRouter.get('/sheet-music/:id', validateRequest(MusicLibraryValidation.idSchema), optionalUser, wrap(LibraryController.getSheetMusic));
     return libraryRouter;
   }
