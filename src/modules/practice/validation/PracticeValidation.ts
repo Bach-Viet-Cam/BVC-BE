@@ -73,7 +73,14 @@ export default class PracticeValidation {
     })
   });
 
-  readonly emptySchema = z.object({ body: z.unknown(), params: z.object({}), query: z.object({}) });
+  readonly compareSchema = z.object({
+    body: z.unknown(), params: z.object({}),
+    query: z.object({ a: z.uuid(), b: z.uuid() }).superRefine((query, context) => {
+      if (query.a === query.b) context.addIssue({ code: 'custom', path: ['b'], message: messages.COMPARE_SAME_SUBMISSION });
+    })
+  });
+
+  readonly emptySchema =z.object({ body: z.unknown(), params: z.object({}), query: z.object({}) });
 
   readonly sheetParamsSchema = z.object({ body: z.unknown(), params: z.object({ sheetMusicId: recordId }), query: z.object({}) });
 

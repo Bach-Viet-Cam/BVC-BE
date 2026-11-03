@@ -48,6 +48,8 @@ export default class PracticeConstant {
   // Tempo score loses this many points per percent of tempo deviation
   static readonly tempoScorePenaltyPerPercent = 2;
   static readonly pitchChart = Object.freeze({ MAX_POINTS: 600, TIME_MAP_POINTS: 100, MIN_VOICED_RATIO: 0.5 });
+  // UC-04: two error segments match when they overlap by this share of the shorter one; segments closer than the gap are merged
+  static readonly compare = Object.freeze({ MIN_OVERLAP_RATIO: 0.5, MIN_SEGMENT_SEC: 0.1, MERGE_GAP_SEC: 0.1 });
   // Rhythm returns this text when Gemini is unavailable (app/feedback/gemini_feedback.py FALLBACK_FEEDBACK)
   static readonly fallbackFeedback = 'Chưa thể tạo nhận xét AI lúc này. Bạn vẫn có thể xem các chỉ số phân tích để tiếp tục luyện tập.';
   static readonly issueLabels = Object.freeze({
@@ -86,6 +88,8 @@ export default class PracticeConstant {
     SEGMENT_INVALID: 'Đoạn luyện tập không hợp lệ.',
     SEGMENT_FAILED: 'Phân tích đoạn luyện tập thất bại. Kết quả cũ vẫn được giữ nguyên.',
     SEGMENT_NOT_FOUND: 'Không tìm thấy lượt luyện đoạn.',
-    PITCH_UNAVAILABLE: 'Chưa có dữ liệu cao độ để hiển thị biểu đồ so sánh.' // MSG-26
+    PITCH_UNAVAILABLE: 'Chưa có dữ liệu cao độ để hiển thị biểu đồ so sánh.', // MSG-26
+    COMPARE_SAME_SUBMISSION: 'Vui lòng chọn 2 bài nộp khác nhau để so sánh.', // MSG-25
+    COMPARE_DIFFERENT_SHEET: 'Chỉ so sánh được hai bài nộp của cùng một bản nhạc.'
   });
 }

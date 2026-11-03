@@ -210,6 +210,8 @@ declare namespace Practice {
     processing: number;
     rejected: number;
     failed: number;
+    // True when some sheet has at least two completed submissions, so the compare mode is worth showing
+    canCompare: boolean;
   }
 
   interface HistoryDTO {
@@ -515,4 +517,36 @@ declare namespace Practice {
   }
 
   interface SegmentPageDTO { items: SegmentSummaryDTO[]; nextCursor: string | null; }
+
+  // UC-04 compare submissions -------------------------------------------------------------------------
+
+  // IMPROVED: the older submission's error is gone; REPEATED: it is still there; NEW: only the newer submission has it
+  type CompareSegmentStatus = 'IMPROVED' | 'REPEATED' | 'NEW';
+
+  interface CompareSegmentDTO {
+    id: string;
+    kind: IssueKind;
+    status: CompareSegmentStatus;
+    startSec: number;
+    endSec: number;
+    olderLabel: string | null;
+    newerLabel: string | null;
+  }
+
+  // [timeSec, teacherHz, olderHz, newerHz]; null = unvoiced at that point
+  type ComparePitchPoint = [number, number | null, number | null, number | null];
+
+  interface CompareChartDTO { durationSec: number; minHz: number; maxHz: number; points: ComparePitchPoint[]; }
+
+  interface CompareSideDTO { submissionId: string; submittedAt: string; attemptNo: number; accuracy: number; }
+
+  interface SubmissionCompareDTO {
+    piece: { id: string; title: string };
+    sheetMusic: { id: string; name: string };
+    older: CompareSideDTO;
+    newer: CompareSideDTO;
+    chart: CompareChartDTO;
+    segments: CompareSegmentDTO[];
+    noSegmentsToCompare: boolean;
+  }
 }

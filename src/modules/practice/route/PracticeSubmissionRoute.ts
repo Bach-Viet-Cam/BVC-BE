@@ -15,6 +15,8 @@ import PracticeResultService from '../service/PracticeResultService.ts';
 import PracticeSettingsService from '../service/PracticeSettingsService.ts';
 import PracticeSubmissionService from '../service/PracticeSubmissionService.ts';
 import StudentDashboardController from '../controller/StudentDashboardController.ts';
+import SubmissionCompareController from '../controller/SubmissionCompareController.ts';
+import SubmissionCompareService from '../service/SubmissionCompareService.ts';
 import StudentDashboardService from '../service/StudentDashboardService.ts';
 import SubmissionHistoryService from '../service/SubmissionHistoryService.ts';
 import SubmissionProgressService from '../service/SubmissionProgressService.ts';
@@ -28,6 +30,7 @@ export default class PracticeSubmissionRoute {
       new PracticeSubmissionService({ repository, progress }), progress, new PracticeContextService(repository), new SubmissionHistoryService(repository)
     );
     const results = new PracticeResultController(new PracticeResultService());
+    const compare = new SubmissionCompareController(new SubmissionCompareService());
     const settings = new PracticeSettingsController(new PracticeSettingsService(repository));
     const dashboard = new StudentDashboardController(new StudentDashboardService(repository));
     const student = requireRoles(AuthConstant.roles.STUDENT);
@@ -46,6 +49,8 @@ export default class PracticeSubmissionRoute {
     // SCR-01 history; registered before '/:id' so "piece-options" is not read as a submission id
     router.get('/practice/submissions', validateRequest(validation.historySchema), auth, student, wrap(controller.listHistory));
     router.get('/practice/submissions/piece-options', validateRequest(validation.emptySchema), auth, student, wrap(controller.listHistoryPieces));
+    // UC-04 compare two submissions of one sheet; registered before '/:id' so "compare" is not read as a submission id
+    router.get('/practice/submissions/compare', validateRequest(validation.compareSchema), auth, student, wrap(compare.compare));
     // Registered before '/:id' so "active" is not read as a submission id
     router.get('/practice/submissions/active', validateRequest(validation.activeSchema), auth, wrap(controller.getActive));
     router.get('/practice/submissions/:id', validateRequest(validation.idSchema), auth, wrap(controller.get));

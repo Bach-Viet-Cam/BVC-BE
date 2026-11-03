@@ -14,7 +14,9 @@ const record: Practice.HistoryRecord = {
   accuracy: 88.5, createdAt: new Date('2026-10-22T03:00:00Z'), piece: { title: 'Lý ngựa ô' }, assignment: null
 };
 
-function setup(rows: Practice.HistoryRecord[] = [record], countByStatus: Partial<Record<Practice.SubmissionStatus, number>> = { COMPLETED: 1 }) {
+function setup(
+  rows: Practice.HistoryRecord[] = [record], countByStatus: Partial<Record<Practice.SubmissionStatus, number>> = { COMPLETED: 1 }, canCompare = false
+) {
   const calls: { filter: Practice.HistoryFilter; page: { skip: number; take: number } }[] = [];
   const repository = {
     findHistory: async (_studentId: string, filter: Practice.HistoryFilter, page: { skip: number; take: number }) => {
@@ -22,6 +24,7 @@ function setup(rows: Practice.HistoryRecord[] = [record], countByStatus: Partial
       return { rows, total: rows.length };
     },
     countByStatus: async () => countByStatus,
+    hasComparableSheet: async () => canCompare,
     findSubmittedPieces: async () => [{ id: 'piece-1', title: 'Lý ngựa ô' }]
   } as unknown as PracticeSubmissionRepository;
   return { service: new SubmissionHistoryService(repository), calls };
@@ -35,7 +38,14 @@ test('Lịch sử trả bài nộp kèm tên bài, loại bài, phân trang và 
     status: 'COMPLETED', kind: 'PRACTICE', accuracy: 88.5, submittedAt: '2026-10-22T03:00:00.000Z'
   });
   assert.deepEqual(history.pagination, { page: 1, limit: 20, total: 1 });
-  assert.deepEqual(history.overall, { total: 7, completed: 3, processing: 1, rejected: 1, failed: 2 });
+  assert.deepEqual(history.overall, { total: 7, completed: 3, processing: 1, rejected: 1, failed: 2, canCompare: false });
+});
+
+test('canCompare lấy từ repository: true khi một bản nhạc có từ 2 bài xong, false khi không có', async () => {
+  const comparable = await setup([record], { COMPLETED: 2 }, true).service.list('student', baseQuery);
+  assert.equal(comparable.overall.canCompare, true);
+  const split = await setup([record], { COMPLETED: 2 }, false).service.list('student', baseQuery);
+  assert.equal(split.overall.canCompare, false);
 });
 
 test('Ngày lọc là ngày Việt Nam, tính cả hai đầu; trang 3 bỏ qua 40 bài', async () => {
