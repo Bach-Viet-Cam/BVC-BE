@@ -25,6 +25,7 @@ export default class PracticeSegmentRoute {
     router.post('/practice/submissions/:id/segments', validateRequest(validation.segmentCreateSchema), auth, student, wrap(controller.create));
     router.get('/practice/submissions/:id/segments', validateRequest(validation.segmentListSchema), auth, student, wrap(controller.list));
     router.get('/practice/segments/:segmentId', validateRequest(validation.segmentIdSchema), auth, student, wrap(controller.get));
+    router.get('/practice/segments/:segmentId/pitch-chart', validateRequest(validation.segmentIdSchema), auth, student, wrap(controller.getPitchChart));
     // Rhythm service → backend, authenticated by the shared callback secret
     router.post('/internal/practice-segments/progress', validateRequest(validation.segmentCallbackSchema), requireCallbackSecret, wrap(controller.receiveProgress));
   }

@@ -6,7 +6,9 @@ import PracticeConstant from '../constant/PracticeConstant.ts';
 import PracticeSegmentDTO from '../dto/PracticeSegmentDTO.ts';
 import PracticeSegmentRepository from '../repository/PracticeSegmentRepository.ts';
 import PracticeSubmissionRepository from '../repository/PracticeSubmissionRepository.ts';
+import PracticeResultDTO from '../dto/PracticeResultDTO.ts';
 import EvaluationJobBuilderService from './EvaluationJobBuilderService.ts';
+import PitchChartBuilderService from './PitchChartBuilderService.ts';
 import SegmentProgressService from './SegmentProgressService.ts';
 
 const { messages, errorCodes } = PracticeConstant;
@@ -30,6 +32,7 @@ export default class PracticeSegmentService {
   private readonly jobBuilder: EvaluationJobBuilderService;
   private readonly progress: SegmentProgressService;
   private readonly dto = new PracticeSegmentDTO();
+  private readonly results = new PracticeResultDTO();
 
   constructor(dependencies: PracticeSegmentDependencies = {}) {
     const now = dependencies.now ?? (() => new Date());
@@ -62,6 +65,20 @@ export default class PracticeSegmentService {
     if (!record) throw AppError.notFound(messages.SEGMENT_NOT_FOUND);
     const current = await this.progress.reconcile(record);
     return this.dto.toAttempt(current, current.status === 'COMPLETED' ? await this.repository.findPreviousSameRange(current) : null);
+  }
+
+  // The chart covers only the practised range, drawn from the pitch data Rhythm sent in the result
+  async getPitchChart(studentId: string, segmentId: string): Promise<Practice.PitchChartDTO> {
+    const record = await this.repository.findOwned(segmentId, studentId);
+    if (!record) throw AppError.notFound(messages.SEGMENT_NOT_FOUND);
+    if (record.status !== 'COMPLETED') throw AppError.conflict(messages.RESULT_PROCESSING);
+    try {
+      const pitch = (record.result as { pitch?: Record<string, unknown> } | null)?.pitch;
+      const file = PitchChartBuilderService.parse({ pitch, alignment: { studentFrameByTeacherFrame: pitch?.studentFrameByTeacherFrame } });
+      return PitchChartBuilderService.build(file, this.results.toIssues(this.results.parseAnalysis(record.result)), record.startSec);
+    } catch {
+      throw new AppError(messages.PITCH_UNAVAILABLE, 422);
+    }
   }
 
   // Newest first; one extra row tells whether another page follows

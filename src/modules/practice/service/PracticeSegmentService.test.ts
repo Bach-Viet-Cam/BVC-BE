@@ -166,3 +166,31 @@ test('list trả nextCursor khi còn trang', async () => {
   assert.deepEqual(second.items.map((item) => item.id), ['c']);
   assert.equal(second.nextCursor, null);
 });
+
+// --- pitch chart --------------------------------------------------------------------------------------
+
+function chartSetup(changes: Partial<Practice.SegmentRecord>) {
+  const completed = {
+    ...attempt('seg-1'), status: 'COMPLETED' as const, startSec: 10, endSec: 12, accuracy: 80,
+    result: {
+      overallScore: 80, pitchAccuracyPercent: 80, rhythmAccuracyPercent: 80, aiFeedback: 'x',
+      pitchErrorSegments: [{ startTime: 10.25, endTime: 10.75, averageCentsDifference: 90 }],
+      pitch: { sampleRate: 2, hopLength: 1, teacherF0Hz: [220, 220, null, 330], studentF0Hz: [221, null, 333], studentFrameByTeacherFrame: [0, 0, 1, 2] }
+    },
+    ...changes
+  };
+  return readerSetup([completed]);
+}
+
+test('pitch-chart: dựng từ result.pitch, thời gian tính từ đầu đoạn', async () => {
+  const chart = await chartSetup({}).getPitchChart('student', 'seg-1');
+  assert.deepEqual(chart.points[0], [0, 220, 221]);
+  assert.equal(chart.durationSec, 2);
+  assert.deepEqual(chart.segments.map((segment) => [segment.id, segment.startSec, segment.endSec]), [['p0', 0.25, 0.75]]);
+});
+
+test('pitch-chart: 404 khi không sở hữu, 409 khi đang xử lý, 422 khi thiếu dữ liệu cao độ', async () => {
+  await assert.rejects(chartSetup({}).getPitchChart('other', 'seg-1'), hasStatus(404));
+  await assert.rejects(readerSetup([attempt('seg-1')]).getPitchChart('student', 'seg-1'), hasStatus(409));
+  await assert.rejects(chartSetup({ result: { overallScore: 80, aiFeedback: 'x' } }).getPitchChart('student', 'seg-1'), hasStatus(422));
+});

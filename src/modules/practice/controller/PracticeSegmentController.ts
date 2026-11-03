@@ -18,6 +18,11 @@ export default class PracticeSegmentController {
     return ApiResponse.sendSuccessResponse(response, { data: await this.segments.get(request.auth!.user.userId, params.segmentId) });
   };
 
+  readonly getPitchChart = async (request: Request, response: Response): Promise<Response> => {
+    const { params } = request.validated as { params: { segmentId: string } };
+    return ApiResponse.sendSuccessResponse(response, { data: await this.segments.getPitchChart(request.auth!.user.userId, params.segmentId) });
+  };
+
   readonly list = async (request: Request, response: Response): Promise<Response> => {
     const { params, query } = request.validated as { params: { id: string }; query: { cursor?: string; limit: number } };
     return ApiResponse.sendSuccessResponse(response, { data: await this.segments.list(request.auth!.user.userId, params.id, query) });
