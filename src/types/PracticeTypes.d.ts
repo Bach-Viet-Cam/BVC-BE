@@ -420,4 +420,99 @@ declare namespace Practice {
     analyzedAt: string | null;
     submittedAt: string;
   }
+
+  // UC-03 segment practice ----------------------------------------------------------------------------
+
+  type SegmentRecord = import('@prisma/client').PracticeSegmentAttempt;
+
+  // Original submission a segment is practised from
+  interface SegmentOrigin {
+    id: string;
+    studentId: string;
+    status: SubmissionStatus;
+    evaluationId: string | null;
+    result: unknown;
+    pitchChart: unknown;
+    sheetMusic: SheetTemplate | null;
+  }
+
+  interface SegmentScores { overall: number | null; pitch: number | null; rhythm: number | null; }
+
+  interface SegmentBaseline { overallScore: number | null; pitchAccuracyPercent: number | null; rhythmAccuracyPercent: number | null; }
+
+  // Like Audio.Result, but a range without notes has no scores
+  interface SegmentResult {
+    overallScore: number | null;
+    pitchAccuracyPercent: number | null;
+    rhythmAccuracyPercent: number | null;
+    aiFeedback: string;
+    baseline?: SegmentBaseline | null;
+    segment?: { startSec: number; endSec: number };
+    [key: string]: unknown;
+  }
+
+  interface SegmentProgressCallback extends Omit<ProgressCallback, 'result'> {
+    result?: SegmentResult | null;
+  }
+
+  interface SegmentCreateData {
+    submissionId: string;
+    studentId: string;
+    startSec: number;
+    endSec: number;
+    studentUploadId: string;
+    fileUrl: string;
+    evaluationId: string;
+    messageId: string;
+  }
+
+  interface SegmentUpdate {
+    status?: SubmissionStatus;
+    stage?: Stage;
+    stageStartedAt?: Date;
+    publicationState?: string;
+    result?: SegmentResult;
+    aiFeedback?: string | null;
+    accuracy?: number | null;
+    pitchAccuracy?: number | null;
+    rhythmAccuracy?: number | null;
+    baselineAccuracy?: number | null;
+    baselinePitch?: number | null;
+    baselineRhythm?: number | null;
+    rejectReason?: string | null;
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    analyzedAt?: Date;
+  }
+
+  interface SegmentAttemptDTO {
+    id: string;
+    submissionId: string;
+    startSec: number;
+    endSec: number;
+    status: SubmissionStatus;
+    stage: Stage | null;
+    createdAt: string;
+    analyzedAt: string | null;
+    scores: SegmentScores | null;
+    issues: ResultIssueDTO[];
+    aiFeedback: { text: string; isFallback: boolean } | null;
+    error: { code: string | null; message: string | null } | null;
+    comparison: {
+      original: SegmentScores | null;
+      previous: (SegmentScores & { attemptId: string }) | null;
+    };
+  }
+
+  interface SegmentSummaryDTO {
+    id: string;
+    startSec: number;
+    endSec: number;
+    status: SubmissionStatus;
+    overall: number | null;
+    baselineOverall: number | null;
+    createdAt: string;
+  }
+
+  interface SegmentPageDTO { items: SegmentSummaryDTO[]; nextCursor: string | null; }
 }

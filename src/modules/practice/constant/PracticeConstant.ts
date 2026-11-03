@@ -24,6 +24,8 @@ export default class PracticeConstant {
   // The template URL must stay readable for the whole retry window
   static readonly callbackPath = '/api/v1/internal/practice-submissions/progress';
   static readonly lockNamespace = 'practice-submission';
+  // UC-03: segment practice has its own callback so its progress never touches a Submission
+  static readonly segmentCallbackPath = '/api/v1/internal/practice-segments/progress';
 
   // SCR-01 history list paging and the accuracy bounds of its filters
   static readonly historyPageSize = Object.freeze({ DEFAULT: 20, MAX: 50 });
@@ -80,6 +82,10 @@ export default class PracticeConstant {
     DATE_RANGE_INVALID: 'Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.',
     ACCURACY_RANGE_INVALID: 'Accuracy "Từ" phải nhỏ hơn hoặc bằng accuracy "Đến".',
     RESULT_PROCESSING: 'Bản thu đang được xử lý. Kết quả sẽ hiển thị khi phân tích hoàn tất.', // MSG-30
+    SEGMENT_NOT_READY: 'Bài nộp chưa có kết quả phân tích hợp lệ để luyện lại.',
+    SEGMENT_INVALID: 'Đoạn luyện tập không hợp lệ.',
+    SEGMENT_FAILED: 'Phân tích đoạn luyện tập thất bại. Kết quả cũ vẫn được giữ nguyên.',
+    SEGMENT_NOT_FOUND: 'Không tìm thấy lượt luyện đoạn.',
     PITCH_UNAVAILABLE: 'Chưa có dữ liệu cao độ để hiển thị biểu đồ so sánh.' // MSG-26
   });
 }

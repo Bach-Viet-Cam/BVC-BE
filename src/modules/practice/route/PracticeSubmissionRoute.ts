@@ -1,7 +1,4 @@
-import crypto from 'node:crypto';
-import type { NextFunction, Request, Response, Router } from 'express';
-import EnvConfig from '../../../config/EnvConfig.ts';
-import AppError from '../../../utils/AppError.ts';
+import type { Router } from 'express';
 import AsyncHandler from '../../../utils/AsyncHandler.ts';
 import { validateRequest } from '../../../middlewares/ValidateMiddleware.ts';
 import { requireRoles } from '../../../middlewares/RoleMiddleware.ts';
@@ -10,6 +7,7 @@ import { requireAuthenticatedUser } from '../../auth/middleware/AuthMiddleware.t
 import PracticeResultController from '../controller/PracticeResultController.ts';
 import PracticeSettingsController from '../controller/PracticeSettingsController.ts';
 import PracticeSubmissionController from '../controller/PracticeSubmissionController.ts';
+import { requireCallbackSecret } from '../middleware/CallbackSecretMiddleware.ts';
 import PracticeSubmissionRepository from '../repository/PracticeSubmissionRepository.ts';
 import PracticeContextService from '../service/PracticeContextService.ts';
 import PracticeFileService from '../service/PracticeFileService.ts';
@@ -21,17 +19,6 @@ import StudentDashboardService from '../service/StudentDashboardService.ts';
 import SubmissionHistoryService from '../service/SubmissionHistoryService.ts';
 import SubmissionProgressService from '../service/SubmissionProgressService.ts';
 import PracticeValidation from '../validation/PracticeValidation.ts';
-
-// Rhythm service calls back with a shared secret header; compared in constant time
-function requireCallbackSecret(request: Request, _response: Response, next: NextFunction): void {
-  const givenSecret = Buffer.from(String(request.headers['x-callback-secret'] || ''));
-  const expectedSecret = Buffer.from(EnvConfig.aiCallbackSecret);
-  const isValid = expectedSecret.length > 0
-    && givenSecret.length === expectedSecret.length
-    && crypto.timingSafeEqual(givenSecret, expectedSecret);
-  if (!isValid) return next(AppError.unauthorized('Callback secret không hợp lệ.'));
-  return next();
-}
 
 export default class PracticeSubmissionRoute {
   register(router: Router): void {

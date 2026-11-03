@@ -1,13 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import EnvConfig from '../../../config/EnvConfig.ts';
 import StorageService from '../../../lib/storage/StorageService.ts';
 import AppError from '../../../utils/AppError.ts';
-import AudioConstant from '../../audio/constant/AudioConstant.ts';
 import RhythmClientService from '../../audio/service/RhythmClientService.ts';
 import RhythmPublisherService from '../../audio/service/RhythmPublisherService.ts';
 import PracticeConstant from '../constant/PracticeConstant.ts';
 import PracticeSubmissionDTO from '../dto/PracticeSubmissionDTO.ts';
 import PracticeSubmissionRepository from '../repository/PracticeSubmissionRepository.ts';
+import EvaluationJobBuilderService from './EvaluationJobBuilderService.ts';
 import PracticeAssignmentResolver from './PracticeAssignmentResolver.ts';
 import SubmissionProgressService from './SubmissionProgressService.ts';
 
@@ -18,6 +17,7 @@ interface PracticeSubmissionDependencies {
   progress?: SubmissionProgressService;
   publisher?: RhythmPublisherService;
   client?: RhythmClientService;
+  jobBuilder?: EvaluationJobBuilderService;
   createReadUrl?: (storageKey: string) => string | Promise<string>;
   now?: () => Date;
 }
@@ -27,7 +27,7 @@ export default class PracticeSubmissionService {
   private readonly progress: SubmissionProgressService;
   private readonly publisher: RhythmPublisherService;
   private readonly client: RhythmClientService;
-  private readonly createReadUrl: (storageKey: string) => string | Promise<string>;
+  private readonly jobBuilder: EvaluationJobBuilderService;
   private readonly now: () => Date;
   private readonly dto = new PracticeSubmissionDTO();
 
@@ -36,8 +36,9 @@ export default class PracticeSubmissionService {
     this.progress = dependencies.progress ?? new SubmissionProgressService(this.repository);
     this.publisher = dependencies.publisher ?? RhythmPublisherService.instance;
     this.client = dependencies.client ?? new RhythmClientService();
-    this.createReadUrl = dependencies.createReadUrl ?? ((storageKey) => StorageService.driver.createReadUrl(storageKey));
     this.now = dependencies.now ?? (() => new Date());
+    const createReadUrl = dependencies.createReadUrl ?? ((storageKey: string) => StorageService.driver.createReadUrl(storageKey));
+    this.jobBuilder = dependencies.jobBuilder ?? new EvaluationJobBuilderService(createReadUrl, this.now);
   }
 
   async create(studentId: string, input: Practice.CreateInput): Promise<Practice.SubmissionDTO> {
@@ -110,14 +111,10 @@ export default class PracticeSubmissionService {
   }
 
   private async publish(record: Practice.SubmissionRecord, sheet: Practice.SheetTemplate): Promise<Practice.SubmissionRecord> {
-    const job: Audio.Job = {
-      evaluationId: record.evaluationId ?? '', messageId: record.messageId ?? randomUUID(), attempt: record.attempt,
-      templateUrl: await this.createReadUrl(sheet.referenceAudio?.storageKey ?? ''),
-      studentUrl: record.fileUrl ?? '', instrumentId: AudioConstant.rhythmInstruments[sheet.instrument.code] ?? sheet.instrument.code,
-      requestedAt: this.now().toISOString(), callbackUrl: `${EnvConfig.fileStoragePublicBaseUrl}${PracticeConstant.callbackPath}`,
-      // Lets Rhythm reuse the stored teacher analysis instead of analysing the reference audio again
-      ...(sheet.analysisStatus === 'READY' && sheet.analysisJobId ? { templateAnalysisId: sheet.analysisJobId } : {})
-    };
+    const job = await this.jobBuilder.build(
+      sheet, { evaluationId: record.evaluationId ?? '', messageId: record.messageId ?? randomUUID(), attempt: record.attempt },
+      record.fileUrl ?? '', PracticeConstant.callbackPath
+    );
     const state = await this.publisher.publish(job);
     await this.repository.updatePublication(record.id, { publicationState: state, messageId: job.messageId });
     // publish_unknown may still reach the worker; reconciliation follows Rhythm's eventual status.
