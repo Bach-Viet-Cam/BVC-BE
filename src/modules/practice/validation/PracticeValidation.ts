@@ -13,6 +13,9 @@ const csvList = <TItem extends z.ZodType>(itemSchema: TItem) => z.preprocess(
 );
 const accuracy = z.coerce.number().min(accuracyBounds.MIN).max(accuracyBounds.MAX).optional();
 
+// A range without notes has no scores, so the segment callback accepts null for them
+const nullableScore = z.number().min(0).max(100).nullable();
+
 export default class PracticeValidation {
   readonly createSchema = z.object({
     body: z.object({
@@ -25,6 +28,25 @@ export default class PracticeValidation {
   });
 
   readonly idSchema = z.object({ body: z.unknown(), params: z.object({ id: z.uuid() }), query: z.object({}) });
+
+  readonly segmentCreateSchema = z.object({
+    body: z.object({
+      startSec: z.number().min(0),
+      endSec: z.number().positive(),
+      studentUploadId: z.uuid()
+    }).strict().refine((body) => body.endSec > body.startSec, { message: messages.SEGMENT_INVALID }),
+    params: z.object({ id: z.uuid() }), query: z.object({})
+  });
+
+  readonly segmentIdSchema = z.object({ body: z.unknown(), params: z.object({ segmentId: z.uuid() }), query: z.object({}) });
+
+  readonly segmentListSchema = z.object({
+    body: z.unknown(), params: z.object({ id: z.uuid() }),
+    query: z.object({
+      cursor: z.uuid().optional(),
+      limit: z.coerce.number().int().min(1).max(historyPageSize.MAX).default(historyPageSize.DEFAULT)
+    })
+  });
 
   readonly activeSchema = z.object({ body: z.unknown(), params: z.object({}), query: z.object({ sheetMusicId: recordId }) });
 
@@ -51,7 +73,14 @@ export default class PracticeValidation {
     })
   });
 
-  readonly emptySchema = z.object({ body: z.unknown(), params: z.object({}), query: z.object({}) });
+  readonly compareSchema = z.object({
+    body: z.unknown(), params: z.object({}),
+    query: z.object({ a: z.uuid(), b: z.uuid() }).superRefine((query, context) => {
+      if (query.a === query.b) context.addIssue({ code: 'custom', path: ['b'], message: messages.COMPARE_SAME_SUBMISSION });
+    })
+  });
+
+  readonly emptySchema =z.object({ body: z.unknown(), params: z.object({}), query: z.object({}) });
 
   readonly sheetParamsSchema = z.object({ body: z.unknown(), params: z.object({ sheetMusicId: recordId }), query: z.object({}) });
 
@@ -71,6 +100,24 @@ export default class PracticeValidation {
       result: z.looseObject({
         overallScore: z.number().min(0).max(100), pitchAccuracyPercent: z.number().min(0).max(100),
         rhythmAccuracyPercent: z.number().min(0).max(100), aiFeedback: z.string()
+      }).nullable().optional()
+    }).refine((callback) => callback.status !== 'done' || callback.job !== 'feedback' || Boolean(callback.result), {
+      message: 'Thiếu kết quả phân tích.'
+    }),
+    params: z.object({}), query: z.object({})
+  });
+
+  readonly segmentCallbackSchema = z.object({
+    body: z.object({
+      evaluationId: z.string().min(1).max(128),
+      attempt: z.number().int().min(1),
+      job: z.enum(['quality_check', 'audio_analysis', 'comparison', 'feedback']),
+      status: z.enum(['started', 'done', 'failed', 'rejected']),
+      code: z.string().max(64).nullable().optional(),
+      reason: z.string().max(1000).nullable().optional(),
+      result: z.looseObject({
+        overallScore: nullableScore, pitchAccuracyPercent: nullableScore,
+        rhythmAccuracyPercent: nullableScore, aiFeedback: z.string()
       }).nullable().optional()
     }).refine((callback) => callback.status !== 'done' || callback.job !== 'feedback' || Boolean(callback.result), {
       message: 'Thiếu kết quả phân tích.'

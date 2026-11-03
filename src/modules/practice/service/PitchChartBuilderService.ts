@@ -30,7 +30,8 @@ export default class PitchChartBuilderService {
     };
   }
 
-  static build(file: Practice.AnalysisFile, issues: Practice.ResultIssueDTO[]): Practice.PitchChartDTO {
+  // offsetSec: where the file's first frame sits on the issues' timeline (segment practice charts only the practised range)
+  static build(file: Practice.AnalysisFile, issues: Practice.ResultIssueDTO[], offsetSec: number = 0): Practice.PitchChartDTO {
     const frameSec = file.hopLength / file.sampleRate;
     const studentHz = file.studentFrameByTeacherFrame.map((frame) => file.studentF0Hz[frame] ?? null);
     const points = PitchChartBuilderService.downsample(file.teacherF0Hz, studentHz, frameSec);
@@ -43,8 +44,9 @@ export default class PitchChartBuilderService {
       maxHz: PitchChartBuilderService.round(Math.max(...voicedHz) * SEMITONE_RATIO),
       points,
       segments: issues
-        .filter((issue) => issue.startSec < durationSec)
-        .map((issue) => ({ id: issue.id, kind: issue.kind, startSec: issue.startSec, endSec: Math.min(issue.endSec, durationSec), label: issue.label })),
+        .map((issue) => ({ issue, startSec: Math.max(0, issue.startSec - offsetSec), endSec: Math.min(issue.endSec - offsetSec, durationSec) }))
+        .filter((shifted) => shifted.startSec < durationSec && shifted.endSec > 0)
+        .map(({ issue, startSec, endSec }) => ({ id: issue.id, kind: issue.kind, startSec, endSec, label: issue.label })),
       timeMap: PitchChartBuilderService.buildTimeMap(file.studentFrameByTeacherFrame, frameSec)
     };
   }

@@ -20,11 +20,11 @@ export default class SubmissionHistoryDTO {
     };
   }
 
-  toOverall(countByStatus: Partial<Record<Practice.SubmissionStatus, number>>): Practice.HistoryOverall {
+  toOverall(countByStatus: Partial<Record<Practice.SubmissionStatus, number>>, canCompare: boolean): Practice.HistoryOverall {
     const completed = countByStatus.COMPLETED ?? 0;
     const processing = countByStatus.PROCESSING ?? 0;
     const rejected = countByStatus.REJECTED ?? 0;
     const failed = countByStatus.FAILED ?? 0;
-    return { total: completed + processing + rejected + failed, completed, processing, rejected, failed };
+    return { total: completed + processing + rejected + failed, completed, processing, rejected, failed, canCompare };
   }
 }

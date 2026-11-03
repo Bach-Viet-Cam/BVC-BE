@@ -51,6 +51,7 @@ model User {
   createdAssignmentVersions AssignmentVersion[]      @relation("AssignmentVersionCreatedBy")
   submissionComments        SubmissionComment[]
   submissions               Submission[]
+  segmentAttempts           PracticeSegmentAttempt[]
   audioUploads              AudioUpload[]
   audioEvaluations          AudioEvaluationRequest[]
   leaderboardEntries        LeaderboardEntry[]
@@ -676,6 +677,7 @@ model Submission {
   studentUpload       AudioUpload?       @relation(fields: [studentUploadId], references: [id], onDelete: SetNull)
   student             User               @relation(fields: [studentId], references: [id])
   comment             SubmissionComment?
+  segmentAttempts     PracticeSegmentAttempt[]
 
   @@index([assignmentId, studentId])
   @@index([assignmentId, status])
@@ -683,6 +685,45 @@ model Submission {
   // SCR-01 history: a student's submissions newest first
   @@index([studentId, createdAt])
   @@map("submissions")
+}
+
+// UC-03: one re-practice of a time range of a submission; never counts as a submission itself
+model PracticeSegmentAttempt {
+  id               String           @id @default(uuid())
+  submissionId     String           @map("submission_id")
+  studentId        String           @map("student_id")
+  startSec         Float            @map("start_sec")
+  endSec           Float            @map("end_sec")
+  studentUploadId  String?          @map("student_upload_id")
+  fileUrl          String?          @map("file_url")
+  status           SubmissionStatus @default(PROCESSING)
+  stage            SubmissionStage?
+  stageStartedAt   DateTime?        @map("stage_started_at")
+  evaluationId     String           @unique @map("evaluation_id")
+  messageId        String           @unique @map("message_id")
+  publicationState String?          @map("publication_state")
+  attempt          Int              @default(1)
+  result           Json?
+  aiFeedback       String?          @map("ai_feedback")
+  accuracy         Float?
+  pitchAccuracy    Float?           @map("pitch_accuracy")
+  rhythmAccuracy   Float?           @map("rhythm_accuracy")
+  baselineAccuracy Float?           @map("baseline_accuracy")
+  baselinePitch    Float?           @map("baseline_pitch")
+  baselineRhythm   Float?           @map("baseline_rhythm")
+  rejectReason     String?          @map("reject_reason")
+  errorCode        String?          @map("error_code")
+  errorMessage     String?          @map("error_message")
+  analyzedAt       DateTime?        @map("analyzed_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at")
+  submission       Submission       @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  student          User             @relation(fields: [studentId], references: [id])
+  studentUpload    AudioUpload?     @relation(fields: [studentUploadId], references: [id], onDelete: SetNull)
+
+  @@index([submissionId, createdAt])
+  @@index([studentId, createdAt])
+  @@map("practice_segment_attempts")
 }
 
 // One lecturer comment per submission; editing overwrites it (no history).
@@ -769,6 +810,7 @@ model AudioUpload {
   templateEvaluations AudioEvaluationRequest[] @relation("AudioTemplate")
   studentEvaluations  AudioEvaluationRequest[] @relation("AudioStudent")
   submissions         Submission[]
+  segmentAttempts     PracticeSegmentAttempt[]
 
   @@unique([provider, key])
   @@index([ownerId])
