@@ -6,6 +6,7 @@ import StorageService from '../../src/lib/storage/StorageService.ts';
 import AuthService from '../../src/modules/auth/service/AuthService.ts';
 import AuthConstant from '../../src/modules/auth/constant/AuthConstant.ts';
 import TextNormalizer from '../../src/utils/TextNormalizer.ts';
+import PlatformConstant from '../../src/modules/platform/constant/PlatformConstant.ts';
 import SampleMediaFactory from './SampleMediaFactory.ts';
 
 interface SheetSeed { instrument: string; kind: 'MAIN' | 'LEVEL'; name: string; level: string; audioSec?: number; isHidden?: boolean; }
@@ -45,6 +46,31 @@ export default class DatabaseSeeder {
     'upload.audio.max_duration_sec': { value: '600', label: 'Thời lượng audio mẫu tối đa (giây)' },
     'upload.video.max_mb': { value: '200', label: 'Dung lượng video hướng dẫn tối đa (MB)' }
   };
+
+  // Grading thresholds and practice rules read by services. Existing rows are never overwritten.
+  static readonly ruleConfig: Array<{ key: string; value: string; label: string; group: 'SCORING' | 'PRACTICE_RULE' }> = [
+    { key: 'min_accuracy_default', value: '70', label: 'Độ chính xác tối thiểu để đạt (%)', group: 'SCORING' },
+    { key: 'threshold_excellent', value: '90', label: 'Ngưỡng xuất sắc (%)', group: 'SCORING' },
+    { key: 'threshold_good', value: '80', label: 'Ngưỡng khá (%)', group: 'SCORING' },
+    { key: 'threshold_pass', value: '70', label: 'Ngưỡng đạt (%)', group: 'SCORING' },
+    { key: 'ensemble_min_data_percent', value: '50', label: 'Tỷ lệ dữ liệu tối thiểu cho ensemble (%)', group: 'SCORING' },
+    { key: 'default_max_submissions', value: '5', label: 'Số bài nộp tối đa mặc định', group: 'PRACTICE_RULE' },
+    { key: 'practice_min_per_week', value: '3', label: 'Số buổi luyện tập tối thiểu mỗi tuần', group: 'PRACTICE_RULE' },
+    { key: 'max_recording_sec', value: '600', label: 'Thời lượng bản thu tối đa (giây)', group: 'PRACTICE_RULE' },
+    { key: 'max_recording_mb', value: '20', label: 'Dung lượng bản thu tối đa (MB)', group: 'PRACTICE_RULE' },
+    { key: 'storage_capacity_gb', value: '10', label: 'Dung lượng lưu trữ tối đa (GB)', group: 'PRACTICE_RULE' }
+  ];
+
+  // Semesters offered on the create-class form, same values as ClassRoadmapSeed.
+  // Six semesters for 2026: each season (SP, SU, FA) is split into two halves.
+  static readonly semesters = [
+    { name: 'SP26_H1', startDate: '2026-01-05', endDate: '2026-02-22' },
+    { name: 'SP26_H2', startDate: '2026-03-02', endDate: '2026-04-26' },
+    { name: 'SU26_H1', startDate: '2026-05-04', endDate: '2026-06-28' },
+    { name: 'SU26_H2', startDate: '2026-07-06', endDate: '2026-08-23' },
+    { name: 'FA26_H1', startDate: '2026-09-07', endDate: '2026-11-01' },
+    { name: 'FA26_H2', startDate: '2026-11-09', endDate: '2026-12-27' }
+  ];
 
   static readonly users = [
     { email: 'giangvien.demo@bvc.local', username: 'Cô Lan (GV demo)', role: AuthConstant.roles.TEACHER },
@@ -124,7 +150,14 @@ export default class DatabaseSeeder {
       await prisma.instrument.updateMany({ where: { code: legacyCode }, data: { code } });
     }
     for (const instrument of DatabaseSeeder.instruments) {
-      await prisma.instrument.upsert({ where: { code: instrument.code }, update: {}, create: instrument });
+      const record = await prisma.instrument.upsert({ where: { code: instrument.code }, update: {}, create: instrument });
+      const tunes = DatabaseSeeder.instrumentTunes[instrument.code] ?? [];
+      const existingTunes = await prisma.instrumentTune.count({ where: { instrumentId: record.id } });
+      if (existingTunes === 0 && tunes.length > 0) {
+        await prisma.instrumentTune.createMany({
+          data: tunes.map((tune, displayOrder) => ({ instrumentId: record.id, tuneName: tune.tuneName, pitch: tune.pitch, displayOrder }))
+        });
+      }
     }
     for (const [type, names] of [['GENRE', DatabaseSeeder.genres], ['LEVEL', DatabaseSeeder.levels]] as const) {
       for (const [displayOrder, name] of names.entries()) {
@@ -138,6 +171,22 @@ export default class DatabaseSeeder {
     for (const [key, { value, label }] of Object.entries(DatabaseSeeder.systemConfig)) {
       await prisma.systemConfig.upsert({ where: { key }, update: {}, create: { key, value, label, valueType: 'NUMBER', group: 'FILE_LIMIT' } });
     }
+    for (const { key, value, label, group } of DatabaseSeeder.ruleConfig) {
+      await prisma.systemConfig.upsert({ where: { key }, update: {}, create: { key, value, label, valueType: 'NUMBER', group } });
+    }
+    const { SEMESTERS, AT_RISK_MARGIN } = PlatformConstant.settingKeys;
+    const semester = PlatformConstant.semesterConfig;
+    await prisma.systemConfig.upsert({
+      where: { key: SEMESTERS },
+      update: {},
+      create: { key: SEMESTERS, value: JSON.stringify(DatabaseSeeder.semesters), valueType: semester.valueType, group: semester.group, label: semester.label, description: semester.description }
+    });
+    const margin = PlatformConstant.atRiskMarginConfig;
+    await prisma.systemConfig.upsert({
+      where: { key: AT_RISK_MARGIN },
+      update: {},
+      create: { key: AT_RISK_MARGIN, value: '10', valueType: margin.valueType, group: margin.group, label: margin.label, description: margin.description }
+    });
   }
 
   static async seedUsers() {

@@ -25,23 +25,26 @@ const STUDENT_NAMES = [
 const FINGER_EXERCISES = ['Luyện ngón — Gẩy đơn', 'Luyện ngón — Vê', 'Luyện ngón — Láy'];
 const SAMPLE_SONG = 'Lý ngựa ô';
 const HIDDEN_EXERCISE = 'Luyện ngón — Bản cũ (đã ẩn)';
-const ROADMAP_INSTRUMENTS = ['Đàn tranh', 'Đàn bầu'];
+const ROADMAP_INSTRUMENTS = INSTRUMENTS;
+// One entry per week, in the order of RoadmapConstant.standardFrameworkTitles.
 const WEEK_CONTENTS = [
-  'Tư thế ngồi, cách cầm và lên dây. Làm quen các nốt cơ bản.',
-  'Luyện ngón cơ bản và tập Bài 1 theo bản mẫu.',
-  'Hoàn thiện Bài 1, kiểm tra cá nhân và trình bày theo nhóm.',
-  'Sửa lỗi kỹ thuật, luyện tempo đều để chuẩn bị hòa tấu.',
-  'Chia nhóm và tập hòa tấu cùng track mẫu.',
-  'Tổng duyệt và biểu diễn cuối khóa.'
+  'Buổi 1: Nghe hòa tấu giới thiệu nhạc cụ ở phòng khác. Sau buổi giới thiệu, về lớp để lấy danh sách liên hệ của lớp và làm quen với các bạn cùng lớp. Buổi 2: Nghe giảng lý thuyết về nhạc cụ. Buổi 3: Tập xướng âm (hát Đô – Rê – Mi), học nhạc lý và học đọc nốt trong bản nhạc. Buổi 4: Làm quen với đàn: tập kéo vĩ, đẩy vĩ và tìm hiểu hệ thống nốt trên đàn. Buổi 5: Bắt đầu tập câu 1 của bài.',
+  'Tiếp tục luyện câu 1 cho thuần thục, sau đó học các câu còn lại của bài. Chú ý giữ đều nhịp, đúng nốt và đúng tư thế khi đàn.',
+  'Tự tìm hiểu về nhạc cụ và chuẩn bị nội dung thuyết trình. Buổi thuyết trình diễn ra vào cuối tuần 3 hoặc đầu tuần 4 và được tính là điểm giữa kỳ.',
+  'Luyện thêm bài hòa tấu, ghi nhớ phần bè của mình và phối hợp nhịp nhàng với các bạn trong nhóm.',
+  'Ghép các phần hòa tấu cùng nhóm và luyện tập độc tấu. Giảng viên sẽ kiểm tra riêng từng sinh viên ở phần độc tấu.',
+  'Kỳ thi cuối khóa: sinh viên biểu diễn bài đã học để giảng viên đánh giá kết quả học phần.'
 ];
 
 // Practice assignments for TRD301 (sub-project 3a). Accuracy values spread from 20 % to 95 %.
 const SAMPLE_AUDIO_URL = '/samples/bvc-sample.wav';
 const SEED_SEMESTERS = [
-  { name: 'SP26', startDate: '2026-01-05', endDate: '2026-04-26' },
-  { name: 'SU26', startDate: '2026-05-04', endDate: '2026-08-23' },
-  { name: 'FA26', startDate: '2026-09-07', endDate: '2026-12-27' },
-  { name: 'SP27', startDate: '2027-01-04', endDate: '2027-04-25' }
+  { name: 'SP26_H1', startDate: '2026-01-05', endDate: '2026-02-22' },
+  { name: 'SP26_H2', startDate: '2026-03-02', endDate: '2026-04-26' },
+  { name: 'SU26_H1', startDate: '2026-05-04', endDate: '2026-06-28' },
+  { name: 'SU26_H2', startDate: '2026-07-06', endDate: '2026-08-23' },
+  { name: 'FA26_H1', startDate: '2026-09-07', endDate: '2026-11-01' },
+  { name: 'FA26_H2', startDate: '2026-11-09', endDate: '2026-12-27' }
 ];
 const SEED_ASSIGNMENTS: Array<{ title: string; kind: 'SOLO' | 'ENSEMBLE' | 'BONUS' | 'OTHER'; status: 'DRAFT' | 'PUBLISHED' | 'CLOSED'; deleted?: boolean; description: string }> = [
   { title: 'Độc tấu — Lý ngựa ô', kind: 'SOLO', status: 'PUBLISHED', description: 'Tập chậm ở 70 BPM rồi tăng dần lên tempo mẫu.' },
