@@ -19,6 +19,7 @@ interface WorkingSegment {
 interface Span { start: number; end: number; }
 
 // Labels the error segments of two submissions of the same sheet (GBR-18). Times are on the teacher's timeline.
+// REPEATED: same error in both; IMPROVED: wrong before, nothing wrong now; NEW: only the newer one is wrong.
 export default class CompareSegmentMatcherService {
   static match(older: Practice.ResultIssueDTO[], newer: Practice.ResultIssueDTO[]): { segments: Practice.CompareSegmentDTO[]; noSegmentsToCompare: boolean } {
     const matchedNewer = new Set<Practice.ResultIssueDTO>();
@@ -28,6 +29,9 @@ export default class CompareSegmentMatcherService {
       for (const other of newer) {
         if (CompareSegmentMatcherService.matches(issue, other)) matchedNewer.add(other);
       }
+      // Improved only when the newer submission has no error at all over this stretch; a partly overlapping or
+      // other-kind error there means it is not fixed, and not the same error either, so the segment stays unlabelled
+      if (!best && newer.some((other) => CompareSegmentMatcherService.overlap(issue, other) > EPSILON)) continue;
       working.push({
         kind: issue.kind, status: best ? 'REPEATED' : 'IMPROVED', startSec: issue.startSec, endSec: issue.endSec,
         olderLabel: issue.label, newerLabel: best?.label ?? null,

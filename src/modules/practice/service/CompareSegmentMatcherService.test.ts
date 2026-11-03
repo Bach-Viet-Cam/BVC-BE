@@ -20,16 +20,20 @@ test('chồng lấn đúng 50% đoạn ngắn hơn thì là lỗi lặp lại', 
   });
 });
 
-test('chồng lấn dưới 50% thì là đã cải thiện, đoạn mới thành NEW', () => {
+test('chồng lấn dưới 50% thì bài mới vẫn còn lỗi ở đó: không phải đã cải thiện, đoạn mới thành NEW', () => {
   const { segments } = CompareSegmentMatcherService.match([pitch(10, 12, 'cũ')], [pitch(11.02, 13, 'mới')]);
-  assert.deepEqual(segments.map((segment) => [segment.status, segment.startSec, segment.endSec]), [['IMPROVED', 10, 12], ['NEW', 11.02, 13]]);
-  assert.equal(segments[0].newerLabel, null);
-  assert.equal(segments[1].olderLabel, null);
+  assert.deepEqual(segments.map((segment) => [segment.status, segment.startSec, segment.endSec]), [['NEW', 11.02, 13]]);
+  assert.equal(segments[0].olderLabel, null);
 });
 
-test('khác loại lỗi không khớp', () => {
+test('khác loại lỗi không khớp, và lỗi khác loại ở bài mới thì đoạn cũ không được coi là đã cải thiện', () => {
   const { segments } = CompareSegmentMatcherService.match([pitch(10, 12)], [rhythm(10, 12)]);
-  assert.deepEqual(segments.map((segment) => segment.status), ['IMPROVED', 'NEW']);
+  assert.deepEqual(segments.map((segment) => segment.status), ['NEW']);
+});
+
+test('đoạn cũ không còn lỗi nào ở bài mới trong cùng khoảng thì là đã cải thiện', () => {
+  const { segments } = CompareSegmentMatcherService.match([pitch(10, 12, 'cũ')], [pitch(20, 21), rhythm(12, 13)]);
+  assert.deepEqual(segments.map((segment) => [segment.status, segment.startSec]), [['IMPROVED', 10], ['NEW', 12], ['NEW', 20]]);
 });
 
 test('lỗi nhịp đổi trạng thái vẫn là lặp lại', () => {
