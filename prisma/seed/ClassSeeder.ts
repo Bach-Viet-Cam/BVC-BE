@@ -1,7 +1,7 @@
-import PrismaClientProvider from '../src/config/PrismaClient.ts';
-import StorageService from '../src/lib/storage/StorageService.ts';
-import TextNormalizer from '../src/utils/TextNormalizer.ts';
-import SampleMediaFactory from './seed/SampleMediaFactory.ts';
+import PrismaClientProvider from '../../src/config/PrismaClient.ts';
+import StorageService from '../../src/lib/storage/StorageService.ts';
+import TextNormalizer from '../../src/utils/TextNormalizer.ts';
+import SampleMediaFactory from './SampleMediaFactory.ts';
 
 interface AssignmentSeed {
   id: string;
