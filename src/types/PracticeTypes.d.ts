@@ -63,6 +63,7 @@ declare namespace Practice {
     attempt?: number;
     retryCount?: number;
     retryAvailableAt?: Date | null;
+    evaluationId?: string;
     publicationState?: string;
     messageId?: string;
     accuracy?: number | null;

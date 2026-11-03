@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import StorageService from '../../../lib/storage/StorageService.ts';
 import AppError from '../../../utils/AppError.ts';
-import RhythmClientService from '../../audio/service/RhythmClientService.ts';
 import RhythmPublisherService from '../../audio/service/RhythmPublisherService.ts';
 import PracticeConstant from '../constant/PracticeConstant.ts';
 import PracticeSubmissionDTO from '../dto/PracticeSubmissionDTO.ts';
@@ -16,7 +15,6 @@ interface PracticeSubmissionDependencies {
   repository?: PracticeSubmissionRepository;
   progress?: SubmissionProgressService;
   publisher?: RhythmPublisherService;
-  client?: RhythmClientService;
   jobBuilder?: EvaluationJobBuilderService;
   createReadUrl?: (storageKey: string) => string | Promise<string>;
   now?: () => Date;
@@ -26,7 +24,6 @@ export default class PracticeSubmissionService {
   private readonly repository: PracticeSubmissionRepository;
   private readonly progress: SubmissionProgressService;
   private readonly publisher: RhythmPublisherService;
-  private readonly client: RhythmClientService;
   private readonly jobBuilder: EvaluationJobBuilderService;
   private readonly now: () => Date;
   private readonly dto = new PracticeSubmissionDTO();
@@ -35,7 +32,6 @@ export default class PracticeSubmissionService {
     this.repository = dependencies.repository ?? new PracticeSubmissionRepository();
     this.progress = dependencies.progress ?? new SubmissionProgressService(this.repository);
     this.publisher = dependencies.publisher ?? RhythmPublisherService.instance;
-    this.client = dependencies.client ?? new RhythmClientService();
     this.now = dependencies.now ?? (() => new Date());
     const createReadUrl = dependencies.createReadUrl ?? ((storageKey: string) => StorageService.driver.createReadUrl(storageKey));
     this.jobBuilder = dependencies.jobBuilder ?? new EvaluationJobBuilderService(createReadUrl, this.now);
@@ -72,7 +68,7 @@ export default class PracticeSubmissionService {
     return current.status === 'PROCESSING' ? this.dto.toResponse(current) : null;
   }
 
-  // GBR-63: restart from the job that failed
+  // Rhythm does not persist stage checkpoints: retry the pipeline with the same uploaded file.
   async retry(studentId: string, submissionId: string): Promise<Practice.SubmissionDTO> {
     const record = await this.repository.findOwned(submissionId, studentId);
     if (!record) throw AppError.notFound(messages.SUBMISSION_NOT_FOUND);
@@ -83,11 +79,13 @@ export default class PracticeSubmissionService {
 
     const restarted: Practice.SubmissionRecord = {
       ...record, status: 'PROCESSING', attempt: record.attempt + 1, retryCount: record.retryCount + 1,
-      stageStartedAt: this.now(), retryAvailableAt: null, errorCode: null, errorMessage: null
+      stage: 'QUALITY_CHECK', stageStartedAt: this.now(), retryAvailableAt: null, errorCode: null, errorMessage: null,
+      evaluationId: randomUUID(), messageId: randomUUID(), publicationState: 'publishing'
     };
     const isClaimed = await this.repository.updateIfCurrent(record.id, { attempt: record.attempt, status: 'FAILED' }, {
       status: restarted.status, attempt: restarted.attempt, retryCount: restarted.retryCount, stageStartedAt: restarted.stageStartedAt ?? undefined,
-      retryAvailableAt: null, errorCode: null, errorMessage: null
+      retryAvailableAt: null, errorCode: null, errorMessage: null, stage: restarted.stage ?? undefined,
+      evaluationId: restarted.evaluationId ?? undefined, messageId: restarted.messageId ?? undefined, publicationState: restarted.publicationState ?? undefined
     });
     if (!isClaimed) throw AppError.conflict(messages.RETRY_NOT_ALLOWED);
     return this.dto.toResponse(await this.dispatchRetry(restarted));
@@ -95,15 +93,9 @@ export default class PracticeSubmissionService {
 
   private async dispatchRetry(record: Practice.SubmissionRecord): Promise<Practice.SubmissionRecord> {
     try {
-      const fromJob = PracticeConstant.jobByStage[record.stage ?? 'QUALITY_CHECK'];
-      const isKnownToRhythm = record.publicationState === 'published' && record.evaluationId
-        ? await this.client.retry(record.evaluationId, fromJob, record.attempt)
-        : false;
-      if (isKnownToRhythm) return (await this.repository.findById(record.id)) ?? record;
-      // The job never reached Rhythm (publish failed or lost): send it again as this attempt
       const sheet = record.sheetMusicId ? await this.repository.findSheet(record.sheetMusicId) : null;
       if (!sheet) throw AppError.notFound(messages.SHEET_NOT_FOUND);
-      return await this.publish({ ...record, messageId: randomUUID() }, sheet);
+      return await this.publish(record, sheet);
     } catch {
       await this.progress.markFailed(record, errorCodes.RETRY_DISPATCH_FAILED, messages.RETRY_DISPATCH_FAILED);
       return (await this.repository.findById(record.id)) ?? record;
