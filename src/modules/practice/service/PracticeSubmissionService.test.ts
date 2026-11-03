@@ -66,7 +66,7 @@ function setup(options: Options = {}) {
   const files = { deleteStudentFile: async () => undefined } as unknown as PracticeFileService;
   const progress = new SubmissionProgressService(repository, files, client, () => now);
   const service = new PracticeSubmissionService({
-    repository, progress, publisher, client, now: () => now,
+    repository, progress, publisher, now: () => now,
     createReadUrl: async (key: string) => `https://storage/${key}?signed`
   });
   return { service, jobs, retries, created, read: () => current };
@@ -166,12 +166,22 @@ const failedRecord = (overrides: Partial<Practice.SubmissionRecord> = {}): Pract
   errorMessage: 'lỗi', analyzedAt: null, createdAt: now, studentUpload: { id: 'upload', key: 'audio/s.wav' }, ...overrides
 });
 
-test('Thử lại chạy lại từ bước bị lỗi với lượt mới', async () => {
-  const { service, retries, read } = setup({ stored: failedRecord() });
+test('Thử lại giữ bản nộp và file, gửi job mới từ bước kiểm tra chất lượng', async () => {
+  const { service, retries, jobs, read, created } = setup({ stored: failedRecord() });
   const submission = await service.retry('student', 'sub-1');
   assert.equal(submission.status, 'PROCESSING');
   assert.equal(submission.retryCount, 1);
-  assert.deepEqual(retries, [{ fromJob: 'feedback', attempt: 2 }]);
+  assert.deepEqual(retries, []);
+  assert.equal(created.length, 0);
+  assert.equal(submission.id, 'sub-1');
+  assert.equal(submission.stage, 'QUALITY_CHECK');
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].attempt, 2);
+  assert.notEqual(jobs[0].evaluationId, 'eval-1');
+  assert.equal(read()?.evaluationId, jobs[0].evaluationId);
+  assert.equal(jobs[0].studentUrl, 'https://be/s.wav');
+  assert.equal(read()?.studentUpload?.id, 'upload');
+  assert.equal(read()?.fileDeletedAt, null);
   assert.equal(read()?.attempt, 2);
 });
 

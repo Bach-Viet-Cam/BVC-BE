@@ -110,6 +110,15 @@ export default class PracticeSubmissionRepository {
     return Object.fromEntries(groups.map((group) => [group.status, group._count._all]));
   }
 
+  // UC-04: whether any sheet has two completed submissions to compare (groupBy with take needs an orderBy)
+  async hasComparableSheet(studentId: string): Promise<boolean> {
+    const groups = await this.client.submission.groupBy({
+      by: ['sheetMusicId'], where: { studentId, status: 'COMPLETED', sheetMusicId: { not: null } },
+      having: { sheetMusicId: { _count: { gte: 2 } } }, orderBy: { sheetMusicId: 'asc' }, take: 1
+    });
+    return groups.length > 0;
+  }
+
   // Student home dashboard: every submission of the student, oldest first
   async findDashboardRows(studentId: string): Promise<Practice.DashboardRecord[]> {
     return this.client.submission.findMany({

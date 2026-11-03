@@ -50,3 +50,10 @@ test('File sai định dạng, lệch số khung hoặc không có cao độ nà
   }));
   assert.throws(() => PitchChartBuilderService.build(silent, []));
 });
+
+test('Đoạn luyện: vùng lỗi được dời về mốc 0 của đoạn và bỏ vùng nằm ngoài đoạn', () => {
+  const inside = { ...issue, id: 'p0', kind: 'pitch' as const, startSec: 10.25, endSec: 10.75 };
+  const outside = { ...issue, id: 'p1', startSec: 3, endSec: 4 };
+  const chart = PitchChartBuilderService.build(PitchChartBuilderService.parse(rawFile()), [inside, outside], 10);
+  assert.deepEqual(chart.segments, [{ id: 'p0', kind: 'pitch', startSec: 0.25, endSec: 0.75, label: inside.label }]);
+});

@@ -10,14 +10,15 @@ export default class SubmissionHistoryService {
 
   // Rows are not reconciled with the Rhythm service here (one call per row); the detail screen does that
   async list(studentId: string, query: Practice.HistoryQuery): Promise<Practice.HistoryDTO> {
-    const [{ rows, total }, countByStatus] = await Promise.all([
+    const [{ rows, total }, countByStatus, canCompare] = await Promise.all([
       this.repository.findHistory(studentId, this.toFilter(query), { skip: (query.page - 1) * query.limit, take: query.limit }),
-      this.repository.countByStatus(studentId)
+      this.repository.countByStatus(studentId),
+      this.repository.hasComparableSheet(studentId)
     ]);
     return {
       items: rows.map((row) => this.dto.toItem(row)),
       pagination: { page: query.page, limit: query.limit, total },
-      overall: this.dto.toOverall(countByStatus)
+      overall: this.dto.toOverall(countByStatus, canCompare)
     };
   }
 

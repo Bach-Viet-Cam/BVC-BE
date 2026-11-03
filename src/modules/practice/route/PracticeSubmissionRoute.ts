@@ -1,7 +1,4 @@
-import crypto from 'node:crypto';
-import type { NextFunction, Request, Response, Router } from 'express';
-import EnvConfig from '../../../config/EnvConfig.ts';
-import AppError from '../../../utils/AppError.ts';
+import type { Router } from 'express';
 import AsyncHandler from '../../../utils/AsyncHandler.ts';
 import { validateRequest } from '../../../middlewares/ValidateMiddleware.ts';
 import { requireRoles } from '../../../middlewares/RoleMiddleware.ts';
@@ -10,6 +7,7 @@ import { requireAuthenticatedUser } from '../../auth/middleware/AuthMiddleware.t
 import PracticeResultController from '../controller/PracticeResultController.ts';
 import PracticeSettingsController from '../controller/PracticeSettingsController.ts';
 import PracticeSubmissionController from '../controller/PracticeSubmissionController.ts';
+import { requireCallbackSecret } from '../middleware/CallbackSecretMiddleware.ts';
 import PracticeSubmissionRepository from '../repository/PracticeSubmissionRepository.ts';
 import PracticeContextService from '../service/PracticeContextService.ts';
 import PracticeFileService from '../service/PracticeFileService.ts';
@@ -17,21 +15,12 @@ import PracticeResultService from '../service/PracticeResultService.ts';
 import PracticeSettingsService from '../service/PracticeSettingsService.ts';
 import PracticeSubmissionService from '../service/PracticeSubmissionService.ts';
 import StudentDashboardController from '../controller/StudentDashboardController.ts';
+import SubmissionCompareController from '../controller/SubmissionCompareController.ts';
+import SubmissionCompareService from '../service/SubmissionCompareService.ts';
 import StudentDashboardService from '../service/StudentDashboardService.ts';
 import SubmissionHistoryService from '../service/SubmissionHistoryService.ts';
 import SubmissionProgressService from '../service/SubmissionProgressService.ts';
 import PracticeValidation from '../validation/PracticeValidation.ts';
-
-// Rhythm service calls back with a shared secret header; compared in constant time
-function requireCallbackSecret(request: Request, _response: Response, next: NextFunction): void {
-  const givenSecret = Buffer.from(String(request.headers['x-callback-secret'] || ''));
-  const expectedSecret = Buffer.from(EnvConfig.aiCallbackSecret);
-  const isValid = expectedSecret.length > 0
-    && givenSecret.length === expectedSecret.length
-    && crypto.timingSafeEqual(givenSecret, expectedSecret);
-  if (!isValid) return next(AppError.unauthorized('Callback secret không hợp lệ.'));
-  return next();
-}
 
 export default class PracticeSubmissionRoute {
   register(router: Router): void {
@@ -41,6 +30,7 @@ export default class PracticeSubmissionRoute {
       new PracticeSubmissionService({ repository, progress }), progress, new PracticeContextService(repository), new SubmissionHistoryService(repository)
     );
     const results = new PracticeResultController(new PracticeResultService());
+    const compare = new SubmissionCompareController(new SubmissionCompareService());
     const settings = new PracticeSettingsController(new PracticeSettingsService(repository));
     const dashboard = new StudentDashboardController(new StudentDashboardService(repository));
     const student = requireRoles(AuthConstant.roles.STUDENT);
@@ -59,6 +49,8 @@ export default class PracticeSubmissionRoute {
     // SCR-01 history; registered before '/:id' so "piece-options" is not read as a submission id
     router.get('/practice/submissions', validateRequest(validation.historySchema), auth, student, wrap(controller.listHistory));
     router.get('/practice/submissions/piece-options', validateRequest(validation.emptySchema), auth, student, wrap(controller.listHistoryPieces));
+    // UC-04 compare two submissions of one sheet; registered before '/:id' so "compare" is not read as a submission id
+    router.get('/practice/submissions/compare', validateRequest(validation.compareSchema), auth, student, wrap(compare.compare));
     // Registered before '/:id' so "active" is not read as a submission id
     router.get('/practice/submissions/active', validateRequest(validation.activeSchema), auth, wrap(controller.getActive));
     router.get('/practice/submissions/:id', validateRequest(validation.idSchema), auth, wrap(controller.get));

@@ -117,6 +117,16 @@ export default class PracticeModel {
     instrument: { select: { code: true } }
   } satisfies Prisma.SheetMusicSelect;
 
+  static readonly segmentOriginSelect = {
+    id: true,
+    studentId: true,
+    status: true,
+    evaluationId: true,
+    result: true,
+    pitchChart: true,
+    sheetMusic: { select: PracticeModel.sheetSelect }
+  } satisfies Prisma.SubmissionSelect;
+
   static readonly contextSheetSelect = {
     id: true,
     pieceId: true,

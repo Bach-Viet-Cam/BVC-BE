@@ -87,7 +87,8 @@ export default class SubmissionProgressService {
 
   // Replays Rhythm's state as if its callback had arrived; true when the submission moved on
   private async applyRemote(record: Practice.SubmissionRecord, remote: Audio.EvaluationResponse): Promise<boolean> {
-    if ((remote.attempt ?? 1) !== record.attempt) return false;
+    // Every manual retry uses a new evaluationId; legacy Rhythm responses omit attempt.
+    if (remote.evaluationId !== record.evaluationId || (remote.attempt ?? record.attempt) !== record.attempt) return false;
     const job = remote.stage ?? PracticeConstant.jobByStage[record.stage ?? 'QUALITY_CHECK'];
     const base = { evaluationId: remote.evaluationId, attempt: record.attempt, job };
     if (remote.status === 'completed' && remote.result) return this.applyTo(record, { ...base, job: 'feedback', status: 'done', result: remote.result });

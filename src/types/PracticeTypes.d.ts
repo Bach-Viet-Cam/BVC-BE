@@ -63,6 +63,7 @@ declare namespace Practice {
     attempt?: number;
     retryCount?: number;
     retryAvailableAt?: Date | null;
+    evaluationId?: string;
     publicationState?: string;
     messageId?: string;
     accuracy?: number | null;
@@ -210,6 +211,8 @@ declare namespace Practice {
     processing: number;
     rejected: number;
     failed: number;
+    // True when some sheet has at least two completed submissions, so the compare mode is worth showing
+    canCompare: boolean;
   }
 
   interface HistoryDTO {
@@ -419,5 +422,132 @@ declare namespace Practice {
     errorMessage: string | null;
     analyzedAt: string | null;
     submittedAt: string;
+  }
+
+  // UC-03 segment practice ----------------------------------------------------------------------------
+
+  type SegmentRecord = import('@prisma/client').PracticeSegmentAttempt;
+
+  // Original submission a segment is practised from
+  interface SegmentOrigin {
+    id: string;
+    studentId: string;
+    status: SubmissionStatus;
+    evaluationId: string | null;
+    result: unknown;
+    pitchChart: unknown;
+    sheetMusic: SheetTemplate | null;
+  }
+
+  interface SegmentScores { overall: number | null; pitch: number | null; rhythm: number | null; }
+
+  interface SegmentBaseline { overallScore: number | null; pitchAccuracyPercent: number | null; rhythmAccuracyPercent: number | null; }
+
+  // Like Audio.Result, but a range without notes has no scores
+  interface SegmentResult {
+    overallScore: number | null;
+    pitchAccuracyPercent: number | null;
+    rhythmAccuracyPercent: number | null;
+    aiFeedback: string;
+    baseline?: SegmentBaseline | null;
+    segment?: { startSec: number; endSec: number };
+    [key: string]: unknown;
+  }
+
+  interface SegmentProgressCallback extends Omit<ProgressCallback, 'result'> {
+    result?: SegmentResult | null;
+  }
+
+  interface SegmentCreateData {
+    submissionId: string;
+    studentId: string;
+    startSec: number;
+    endSec: number;
+    studentUploadId: string;
+    fileUrl: string;
+    evaluationId: string;
+    messageId: string;
+  }
+
+  interface SegmentUpdate {
+    status?: SubmissionStatus;
+    stage?: Stage;
+    stageStartedAt?: Date;
+    publicationState?: string;
+    result?: SegmentResult;
+    aiFeedback?: string | null;
+    accuracy?: number | null;
+    pitchAccuracy?: number | null;
+    rhythmAccuracy?: number | null;
+    baselineAccuracy?: number | null;
+    baselinePitch?: number | null;
+    baselineRhythm?: number | null;
+    rejectReason?: string | null;
+    errorCode?: string | null;
+    errorMessage?: string | null;
+    analyzedAt?: Date;
+  }
+
+  interface SegmentAttemptDTO {
+    id: string;
+    submissionId: string;
+    startSec: number;
+    endSec: number;
+    status: SubmissionStatus;
+    stage: Stage | null;
+    createdAt: string;
+    analyzedAt: string | null;
+    scores: SegmentScores | null;
+    issues: ResultIssueDTO[];
+    aiFeedback: { text: string; isFallback: boolean } | null;
+    error: { code: string | null; message: string | null } | null;
+    comparison: {
+      original: SegmentScores | null;
+      previous: (SegmentScores & { attemptId: string }) | null;
+    };
+  }
+
+  interface SegmentSummaryDTO {
+    id: string;
+    startSec: number;
+    endSec: number;
+    status: SubmissionStatus;
+    overall: number | null;
+    baselineOverall: number | null;
+    createdAt: string;
+  }
+
+  interface SegmentPageDTO { items: SegmentSummaryDTO[]; nextCursor: string | null; }
+
+  // UC-04 compare submissions -------------------------------------------------------------------------
+
+  // IMPROVED: the older submission's error is gone; REPEATED: it is still there; NEW: only the newer submission has it
+  type CompareSegmentStatus = 'IMPROVED' | 'REPEATED' | 'NEW';
+
+  interface CompareSegmentDTO {
+    id: string;
+    kind: IssueKind;
+    status: CompareSegmentStatus;
+    startSec: number;
+    endSec: number;
+    olderLabel: string | null;
+    newerLabel: string | null;
+  }
+
+  // [timeSec, teacherHz, olderHz, newerHz]; null = unvoiced at that point
+  type ComparePitchPoint = [number, number | null, number | null, number | null];
+
+  interface CompareChartDTO { durationSec: number; minHz: number; maxHz: number; points: ComparePitchPoint[]; }
+
+  interface CompareSideDTO { submissionId: string; submittedAt: string; attemptNo: number; accuracy: number; }
+
+  interface SubmissionCompareDTO {
+    piece: { id: string; title: string };
+    sheetMusic: { id: string; name: string };
+    older: CompareSideDTO;
+    newer: CompareSideDTO;
+    chart: CompareChartDTO;
+    segments: CompareSegmentDTO[];
+    noSegmentsToCompare: boolean;
   }
 }

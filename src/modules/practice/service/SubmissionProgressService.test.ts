@@ -112,3 +112,22 @@ test('Callback bị mất thì đối soát theo trạng thái của Rhythm', as
   assert.equal(moved.status, 'PROCESSING');
   assert.equal(moved.stage, 'COMPARISON');
 });
+
+
+test('Đối soát lượt thử lại bằng evaluationId riêng khi Rhythm không trả attempt', async () => {
+  const record = makeRecord({ evaluationId: 'eval-retry', attempt: 2, retryCount: 1 });
+  const run = setup(record, { remote: { evaluationId: 'eval-retry', status: 'completed', stage: null, result, error: null } });
+  assert.equal((await run.service.reconcile(record)).status, 'COMPLETED');
+});
+
+
+test('Không nhận kết quả của mã xử lý hoặc lượt thử cũ', async () => {
+  const record = makeRecord({ evaluationId: 'eval-new', attempt: 2, retryCount: 1 });
+  for (const remote of [
+    { evaluationId: 'eval-old', status: 'completed' as const, result, error: null },
+    { evaluationId: 'eval-new', attempt: 1, status: 'completed' as const, result, error: null }
+  ]) {
+    const run = setup(record, { remote });
+    assert.equal((await run.service.reconcile(record)).status, 'PROCESSING');
+  }
+});
