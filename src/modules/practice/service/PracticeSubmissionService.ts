@@ -46,7 +46,8 @@ export default class PracticeSubmissionService {
 
     const { submission, busyId } = await this.repository.createIfIdle({
       studentId, pieceId: sheet.pieceId, sheetMusicId: sheet.id, assignmentId: link?.assignmentId ?? null, assignmentVersionId: link?.assignmentVersionId ?? null,
-      studentUploadId: upload.id, fileUrl: upload.url, evaluationId: randomUUID(), messageId: randomUUID(), practiceMode
+      studentUploadId: upload.id, fileUrl: upload.url, evaluationId: randomUUID(), messageId: randomUUID(), practiceMode,
+      ...(input.shareAfterVerification ? { shareConsent: true, consentUpdatedAt: this.now() } : {})
     }, this.now());
     if (!submission) throw AppError.conflict(messages.BUSY, { details: { submissionId: busyId ?? '' } });
     return this.dto.toResponse(await this.publish(submission, sheet));

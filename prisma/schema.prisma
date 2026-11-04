@@ -102,6 +102,9 @@ enum CategoryType {
 }
 
 model Instrument {
+  faqs Faq[]
+  verifiedContents VerifiedContent[]
+
   id               String            @id @default(uuid())
   code             String            @unique
   name             String
@@ -149,6 +152,7 @@ model Category {
   status          ActiveStatus @default(ACTIVE)
   genrePieces     Piece[]      @relation("PieceGenre")
   levelSheetMusic SheetMusic[] @relation("SheetMusicLevel")
+  legacyPieces    Piece[]      @relation("LegacyPieceLevel")
   createdAt       DateTime     @default(now()) @map("created_at")
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
@@ -240,6 +244,10 @@ model MediaFile {
 }
 
 model Piece {
+  verifiedContents VerifiedContent[]
+  legacyLevelId String? @map("level_id")
+  legacyLevel Category? @relation("LegacyPieceLevel", fields: [legacyLevelId], references: [id], onDelete: Restrict)
+
   id                 String                @id @default(uuid())
   ownerId            String                @map("owner_id")
   owner              User                  @relation("PieceOwner", fields: [ownerId], references: [id])
@@ -293,6 +301,8 @@ model PieceInstrument {
 }
 
 model SheetMusic {
+  verifiedContents VerifiedContent[]
+
   id                   String         @id @default(uuid())
   pieceId              String         @map("piece_id")
   piece                Piece          @relation(fields: [pieceId], references: [id], onDelete: Cascade)
@@ -407,6 +417,8 @@ model ContentCategory {
 
 // Class name is unique per cohort, case-insensitive (DBR-02): enforced in ClassService.
 model Class {
+  verifiedContents VerifiedContent[]
+
   id                 String             @id @default(uuid())
   name               String
   cohort             String             @default("") @db.VarChar(50)
@@ -637,6 +649,11 @@ model RubricCriterion {
 
 // A practice recording sent for AI analysis. assignmentId is empty for free practice on a library piece.
 model Submission {
+  review SubmissionReview?
+  verifiedContent VerifiedContent?
+  shareConsent Boolean @default(false) @map("share_consent")
+  consentUpdatedAt DateTime? @map("consent_updated_at")
+
   id                  String             @id @default(uuid())
   assignmentId        String?            @map("assignment_id")
   pieceId             String             @map("piece_id")
@@ -796,6 +813,8 @@ model UserNotification {
 }
 
 model AudioUpload {
+  verifiedContents VerifiedContent[]
+
   id                  String                   @id @default(uuid())
   ownerId             String                   @map("owner_id")
   provider            String
@@ -929,4 +948,82 @@ model ChallengeClass {
 
   @@id([challengeId, classId])
   @@map("challenge_classes")
+}
+
+// Phase B: lecturer verification is independent from the AI processing status.
+model Faq {
+  id           String      @id @default(uuid())
+  question     String      @db.VarChar(300)
+  questionKey  String      @map("question_key") @db.VarChar(300)
+  answer       String
+  topic        String      @db.VarChar(30)
+  instrumentId String?     @map("instrument_id")
+  instrument   Instrument? @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+  displayOrder Int         @default(0) @map("display_order")
+  isActive     Boolean     @default(true) @map("is_active")
+  createdById  String      @map("created_by_id")
+  updatedById  String      @map("updated_by_id")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  @@unique([topic, questionKey])
+  @@index([isActive, topic, displayOrder])
+  @@index([instrumentId])
+  @@map("faqs")
+}
+
+enum LecturerReviewStatus {
+  APPROVED
+  REJECTED
+}
+
+enum VerifiedPublicationStatus {
+  VISIBLE
+  HIDDEN
+  REVOKED
+}
+
+model SubmissionReview {
+  id           String               @id @default(uuid())
+  submissionId String               @unique @map("submission_id")
+  submission   Submission           @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  status       LecturerReviewStatus
+  reviewedById String               @map("reviewed_by_id")
+  reviewedAt   DateTime             @default(now()) @map("reviewed_at")
+  reason       String?              @db.VarChar(2000)
+
+  @@map("submission_reviews")
+}
+
+model VerifiedContent {
+  id                 String                    @id @default(uuid())
+  submissionId       String                    @unique @map("submission_id")
+  submission         Submission                @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  pieceId            String                    @map("piece_id")
+  piece              Piece                     @relation(fields: [pieceId], references: [id], onDelete: Restrict)
+  sourceSheetMusicId String                    @map("source_sheet_music_id")
+  sourceSheetMusic   SheetMusic                @relation(fields: [sourceSheetMusicId], references: [id], onDelete: Restrict)
+  instrumentId       String                    @map("instrument_id")
+  instrument         Instrument                @relation(fields: [instrumentId], references: [id], onDelete: Restrict)
+  sourceClassId      String                    @map("source_class_id")
+  sourceClass        Class                     @relation(fields: [sourceClassId], references: [id], onDelete: Restrict)
+  sourceClassName    String                    @map("source_class_name")
+  cohort             String                    @default("")
+  verifiedById       String                    @map("verified_by_id")
+  verifiedByName     String                    @map("verified_by_name")
+  verifiedAt         DateTime                  @default(now()) @map("verified_at")
+  accuracy           Float?
+  tempoDeviation     Float?                    @map("tempo_deviation")
+  audioUploadId      String                    @map("audio_upload_id")
+  audioUpload        AudioUpload               @relation(fields: [audioUploadId], references: [id], onDelete: Restrict)
+  status             VerifiedPublicationStatus @default(HIDDEN)
+  reason             String?                   @db.VarChar(2000)
+  version            Int                       @default(1)
+  updatedAt          DateTime                  @updatedAt @map("updated_at")
+
+  @@index([pieceId, instrumentId, status, verifiedAt])
+  @@index([sourceClassId, status])
+  @@index([audioUploadId])
+  @@index([cohort])
+  @@map("verified_contents")
 }

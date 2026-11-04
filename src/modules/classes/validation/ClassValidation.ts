@@ -33,7 +33,8 @@ const pagination = {
   limit: z.coerce.number().int().min(1).max(limits.PAGE_SIZE_MAX).default(limits.PAGE_SIZE_DEFAULT)
 };
 
-const classParams = z.object({ id: z.uuid() });
+const classId = z.string().trim().min(1).max(64);
+const classParams = z.object({ id: classId });
 const emptyQuery = z.object({});
 
 export default class ClassValidation {
@@ -107,13 +108,13 @@ export default class ClassValidation {
 
   static readonly memberParamsSchema = z.object({
     body: z.unknown(),
-    params: z.object({ id: z.uuid(), studentId: z.uuid() }),
+    params: z.object({ id: classId, studentId: z.uuid() }),
     query: emptyQuery
   });
 
   static readonly importLogParamsSchema = z.object({
     body: z.unknown(),
-    params: z.object({ id: z.uuid(), logId: z.uuid() }),
+    params: z.object({ id: classId, logId: z.uuid() }),
     query: emptyQuery
   });
 }
