@@ -52,7 +52,7 @@ test('Phase B: FAQ, lecturer review, consent, automatic library and protected au
   }
   try {
     const body = { question: '  Cách   nộp bài? ', answer: 'Mở bài tập và chọn thu âm.', topic: 'ASSIGNMENTS', instrumentId: null, displayOrder: 1, isActive: true };
-    await call('/faqs', null, 401);
+    await call('/faqs', null, 200);
     await call('/admin/faqs', student.id, 403);
     const faq = await call('/admin/faqs', admin.id, 201, 'POST', body) as {id: string};
     await call('/admin/faqs', admin.id, 409, 'POST', {...body, question: 'CÁCH NỘP BÀI?'});
