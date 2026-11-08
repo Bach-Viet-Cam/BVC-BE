@@ -32,6 +32,39 @@ export default class DatabaseSeeder {
     { code: 'DNH', name: 'Đàn nhị', fminHz: 293, fmaxHz: 1760, toleranceCents: 35, description: 'Đàn hai dây kéo bằng cung vĩ.' }
   ];
 
+  static readonly instrumentTunes: Record<string, { tuneName: string; pitch: number; displayOrder: number }[]> = {
+    DNH: [
+      { tuneName: 'Dây 1 (Re 5)', pitch: 587.33, displayOrder: 1 },
+      { tuneName: 'Dây 2 (Sol 4)', pitch: 392.0, displayOrder: 2 },
+    ],
+    DBA: [
+      { tuneName: 'Dây buông (Do 3)', pitch: 130.81, displayOrder: 1 },
+      { tuneName: 'Dây buông quãng 8 (Do 4)', pitch: 261.63, displayOrder: 2 },
+    ],
+    DTB: [
+      { tuneName: 'Dây 1 (Do 5)', pitch: 523.25, displayOrder: 1 },
+      { tuneName: 'Dây 2 (Sol 4)', pitch: 392.0, displayOrder: 2 },
+      { tuneName: 'Dây 3 (Fa 4)', pitch: 349.23, displayOrder: 3 },
+      { tuneName: 'Dây 4 (Do 4)', pitch: 261.63, displayOrder: 4 },
+    ],
+    DTR: [
+      { tuneName: 'Dây 1 (Sol 3)', pitch: 196.0, displayOrder: 1 },
+      { tuneName: 'Dây 2 (La 3)', pitch: 220.0, displayOrder: 2 },
+      { tuneName: 'Dây 3 (Do 4)', pitch: 261.63, displayOrder: 3 },
+      { tuneName: 'Dây 4 (Re 4)', pitch: 293.66, displayOrder: 4 },
+      { tuneName: 'Dây 5 (Mi 4)', pitch: 329.63, displayOrder: 5 },
+      { tuneName: 'Dây 6 (Sol 4)', pitch: 392.0, displayOrder: 6 },
+    ],
+    DSA: [
+      { tuneName: 'Do 5 (C5)', pitch: 523.25, displayOrder: 1 },
+      { tuneName: 'Re 5 (D5)', pitch: 587.33, displayOrder: 2 },
+      { tuneName: 'Mi 5 (E5)', pitch: 659.25, displayOrder: 3 },
+      { tuneName: 'Fa 5 (F5)', pitch: 698.46, displayOrder: 4 },
+      { tuneName: 'Sol 5 (G5)', pitch: 783.99, displayOrder: 5 },
+      { tuneName: 'La 5 (A5)', pitch: 880.0, displayOrder: 6 },
+    ],
+  };
+
   // Codes used before the short form; renamed in place so re-seeding an existing DB does not duplicate instruments.
   static readonly legacyInstrumentCodes: Record<string, string> = { DAN_TRANH: 'DTR', DAN_BAU: 'DBA', SAO_TRUC: 'DSA', TY_BA: 'DTB' };
 
@@ -155,7 +188,7 @@ export default class DatabaseSeeder {
       const existingTunes = await prisma.instrumentTune.count({ where: { instrumentId: record.id } });
       if (existingTunes === 0 && tunes.length > 0) {
         await prisma.instrumentTune.createMany({
-          data: tunes.map((tune, displayOrder) => ({ instrumentId: record.id, tuneName: tune.tuneName, pitch: tune.pitch, displayOrder }))
+          data: tunes.map((tune) => ({ instrumentId: record.id, tuneName: tune.tuneName, pitch: tune.pitch, displayOrder: tune.displayOrder }))
         });
       }
     }
