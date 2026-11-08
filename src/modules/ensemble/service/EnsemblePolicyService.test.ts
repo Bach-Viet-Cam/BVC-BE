@@ -4,14 +4,14 @@ import EnsemblePolicyService from './EnsemblePolicyService.ts';
 
 describe('EnsemblePolicyService.filterTracks (GBR-07)', () => {
   const tracks = [{ instrumentId: 'a' }, { instrumentId: 'b' }, { instrumentId: 'c' }];
-  it('bỏ bè trùng nhạc cụ của sinh viên', () => {
-    assert.deepEqual(EnsemblePolicyService.filterTracks({ tracks, studentInstrumentId: 'b' }), [{ instrumentId: 'a' }, { instrumentId: 'c' }]);
+  it('giữ bè của sinh viên để nghe mẫu', () => {
+    assert.deepEqual(EnsemblePolicyService.filterTracks({ tracks, studentInstrumentId: 'b' }), tracks);
   });
   it('giữ nguyên khi không có bè trùng', () => {
     assert.equal(EnsemblePolicyService.filterTracks({ tracks, studentInstrumentId: 'z' }).length, 3);
   });
-  it('trả rỗng khi bài chỉ có bè của chính sinh viên', () => {
-    assert.deepEqual(EnsemblePolicyService.filterTracks({ tracks: [{ instrumentId: 'a' }], studentInstrumentId: 'a' }), []);
+  it('giữ bè mẫu khi bài chỉ có nhạc cụ của sinh viên', () => {
+    assert.deepEqual(EnsemblePolicyService.filterTracks({ tracks: [{ instrumentId: 'a' }], studentInstrumentId: 'a' }), [{ instrumentId: 'a' }]);
   });
 });
 

@@ -8,6 +8,7 @@ import AuthConstant from '../../src/modules/auth/constant/AuthConstant.ts';
 import TextNormalizer from '../../src/utils/TextNormalizer.ts';
 import PlatformConstant from '../../src/modules/platform/constant/PlatformConstant.ts';
 import SampleMediaFactory from './SampleMediaFactory.ts';
+import FaqSeeder from './FaqSeeder.ts';
 
 interface SheetSeed { instrument: string; kind: 'MAIN' | 'LEVEL'; name: string; level: string; audioSec?: number; isHidden?: boolean; }
 interface PieceSeed {
@@ -319,6 +320,7 @@ export default class DatabaseSeeder {
     await DatabaseSeeder.seedCatalog();
     const users = await DatabaseSeeder.seedUsers();
     await DatabaseSeeder.seedPieces(users[0].id);
+    await FaqSeeder.run();
     DatabaseSeeder.printDevTokens(users);
   }
 }
