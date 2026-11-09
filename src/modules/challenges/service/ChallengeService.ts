@@ -135,8 +135,7 @@ export default class ChallengeService {
     let sheetMusicId: string | null = null;
 
     if (plan.publish) {
-      // Serialise this lecturer's publishes, then validate everything against the state this transaction sees.
-      await ChallengeRepository.lockLecturer(lecturerId, transaction);
+      // Validate everything against the state this transaction sees; class locks (below) serialise publishes per class.
       if (plan.challengeId) {
         await ChallengeRepository.lockChallenge(plan.challengeId, transaction);
         const current = await ChallengeRepository.findById(plan.challengeId, transaction);
@@ -147,6 +146,7 @@ export default class ChallengeService {
           ChallengeService.assertValid(fields, true);
         }
       }
+      await ChallengeRepository.lockClasses(fields.classIds, transaction);
       ChallengeReferenceService.assertWeek(fields.weekStart, now);
       const classes = await ChallengeReferenceService.assertClasses(fields.classIds, fields.instrumentId, lecturerId, { requireStudents: true }, transaction);
       classNames = classes.map((item) => item.name);
@@ -158,7 +158,7 @@ export default class ChallengeService {
 
     if (plan.publish && period && fields.instrumentId) {
       const overlapping = await ChallengeRepository.findOverlappingClassIds(
-        { lecturerId, instrumentId: fields.instrumentId, classIds: fields.classIds, startsAt: period.startsAt, endsAt: period.endsAt, excludeChallengeId: plan.challengeId ?? undefined },
+        { instrumentId: fields.instrumentId, classIds: fields.classIds, startsAt: period.startsAt, endsAt: period.endsAt, excludeChallengeId: plan.challengeId ?? undefined },
         transaction
       );
       if (overlapping.length > 0) throw AppError.conflict(messages.CLASS_OVERLAP, { code: 'MSG-08' });

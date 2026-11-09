@@ -1,5 +1,6 @@
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
 import AppError from '../../../utils/AppError.ts';
+import ClassAccessService from '../../classes/service/ClassAccessService.ts';
 import MemberRepository from '../../classes/repository/MemberRepository.ts';
 import NotificationService from '../../platform/service/NotificationService.ts';
 import AssignmentConstant from '../constant/AssignmentConstant.ts';
@@ -12,7 +13,7 @@ const notifications = AssignmentConstant.notifications;
 export default class SubmissionCommentService {
   static async saveComment(submissionId: string, lecturerId: string, content: string): Promise<{ comment: Backend.SubmissionCommentDTO; message: string }> {
     const context = await SubmissionRepository.findSubmissionContext(submissionId);
-    if (!context || context.assignment.deletedAt || context.assignment.class.ownerId !== lecturerId) {
+    if (!context || context.assignment.deletedAt || !ClassAccessService.isClassLecturer(context.assignment.class, lecturerId)) {
       throw AppError.notFound(messages.SUBMISSION_NOT_FOUND);
     }
     const membership = await MemberRepository.findActiveMembership(context.assignment.class.id, context.studentId);

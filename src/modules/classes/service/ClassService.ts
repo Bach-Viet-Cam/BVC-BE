@@ -8,8 +8,10 @@ import AssignmentService from '../../assignments/service/AssignmentService.ts';
 import SystemConfigService from '../../platform/service/SystemConfigService.ts';
 import AssignmentRepository from '../../assignments/repository/AssignmentRepository.ts';
 import RoadmapRepository from '../../roadmaps/repository/RoadmapRepository.ts';
+import ClassLecturerRepository from '../repository/ClassLecturerRepository.ts';
 import ClassRepository from '../repository/ClassRepository.ts';
 import ClassAccessService from './ClassAccessService.ts';
+import ClassLecturerService from './ClassLecturerService.ts';
 
 const messages = ClassConstant.messages;
 const auditActions = ClassConstant.auditActions;
@@ -23,7 +25,7 @@ export default class ClassService {
       ClassRepository.findCohorts(lecturerId)
     ]);
     return {
-      items: classes.map(ClassDTO.toClassSummaryDTO),
+      items: classes.map((classRecord) => ClassDTO.toClassSummaryDTO(classRecord, lecturerId)),
       pagination: { page: query.page, limit: query.limit, total },
       activeCount,
       cohorts
@@ -32,7 +34,7 @@ export default class ClassService {
 
   static async getClassDetail(classId: string, lecturerId: string): Promise<Backend.ClassDetailDTO> {
     const classRecord = await ClassAccessService.assertOwnedClass(classId, lecturerId);
-    return ClassDTO.toClassDetailDTO(classRecord);
+    return ClassDTO.toClassDetailDTO(classRecord, lecturerId);
   }
 
   static async listSemesters(now: Date = new Date()): Promise<Backend.SemesterListDTO> {
@@ -65,6 +67,7 @@ export default class ClassService {
     const semester = await ClassService.findSemester(input.cohort);
     await ClassService.assertInstrumentActive(input.instrumentId);
     await ClassService.assertUniqueName(semester.name, input.name);
+    await ClassLecturerService.assertAssignableLecturers(input.coLecturerIds, lecturerId);
 
     const classData: Backend.ClassWriteData = {
       name: input.name,
@@ -78,24 +81,26 @@ export default class ClassService {
     };
     const createdClass = await ClassService.runUniqueGuarded(() =>
       PrismaClientProvider.instance.$transaction(async (transaction) => {
-        const classRecord = await ClassRepository.createClass(lecturerId, classData, transaction);
+        const newClass = await ClassRepository.createClass(lecturerId, classData, transaction);
+        await ClassLecturerRepository.createMany(newClass.id, input.coLecturerIds, lecturerId, transaction);
+        const classRecord = (await ClassRepository.findClassById(newClass.id, transaction)) as Backend.ClassRecord;
         await AuditLogger.record({
           actorId: lecturerId,
           action: auditActions.CLASS_CREATE,
           entityType: ClassConstant.auditEntityTypes.CLASS,
           entityId: classRecord.id,
-          payload: { name: classRecord.name, cohort: classRecord.cohort, instrumentId: classRecord.instrumentId, startDate: semester.startDate }
+          payload: { name: classRecord.name, cohort: classRecord.cohort, instrumentId: classRecord.instrumentId, startDate: semester.startDate, coLecturerIds: input.coLecturerIds }
         }, transaction);
         return classRecord;
       })
     );
-    return ClassDTO.toClassDetailDTO(createdClass, now);
+    return ClassDTO.toClassDetailDTO(createdClass, lecturerId, now);
   }
 
   static async updateClass(classId: string, lecturerId: string, input: Backend.UpdateClassInput, now: Date = new Date()): Promise<Backend.ClassDetailDTO> {
     const currentClass = await ClassAccessService.assertOwnedClass(classId, lecturerId, { requireActive: true });
     const changes = await ClassService.buildClassChanges(currentClass, input, now);
-    if (Object.keys(changes).length === 0) return ClassDTO.toClassDetailDTO(currentClass, now);
+    if (Object.keys(changes).length === 0) return ClassDTO.toClassDetailDTO(currentClass, lecturerId, now);
 
     const updatedClass = await ClassService.runUniqueGuarded(() =>
       PrismaClientProvider.instance.$transaction(async (transaction) => {
@@ -111,7 +116,7 @@ export default class ClassService {
         return classRecord;
       })
     );
-    return ClassDTO.toClassDetailDTO(updatedClass, now);
+    return ClassDTO.toClassDetailDTO(updatedClass, lecturerId, now);
   }
 
   static async buildClassChanges(
@@ -165,7 +170,7 @@ export default class ClassService {
       }, transaction);
       return classRecord;
     });
-    return ClassDTO.toClassDetailDTO(endedClass);
+    return ClassDTO.toClassDetailDTO(endedClass, lecturerId);
   }
 
   static async assertInstrumentActive(instrumentId: string): Promise<void> {

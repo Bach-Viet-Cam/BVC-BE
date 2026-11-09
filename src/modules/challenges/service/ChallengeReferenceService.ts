@@ -1,6 +1,7 @@
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
 import AppError from '../../../utils/AppError.ts';
 import type { Prisma } from '@prisma/client';
+import ClassAccessService from '../../classes/service/ClassAccessService.ts';
 import ClassConstant from '../../classes/constant/ClassConstant.ts';
 import MemberRepository from '../../classes/repository/MemberRepository.ts';
 import ChallengeConstant from '../constant/ChallengeConstant.ts';
@@ -33,7 +34,7 @@ export default class ChallengeReferenceService {
     const classes: Array<{ id: string; name: string }> = [];
     for (const classId of classIds) {
       const classRecord = await ChallengeRepository.findClassForChallenge(classId, client);
-      if (!classRecord || classRecord.ownerId !== lecturerId) throw AppError.notFound(ClassConstant.messages.CLASS_NOT_FOUND);
+      if (!classRecord || !ClassAccessService.isClassLecturer(classRecord, lecturerId)) throw AppError.notFound(ClassConstant.messages.CLASS_NOT_FOUND);
       if (classRecord.status === 'ENDED') throw AppError.conflict(ClassConstant.messages.CLASS_FINISHED, { code: 'MSG-08' });
       if (instrumentId && classRecord.instrumentId !== instrumentId) {
         throw AppError.fieldError(400, { field: 'classIds', message: messages.CLASS_INSTRUMENT_MISMATCH });

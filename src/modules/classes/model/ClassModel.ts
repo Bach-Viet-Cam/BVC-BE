@@ -1,5 +1,15 @@
+import type { Prisma } from '@prisma/client';
+
 export default class ClassModel {
   static readonly activeMemberFilter = { removedAt: null };
+
+  static readonly coLecturerSelect = { lecturerId: true };
+
+  static readonly lecturerSelect = { id: true, username: true, email: true };
+
+  static lecturerClassFilter(userId: string): Prisma.ClassWhereInput {
+    return { OR: [{ ownerId: userId }, { coLecturers: { some: { lecturerId: userId } } }] };
+  }
 
   static readonly classSelect = {
     id: true,
@@ -15,6 +25,11 @@ export default class ClassModel {
     roadmapId: true,
     createdAt: true,
     instrument: { select: { id: true, name: true } },
+    owner: { select: ClassModel.lecturerSelect },
+    coLecturers: {
+      select: { lecturerId: true, lecturer: { select: ClassModel.lecturerSelect } },
+      orderBy: { createdAt: 'asc' as const }
+    },
     _count: { select: { members: { where: ClassModel.activeMemberFilter } } }
   };
 

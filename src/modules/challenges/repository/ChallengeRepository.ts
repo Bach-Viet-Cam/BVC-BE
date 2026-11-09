@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
+import ClassModel from '../../classes/model/ClassModel.ts';
 import ChallengeModel from '../model/ChallengeModel.ts';
 
 interface ChallengeWriteData {
@@ -71,17 +72,20 @@ export default class ChallengeRepository {
   }
 
   static async findClassForChallenge(classId: string, client: Prisma.TransactionClient | typeof PrismaClientProvider.instance) {
-    return client.class.findUnique({ where: { id: classId }, select: { id: true, name: true, instrumentId: true, ownerId: true, status: true } });
+    return client.class.findUnique({ where: { id: classId }, select: { id: true, name: true, instrumentId: true, ownerId: true, status: true, coLecturers: { select: ClassModel.coLecturerSelect } } });
   }
 
-  // Serialises publishes of one lecturer so the overlap check cannot race with a concurrent publish.
-  static async lockLecturer(lecturerId: string, client: Prisma.TransactionClient): Promise<void> {
-    const lockKey = `challenge:${lecturerId}`;
-    await client.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+  // Serialises publishes touching the same classes so the overlap check cannot race with a concurrent publish.
+  // Locks are taken in sorted order to avoid deadlocks between publishes sharing several classes.
+  static async lockClasses(classIds: string[], client: Prisma.TransactionClient): Promise<void> {
+    for (const classId of [...new Set(classIds)].sort()) {
+      const lockKey = `challenge-class:${classId}`;
+      await client.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
+    }
   }
 
   static async findOverlappingClassIds(
-    data: { lecturerId: string; instrumentId: string; classIds: string[]; startsAt: Date; endsAt: Date; excludeChallengeId?: string },
+    data: { instrumentId: string; classIds: string[]; startsAt: Date; endsAt: Date; excludeChallengeId?: string },
     client: Prisma.TransactionClient
   ): Promise<string[]> {
     const rows = await client.challengeClass.findMany({
@@ -89,7 +93,6 @@ export default class ChallengeRepository {
         classId: { in: data.classIds },
         challenge: {
           status: 'PUBLISHED',
-          createdById: data.lecturerId,
           instrumentId: data.instrumentId,
           startsAt: { lte: data.endsAt },
           endsAt: { gte: data.startsAt },

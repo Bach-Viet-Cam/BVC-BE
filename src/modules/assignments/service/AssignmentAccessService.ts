@@ -1,4 +1,5 @@
 import AppError from '../../../utils/AppError.ts';
+import ClassAccessService from '../../classes/service/ClassAccessService.ts';
 import ClassConstant from '../../classes/constant/ClassConstant.ts';
 import AssignmentConstant from '../constant/AssignmentConstant.ts';
 import AssignmentRepository from '../repository/AssignmentRepository.ts';
@@ -7,7 +8,7 @@ import AssignmentRepository from '../repository/AssignmentRepository.ts';
 export default class AssignmentAccessService {
   static async assertOwnedAssignment(assignmentId: string, lecturerId: string, options: { requireActiveClass?: boolean } = {}): Promise<Backend.AssignmentRecord> {
     const record = await AssignmentRepository.findById(assignmentId);
-    if (!record || record.deletedAt || record.class.ownerId !== lecturerId) {
+    if (!record || record.deletedAt || !ClassAccessService.isClassLecturer(record.class, lecturerId)) {
       throw AppError.notFound(AssignmentConstant.messages.ASSIGNMENT_NOT_FOUND);
     }
     if (options.requireActiveClass && record.class.status === 'ENDED') {

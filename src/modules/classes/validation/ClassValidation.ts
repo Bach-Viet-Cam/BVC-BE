@@ -55,7 +55,8 @@ export default class ClassValidation {
       name: requiredText('name', limits.NAME_MAX),
       cohort: requiredText('cohort', limits.COHORT_MAX),
       instrumentId,
-      description
+      description,
+      coLecturerIds: z.array(z.uuid({ error: format('MSG-35', { field: labels.coLecturerIds }) })).default([]).transform((ids) => [...new Set(ids)])
     }),
     params: z.object({}),
     query: emptyQuery
@@ -70,6 +71,12 @@ export default class ClassValidation {
     }),
     params: classParams,
     query: emptyQuery
+  });
+
+  static readonly lookupLecturersSchema = z.object({
+    body: z.unknown(),
+    params: z.object({}),
+    query: z.object({ email: z.string().trim().min(1).max(limits.EMAIL_MAX) })
   });
 
   static readonly semestersSchema = z.object({ body: z.unknown(), params: z.object({}), query: emptyQuery });
@@ -109,6 +116,18 @@ export default class ClassValidation {
   static readonly memberParamsSchema = z.object({
     body: z.unknown(),
     params: z.object({ id: classId, studentId: z.uuid() }),
+    query: emptyQuery
+  });
+
+  static readonly addLecturerSchema = z.object({
+    body: z.object({ lecturerId: z.uuid({ error: format('MSG-35', { field: labels.coLecturerIds }) }) }),
+    params: classParams,
+    query: emptyQuery
+  });
+
+  static readonly lecturerParamsSchema = z.object({
+    body: z.unknown(),
+    params: z.object({ id: classId, lecturerId: z.uuid() }),
     query: emptyQuery
   });
 

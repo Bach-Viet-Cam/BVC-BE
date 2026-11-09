@@ -190,6 +190,10 @@ export default class TestDatabase {
     return TestDatabase.prisma.classMember.create({ data: { classId, userId: studentId, instrumentId: classRecord.instrumentId, addedById, source: 'MANUAL' } });
   }
 
+  static async addCoLecturer(classId: string, lecturerId: string, addedById: string) {
+    return TestDatabase.prisma.classLecturer.create({ data: { classId, lecturerId, addedById } });
+  }
+
   static tokenFor(user: { id: string; email: string; username: string; role: number; status: Backend.UserStatus; studentCode?: string | null }): string {
     return `Bearer ${AuthService.createAccessToken({ ...user, studentCode: user.studentCode ?? null })}`;
   }

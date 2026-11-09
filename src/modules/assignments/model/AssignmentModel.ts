@@ -1,3 +1,5 @@
+import ClassModel from '../../classes/model/ClassModel.ts';
+
 export default class AssignmentModel {
   static readonly assignmentSelect = {
     id: true,
@@ -7,7 +9,7 @@ export default class AssignmentModel {
     publishedAt: true,
     closedAt: true,
     updatedAt: true,
-    class: { select: { id: true, name: true, status: true, instrumentId: true, ownerId: true } },
+    class: { select: { id: true, name: true, status: true, instrumentId: true, ownerId: true, coLecturers: { select: ClassModel.coLecturerSelect } } },
     currentVersion: {
       select: {
         id: true,
