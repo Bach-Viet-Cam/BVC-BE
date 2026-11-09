@@ -14,7 +14,7 @@ export async function protectVerifiedAudio(request: Request, response: Response,
     response.setHeader('Cache-Control', 'private, no-store');
     // Reject Windows alternate data streams, trailing characters and filesystem aliases
     // before either static server sees the path. Compare only canonical storage keys.
-    if (!/^audio\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(wav|mp3)$/.test(relative)) return next(AppError.notFound());
+    if (!/^audio\/(\d{4}-\d{2}\/)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(wav|mp3|m4a)$/.test(relative)) return next(AppError.notFound());
     if (await VerifiedContentService.isProtectedKey(relative)) return next(AppError.notFound('Vui lòng mở bản thu qua học liệu hoặc bài nộp.'));
   }
   next();
