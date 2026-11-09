@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import ApiResponse from '../../../utils/ApiResponse.ts';
 import ClassConstant from '../constant/ClassConstant.ts';
 import ClassService from '../service/ClassService.ts';
+import ClassLecturerService from '../service/ClassLecturerService.ts';
 import ImportService from '../service/ImportService.ts';
 import MemberService from '../service/MemberService.ts';
 
@@ -32,6 +33,12 @@ export default class ClassController {
     const { body } = ClassController.getValidated<Backend.CreateClassInput>(request);
     const classDetail = await ClassService.createClass(ClassController.getLecturerId(request), body);
     return ApiResponse.sendSuccessResponse(response, { statusCode: 201, data: classDetail, message: messages.CLASS_CREATED });
+  }
+
+  static async lookupLecturers(request: Request, response: Response): Promise<Response> {
+    const { query } = ClassController.getValidated<unknown, unknown, { email: string }>(request);
+    const lecturers = await ClassLecturerService.lookupLecturers(ClassController.getLecturerId(request), query.email);
+    return ApiResponse.sendSuccessResponse(response, { data: lecturers });
   }
 
   static async listSemesters(_request: Request, response: Response): Promise<Response> {
@@ -79,6 +86,18 @@ export default class ClassController {
     const { params } = ClassController.getValidated<unknown, { id: string; studentId: string }>(request);
     await MemberService.removeMember(params.id, ClassController.getLecturerId(request), params.studentId);
     return ApiResponse.sendSuccessResponse(response, { data: null, message: messages.MEMBER_REMOVED });
+  }
+
+  static async addLecturer(request: Request, response: Response): Promise<Response> {
+    const { body, params } = ClassController.getValidated<{ lecturerId: string }, { id: string }>(request);
+    const lecturer = await ClassLecturerService.addLecturer(params.id, ClassController.getLecturerId(request), body.lecturerId);
+    return ApiResponse.sendSuccessResponse(response, { statusCode: 201, data: lecturer, message: messages.LECTURER_ADDED });
+  }
+
+  static async removeLecturer(request: Request, response: Response): Promise<Response> {
+    const { params } = ClassController.getValidated<unknown, { id: string; lecturerId: string }>(request);
+    await ClassLecturerService.removeLecturer(params.id, ClassController.getLecturerId(request), params.lecturerId);
+    return ApiResponse.sendSuccessResponse(response, { data: null, message: messages.LECTURER_REMOVED });
   }
 
   static async downloadImportTemplate(_request: Request, response: Response): Promise<Response> {

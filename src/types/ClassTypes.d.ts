@@ -20,7 +20,15 @@ declare namespace Backend {
     roadmapId: string | null;
     createdAt: Date;
     instrument: { id: string; name: string };
+    owner: { id: string; username: string; email: string };
+    coLecturers: Array<{ lecturerId: string; lecturer: { id: string; username: string; email: string } }>;
     _count: { members: number };
+  }
+
+  interface LecturerDTO {
+    id: string;
+    fullName: string;
+    email: string;
   }
 
   interface ClassSummaryDTO {
@@ -32,6 +40,7 @@ declare namespace Backend {
     startDate: string;
     endDate: string;
     memberCount: number;
+    isPrimaryLecturer: boolean;
   }
 
   interface ClassDetailDTO extends ClassSummaryDTO {
@@ -39,6 +48,8 @@ declare namespace Backend {
     hasStarted: boolean;
     isReadOnly: boolean;
     endedAt: string | null;
+    owner: LecturerDTO;
+    coLecturers: LecturerDTO[];
   }
 
   interface ClassListQuery {
@@ -62,9 +73,10 @@ declare namespace Backend {
     cohort: string;
     instrumentId: string;
     description?: string | null;
+    coLecturerIds: string[];
   }
 
-  type UpdateClassInput = Partial<CreateClassInput>;
+  type UpdateClassInput = Partial<Omit<CreateClassInput, 'coLecturerIds'>>;
 
   interface SemesterListDTO {
     items: Semester[];

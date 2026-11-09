@@ -1,6 +1,7 @@
 import type { Prisma, SubmissionReview } from '@prisma/client';
 import type { z } from 'zod';
 import AppError from '../../../utils/AppError.ts';
+import ClassAccessService from '../../classes/service/ClassAccessService.ts';
 import NotificationService from '../../platform/service/NotificationService.ts';
 import VerifiedModel from '../model/VerifiedModel.ts';
 import VerifiedRepository from '../repository/VerifiedRepository.ts';
@@ -12,14 +13,14 @@ interface ReviewState { review: SubmissionReview | null; shareConsent: boolean; 
 
 export default class SubmissionReviewService {
   static assertRead(actor: Backend.UserDTO, row: Source): void {
-    if (actor.role === 3 || (actor.role === 1 && row.studentId === actor.userId) || (actor.role === 2 && row.assignment?.class.ownerId === actor.userId)) return;
+    if (actor.role === 3 || (actor.role === 1 && row.studentId === actor.userId) || (actor.role === 2 && (row.assignment ? ClassAccessService.isClassLecturer(row.assignment.class, actor.userId) : false))) return;
     throw AppError.forbidden();
   }
   static async get(actor: Backend.UserDTO, id: string): Promise<ReviewState> {
     const row = await VerifiedRepository.source(id);
     if (!row) throw AppError.notFound('Bài nộp không tồn tại.');
     SubmissionReviewService.assertRead(actor, row);
-    return { review: row.review, shareConsent: row.shareConsent, canReview: actor.role === 2 && row.assignment?.class.ownerId === actor.userId && !row.review && row.status !== 'PROCESSING' && !row.fileDeletedAt && Boolean(row.studentUpload), verifiedContentId: row.verifiedContent?.id ?? null };
+    return { review: row.review, shareConsent: row.shareConsent, canReview: actor.role === 2 && (row.assignment ? ClassAccessService.isClassLecturer(row.assignment.class, actor.userId) : false) && !row.review && row.status !== 'PROCESSING' && !row.fileDeletedAt && Boolean(row.studentUpload), verifiedContentId: row.verifiedContent?.id ?? null };
   }
   static async consent(actor: Backend.UserDTO, id: string, isGranted: boolean): Promise<ReviewState> {
     await VerifiedRepository.locked(async (tx) => {
@@ -37,7 +38,7 @@ export default class SubmissionReviewService {
     await VerifiedRepository.locked(async (tx) => {
       const row = await VerifiedRepository.source(id, tx);
       if (!row) throw AppError.notFound('Bài nộp không tồn tại.');
-      if (actor.role !== 2 || row.assignment?.class.ownerId !== actor.userId) throw AppError.forbidden();
+      if (actor.role !== 2 || !row.assignment || !ClassAccessService.isClassLecturer(row.assignment.class, actor.userId)) throw AppError.forbidden();
       const status = input.decision === 'APPROVE' ? 'APPROVED' : 'REJECTED';
       if (row.review) {
         if (row.review.status === status) return;

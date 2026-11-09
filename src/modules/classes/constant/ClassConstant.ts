@@ -11,6 +11,7 @@ export default class ClassConstant {
     STUDENT_CODE_MAX: 50,
     FULL_NAME_MAX: 100,
     EMAIL_MAX: 255,
+    LECTURER_LOOKUP_MAX: 10,
     PAGE_SIZE_DEFAULT: 20,
     PAGE_SIZE_MAX: 200
   });
@@ -43,6 +44,7 @@ export default class ClassConstant {
     fullName: 'Họ tên',
     email: 'Email',
     q: 'Từ khóa tìm kiếm',
+    coLecturerIds: 'Giảng viên cùng dạy',
     file: 'File'
   });
 
@@ -66,6 +68,11 @@ export default class ClassConstant {
     SEMESTER_LOCKED: format('MSG-08', { action: 'đổi học kỳ', reason: 'lớp đã bắt đầu' }),
     SEMESTER_NOT_FOUND: 'Học kỳ đã chọn không tồn tại. Vui lòng chọn học kỳ khác.',
     INSTRUMENT_UNAVAILABLE: 'Môn học đã chọn không còn hoạt động. Vui lòng chọn môn học khác.',
+    LECTURER_IS_OWNER: 'Giảng viên chính không cần thêm làm giảng viên cùng dạy.',
+    LECTURER_UNAVAILABLE: 'Giảng viên đã chọn không tồn tại hoặc đã bị khóa.',
+    LECTURER_MANAGE_FORBIDDEN: 'Chỉ giảng viên chính được quản lý giảng viên cùng dạy.',
+    LECTURER_ALREADY_ADDED: 'Giảng viên đã có trong lớp.',
+    LECTURER_NOT_IN_CLASS: 'Không tìm thấy giảng viên trong lớp.',
     DUPLICATE_CLASS_NAME: 'Mã lớp đã tồn tại.',
     UNSUPPORTED_FILE: format('MSG-13', { allowed_formats: '.xlsx, .csv' }),
     FILE_TOO_LARGE: format('MSG-14', { max_size: 2 }),
@@ -82,6 +89,8 @@ export default class ClassConstant {
     CLASS_ENDED: format('MSG-01', { action: 'Kết thúc', object: 'lớp' }),
     MEMBER_ADDED: format('MSG-01', { action: 'Thêm', object: 'sinh viên' }),
     MEMBER_REMOVED: format('MSG-01', { action: 'Xóa', object: 'sinh viên' }),
+    LECTURER_ADDED: format('MSG-01', { action: 'Thêm', object: 'giảng viên' }),
+    LECTURER_REMOVED: format('MSG-01', { action: 'Gỡ', object: 'giảng viên' }),
     IMPORT_CANCELLED: 'Đã hủy nhập danh sách.',
     importSummary: (importedCount: number, skippedCount: number): string =>
       format('MSG-45', { hợp_lệ: importedCount, bỏ_qua: skippedCount })
@@ -93,10 +102,12 @@ export default class ClassConstant {
     CLASS_END: 'CLASS_END',
     MEMBER_ADD: 'CLASS_MEMBER_ADD',
     MEMBER_REMOVE: 'CLASS_MEMBER_REMOVE',
+    LECTURER_ADD: 'CLASS_LECTURER_ADD',
+    LECTURER_REMOVE: 'CLASS_LECTURER_REMOVE',
     IMPORT_CONFIRM: 'CLASS_IMPORT_CONFIRM'
   });
 
-  static readonly auditEntityTypes = Object.freeze({ CLASS: 'class', CLASS_MEMBER: 'class_member', IMPORT_LOG: 'student_import_log' });
+  static readonly auditEntityTypes = Object.freeze({ CLASS: 'class', CLASS_MEMBER: 'class_member', CLASS_LECTURER: 'class_lecturer', IMPORT_LOG: 'student_import_log' });
 
   static readonly emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 }

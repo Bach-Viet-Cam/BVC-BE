@@ -23,6 +23,7 @@ export default class ClassRoute {
     classRouter.post('/', validateRequest(ClassValidation.createClassSchema), ...lecturerOnly, wrap(ClassController.createClass));
     classRouter.get('/semesters', validateRequest(ClassValidation.semestersSchema), ...lecturerOnly, wrap(ClassController.listSemesters));
     classRouter.get('/import-template', validateRequest(ClassValidation.templateSchema), ...lecturerOnly, wrap(ClassController.downloadImportTemplate));
+    classRouter.get('/lecturers/lookup', validateRequest(ClassValidation.lookupLecturersSchema), ...lecturerOnly, wrap(ClassController.lookupLecturers));
     classRouter.get('/:id', validateRequest(ClassValidation.classIdSchema), ...lecturerOnly, wrap(ClassController.getClass));
     classRouter.patch('/:id', validateRequest(ClassValidation.updateClassSchema), ...lecturerOnly, wrap(ClassController.updateClass));
     classRouter.post('/:id/end', validateRequest(ClassValidation.classIdSchema), ...lecturerOnly, wrap(ClassController.endClass));
@@ -31,6 +32,9 @@ export default class ClassRoute {
     classRouter.get('/:id/members/lookup', validateRequest(ClassValidation.lookupMemberSchema), ...lecturerOnly, wrap(ClassController.lookupMember));
     classRouter.post('/:id/members', validateRequest(ClassValidation.addMemberSchema), ...lecturerOnly, wrap(ClassController.addMember));
     classRouter.delete('/:id/members/:studentId', validateRequest(ClassValidation.memberParamsSchema), ...lecturerOnly, wrap(ClassController.removeMember));
+
+    classRouter.post('/:id/lecturers', validateRequest(ClassValidation.addLecturerSchema), ...lecturerOnly, wrap(ClassController.addLecturer));
+    classRouter.delete('/:id/lecturers/:lecturerId', validateRequest(ClassValidation.lecturerParamsSchema), ...lecturerOnly, wrap(ClassController.removeLecturer));
 
     classRouter.post('/:id/imports', validateRequest(ClassValidation.classIdSchema), ...lecturerOnly, receiveImportFile, wrap(ClassController.previewImport));
     classRouter.post('/:id/imports/:logId/confirm', validateRequest(ClassValidation.importLogParamsSchema), ...lecturerOnly, wrap(ClassController.confirmImport));

@@ -9,7 +9,7 @@ export default class ClassRepository {
 
   static buildListWhere(lecturerId: string, query: Backend.ClassListQuery): Prisma.ClassWhereInput {
     return {
-      ownerId: lecturerId,
+      AND: [ClassModel.lecturerClassFilter(lecturerId)],
       ...(query.status !== 'ALL' ? { status: query.status } : {}),
       ...(query.cohort ? { cohort: query.cohort } : {}),
       ...(query.instrumentId ? { instrumentId: query.instrumentId } : {}),
@@ -33,12 +33,12 @@ export default class ClassRepository {
   }
 
   static async countActiveClasses(lecturerId: string): Promise<number> {
-    return ClassRepository.client.class.count({ where: { ownerId: lecturerId, status: 'ACTIVE' } });
+    return ClassRepository.client.class.count({ where: { AND: [ClassModel.lecturerClassFilter(lecturerId)], status: 'ACTIVE' } });
   }
 
   static async findCohorts(lecturerId: string): Promise<string[]> {
     const cohorts = await ClassRepository.client.class.findMany({
-      where: { ownerId: lecturerId },
+      where: ClassModel.lecturerClassFilter(lecturerId),
       distinct: ['cohort'],
       select: { cohort: true },
       orderBy: { cohort: 'desc' }
@@ -46,8 +46,8 @@ export default class ClassRepository {
     return cohorts.map((cohortRow) => cohortRow.cohort);
   }
 
-  static async findClassById(classId: string): Promise<Backend.ClassRecord | null> {
-    const classRecord = await ClassRepository.client.class.findUnique({ where: { id: classId }, select: ClassModel.classSelect });
+  static async findClassById(classId: string, client: Prisma.TransactionClient = ClassRepository.client): Promise<Backend.ClassRecord | null> {
+    const classRecord = await client.class.findUnique({ where: { id: classId }, select: ClassModel.classSelect });
     return classRecord as Backend.ClassRecord | null;
   }
 

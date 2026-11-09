@@ -41,6 +41,8 @@ model User {
   uploadedMediaFiles        MediaFile[]              @relation("MediaFileUploader")
   savedItems                SavedItem[]
   ownedClasses              Class[]
+  coTaughtClasses           ClassLecturer[]          @relation("ClassLecturerLecturer")
+  addedClassLecturers       ClassLecturer[]          @relation("ClassLecturerAddedBy")
   classMemberships          ClassMember[]
   addedMembers              ClassMember[]            @relation("ClassMemberAddedBy")
   removedMembers            ClassMember[]            @relation("ClassMemberRemovedBy")
@@ -436,12 +438,29 @@ model Class {
   owner              User               @relation(fields: [ownerId], references: [id])
   roadmap            Roadmap?           @relation(fields: [roadmapId], references: [id])
   members            ClassMember[]
+  coLecturers        ClassLecturer[]
   assignments        Assignment[]
   challengeClasses   ChallengeClass[]
   importLogs         StudentImportLog[]
   leaderboardEntries LeaderboardEntry[]
 
   @@map("classes")
+}
+
+// Co-lecturers teaching a class besides its owner (Class.ownerId stays the creator and sole manager of the lecturer list).
+model ClassLecturer {
+  id         String   @id @default(uuid())
+  classId    String   @map("class_id")
+  lecturerId String   @map("lecturer_id")
+  addedById  String   @map("added_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  class      Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  lecturer   User     @relation("ClassLecturerLecturer", fields: [lecturerId], references: [id])
+  addedBy    User     @relation("ClassLecturerAddedBy", fields: [addedById], references: [id])
+
+  @@unique([classId, lecturerId])
+  @@index([lecturerId])
+  @@map("class_lecturers")
 }
 
 enum ClassMemberSource {

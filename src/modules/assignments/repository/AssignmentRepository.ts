@@ -2,6 +2,7 @@ import type { Prisma } from '@prisma/client';
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
 import AssignmentConstant from '../constant/AssignmentConstant.ts';
 import PieceUtil from '../../../utils/PieceUtil.ts';
+import ClassModel from '../../classes/model/ClassModel.ts';
 import AssignmentModel from '../model/AssignmentModel.ts';
 
 export default class AssignmentRepository {
@@ -17,7 +18,7 @@ export default class AssignmentRepository {
   static async findLecturerAssignments(lecturerId: string, query: Backend.AssignmentListQuery): Promise<{ records: Backend.AssignmentRecord[]; total: number }> {
     const where: Prisma.AssignmentWhereInput = {
       deletedAt: null,
-      class: { ownerId: lecturerId },
+      class: ClassModel.lecturerClassFilter(lecturerId),
       ...(query.classId ? { classId: query.classId } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.kind || query.q

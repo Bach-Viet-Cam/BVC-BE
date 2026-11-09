@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
+import ClassModel from '../../classes/model/ClassModel.ts';
 import AssignmentConstant from '../constant/AssignmentConstant.ts';
 
 // Reads submissions (written by the audio flow) and writes the lecturer comment next to them.
@@ -76,7 +77,7 @@ export default class SubmissionRepository {
     studentId: string;
     assignmentId: string;
     comment: { id: string } | null;
-    assignment: { deletedAt: Date | null; currentVersion: { title: string } | null; class: { id: string; name: string; status: Backend.ClassStatus; ownerId: string } };
+    assignment: { deletedAt: Date | null; currentVersion: { title: string } | null; class: { id: string; name: string; status: Backend.ClassStatus; ownerId: string; coLecturers: Array<{ lecturerId: string }> } };
   } | null> {
     const row = await SubmissionRepository.client.submission.findUnique({
       where: { id: submissionId },
@@ -89,7 +90,7 @@ export default class SubmissionRepository {
           select: {
             deletedAt: true,
             currentVersion: { select: { title: true } },
-            class: { select: { id: true, name: true, status: true, ownerId: true } }
+            class: { select: { id: true, name: true, status: true, ownerId: true, coLecturers: { select: ClassModel.coLecturerSelect } } }
           }
         }
       }

@@ -253,6 +253,17 @@ describe('Weekly challenges (lecturer)', () => {
       expect(await TestDatabase.prisma.challenge.count({ where: { status: 'PUBLISHED' } })).toBe(3);
     });
 
+    it('blocks a co-lecturer from publishing over the owner\'s challenge on the same class and week', async () => {
+      const coLecturer = await TestDatabase.createLecturer();
+      await TestDatabase.addCoLecturer(classA.id, coLecturer.id, lecturer.id);
+      const coToken = TestDatabase.tokenFor(coLecturer);
+      expect((await post(publishBody())).status).toBe(201);
+      const blocked = await post(publishBody({ title: 'Của giảng viên cùng dạy' }), coToken);
+      expect(blocked.status).toBe(409);
+      expect(blocked.body.code).toBe('MSG-08');
+      expect((await post(publishBody({ weekStart: monday(2) }), coToken)).status).toBe(201);
+    });
+
     it('notifies deduplicated active members of all selected classes', async () => {
       const classB = await TestDatabase.createClass(lecturer.id, tranh.id);
       const shared = await TestDatabase.createUser();

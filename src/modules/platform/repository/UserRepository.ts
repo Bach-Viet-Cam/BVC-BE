@@ -3,6 +3,7 @@ import AppError from '../../../utils/AppError.ts';
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
 import AuthConstant from '../../auth/constant/AuthConstant.ts';
 import PlatformConstant from '../constant/PlatformConstant.ts';
+import ClassModel from '../../classes/model/ClassModel.ts';
 import UserModel from '../model/UserModel.ts';
 
 export default class UserRepository {
@@ -63,7 +64,7 @@ export default class UserRepository {
   }
 
   static async countActiveClassesOwnedBy(userId: string): Promise<number> {
-    return UserRepository.client.class.count({ where: { ownerId: userId, status: 'ACTIVE' } });
+    return UserRepository.client.class.count({ where: { AND: [ClassModel.lecturerClassFilter(userId)], status: 'ACTIVE' } });
   }
 
   static async updateStatus(id: string, status: Backend.UserStatus): Promise<Backend.UserAdminRecord> {

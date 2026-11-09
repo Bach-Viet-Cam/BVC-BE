@@ -11,7 +11,7 @@ interface VerifiedItem {
 }
 export default class VerifiedDTO {
   static item(row: Record, actor: Backend.UserDTO): VerifiedItem {
-    const canManage = VerifiedPolicyService.canManage(actor, row.sourceClass.ownerId);
+    const canManage = VerifiedPolicyService.canManage(actor, row.sourceClass);
     return {
       id: row.id, submissionId: row.submissionId, pieceId: row.pieceId, pieceTitle: row.piece.title, sourceSheetMusicId: row.sourceSheetMusicId,
       instrument: { id: row.instrumentId, name: row.instrument.name }, performerDisplayName: row.submission.student.username,

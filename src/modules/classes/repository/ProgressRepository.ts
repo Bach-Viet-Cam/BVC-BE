@@ -1,9 +1,11 @@
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
+import ClassModel from '../model/ClassModel.ts';
 
 export interface ClassSummaryRecord {
   id: string;
   name: string;
   ownerId: string;
+  coLecturers: Array<{ lecturerId: string }>;
 }
 
 export interface ProgressMemberRecord {
@@ -19,14 +21,14 @@ export default class ProgressRepository {
 
   static async findClassesByOwner(ownerId: string): Promise<ClassSummaryRecord[]> {
     return ProgressRepository.client.class.findMany({
-      where: { ownerId, status: 'ACTIVE' },
-      select: { id: true, name: true, ownerId: true },
+      where: { AND: [ClassModel.lecturerClassFilter(ownerId)], status: 'ACTIVE' },
+      select: { id: true, name: true, ownerId: true, coLecturers: { select: ClassModel.coLecturerSelect } },
       orderBy: { name: 'asc' }
     });
   }
 
   static async findClassById(classId: string): Promise<ClassSummaryRecord | null> {
-    return ProgressRepository.client.class.findUnique({ where: { id: classId }, select: { id: true, name: true, ownerId: true } });
+    return ProgressRepository.client.class.findUnique({ where: { id: classId }, select: { id: true, name: true, ownerId: true, coLecturers: { select: ClassModel.coLecturerSelect } } });
   }
 
   static async findMembers(classId: string): Promise<ProgressMemberRecord[]> {
