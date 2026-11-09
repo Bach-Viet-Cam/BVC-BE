@@ -15,7 +15,7 @@ export default class AudioRepository {
     await this.client.$transaction(async (transaction) => {
       await transaction.$queryRaw`SELECT pg_advisory_xact_lock(${AudioConstant.cleanupLockId}::bigint)::text`;
       const uploads = await transaction.audioUpload.findMany({
-        where: { ownerId, provider, url: { in: [input.templateUrl, input.studentUrl] }, deletingAt: null }, select: AudioModel.uploadSelect
+        where: { ownerId, provider, url: { in: [input.templateUrl, input.studentUrl] }, deletingAt: null, verifiedContents: { none: {} } }, select: AudioModel.uploadSelect
       });
       const template = uploads.find((upload) => upload.url === input.templateUrl);
       const student = uploads.find((upload) => upload.url === input.studentUrl);
@@ -42,7 +42,7 @@ export default class AudioRepository {
     return this.client.$transaction(async (transaction) => {
       await transaction.$queryRaw`SELECT pg_advisory_xact_lock(${AudioConstant.cleanupLockId}::bigint)::text`;
       const uploads = await transaction.audioUpload.findMany({
-        where: { createdAt: { lt: before }, templateEvaluations: { none: {} }, studentEvaluations: { none: {} }, submissions: { none: {} } },
+        where: { createdAt: { lt: before }, templateEvaluations: { none: {} }, studentEvaluations: { none: {} }, submissions: { none: {} }, verifiedContents: { none: {} } },
         orderBy: { createdAt: 'asc' }, take: 100, select: { id: true, provider: true, key: true }
       });
       if (uploads.length) await transaction.audioUpload.updateMany({ where: { id: { in: uploads.map((upload) => upload.id) } }, data: { deletingAt: new Date() } });
@@ -51,6 +51,6 @@ export default class AudioRepository {
   }
 
   async deleteClaimedUpload(id: string): Promise<void> {
-    await this.client.audioUpload.deleteMany({ where: { id, deletingAt: { not: null }, templateEvaluations: { none: {} }, studentEvaluations: { none: {} }, submissions: { none: {} } } });
+    await this.client.audioUpload.deleteMany({ where: { id, deletingAt: { not: null }, templateEvaluations: { none: {} }, studentEvaluations: { none: {} }, submissions: { none: {} }, verifiedContents: { none: {} } } });
   }
 }

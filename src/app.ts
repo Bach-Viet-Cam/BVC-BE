@@ -1,3 +1,5 @@
+import { protectVerifiedAudio } from './modules/community/middleware/VerifiedAudioMiddleware.ts';
+import AsyncHandler from './utils/AsyncHandler.ts';
 import FileStorageRoute from './modules/storage/route/FileStorageRoute.ts';
 import express from 'express';
 import type { Express } from 'express';
@@ -28,6 +30,7 @@ export function createApp(): Express {
   app.get('/api/health', (_request, response) => {
     response.json({ status: 'OK', timestamp: new Date().toISOString() });
   });
+  app.use('/uploads', AsyncHandler.wrap(protectVerifiedAudio));
   new FileStorageRoute().register(app);
   app.use('/uploads', (_request, response, next) => {
     response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');

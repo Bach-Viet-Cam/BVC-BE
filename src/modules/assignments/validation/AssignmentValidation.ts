@@ -32,15 +32,16 @@ const requiredBpm = z
   .optional()
   .transform((value) => value ?? null);
 
-const sheetMusicId = z.uuid().nullable().optional().transform((value) => value || null);
+const recordId = z.string().trim().min(1).max(64);
+const sheetMusicId = recordId.nullable().optional().transform((value) => value || null);
 
 const content = { title, description, kind, sheetMusicId, requiredBpm };
-const idParams = z.object({ id: z.uuid() });
+const idParams = z.object({ id: recordId });
 const emptyQuery = z.object({});
 
 export default class AssignmentValidation {
   static readonly createSchema = z.object({
-    body: z.object({ classId: z.uuid({ error: format('MSG-35', { field: labels.classId }) }), ...content, publish: z.boolean().default(false) }),
+    body: z.object({ classId: recordId, ...content, publish: z.boolean().default(false) }),
     params: z.object({}),
     query: emptyQuery
   });
@@ -53,7 +54,7 @@ export default class AssignmentValidation {
     body: z.unknown(),
     params: z.object({}),
     query: z.object({
-      classId: z.uuid().optional(),
+      classId: recordId.optional(),
       kind: z.enum(AssignmentConstant.kinds).optional(),
       status: z.enum(AssignmentConstant.statuses).optional(),
       q: z
@@ -67,11 +68,11 @@ export default class AssignmentValidation {
     })
   });
 
-  static readonly sheetMusicSchema =z.object({ body: z.unknown(), params: z.object({}), query: z.object({ classId: z.uuid() }) });
+  static readonly sheetMusicSchema =z.object({ body: z.unknown(), params: z.object({}), query: z.object({ classId: recordId }) });
 
   static readonly studentSubmissionsSchema = z.object({
     body: z.unknown(),
-    params: z.object({ id: z.uuid(), studentId: z.uuid() }),
+    params: z.object({ id: recordId, studentId: z.uuid() }),
     query: emptyQuery
   });
 

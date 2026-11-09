@@ -36,7 +36,7 @@ declare namespace Backend {
     publishedAt: Date | null;
     closedAt: Date | null;
     updatedAt: Date;
-    class: { id: string; name: string; status: ClassStatus; instrumentId: string; ownerId: string };
+    class: { id: string; name: string; status: ClassStatus; instrumentId: string; ownerId: string; coLecturers: Array<{ lecturerId: string }> };
     currentVersion: {
       id: string;
       version: number;

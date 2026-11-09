@@ -1,6 +1,7 @@
 import AppError from '../../../utils/AppError.ts';
 import SystemConfigService from '../../platform/service/SystemConfigService.ts';
 import ClassesConstant from '../constant/ClassesConstant.ts';
+import ClassAccessService from './ClassAccessService.ts';
 import ProgressDTO, { type ProgressItem, type ProgressResult } from '../dto/ProgressDTO.ts';
 import ProgressRepository, { type ClassSummaryRecord } from '../repository/ProgressRepository.ts';
 import ProgressPolicyService, { type ProgressStatus } from './ProgressPolicyService.ts';
@@ -21,7 +22,7 @@ export default class ProgressService {
   static async getOwnedClassOrThrow(classId: string, teacherId: string): Promise<ClassSummaryRecord> {
     const classRecord = await ProgressRepository.findClassById(classId);
     if (!classRecord) throw AppError.notFound(ClassesConstant.messages.CLASS_NOT_FOUND);
-    if (classRecord.ownerId !== teacherId) throw AppError.forbidden(ClassesConstant.messages.CLASS_FORBIDDEN);
+    if (!ClassAccessService.isClassLecturer(classRecord, teacherId)) throw AppError.forbidden(ClassesConstant.messages.CLASS_FORBIDDEN);
     return classRecord;
   }
 

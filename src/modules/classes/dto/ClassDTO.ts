@@ -1,7 +1,7 @@
 import DateTimeUtil from '../../../utils/DateTimeUtil.ts';
 
 export default class ClassDTO {
-  static toClassSummaryDTO(classRecord: Backend.ClassRecord): Backend.ClassSummaryDTO {
+  static toClassSummaryDTO(classRecord: Backend.ClassRecord, viewerId: string): Backend.ClassSummaryDTO {
     return {
       id: classRecord.id,
       name: classRecord.name,
@@ -10,19 +10,26 @@ export default class ClassDTO {
       instrument: { id: classRecord.instrument.id, name: classRecord.instrument.name },
       startDate: DateTimeUtil.toIsoDate(classRecord.startDate),
       endDate: DateTimeUtil.toIsoDate(classRecord.endDate),
-      memberCount: classRecord._count.members
+      memberCount: classRecord._count.members,
+      isPrimaryLecturer: classRecord.ownerId === viewerId
     };
   }
 
-  static toClassDetailDTO(classRecord: Backend.ClassRecord, now: Date = new Date()): Backend.ClassDetailDTO {
-    const summary = ClassDTO.toClassSummaryDTO(classRecord);
+  static toClassDetailDTO(classRecord: Backend.ClassRecord, viewerId: string, now: Date = new Date()): Backend.ClassDetailDTO {
+    const summary = ClassDTO.toClassSummaryDTO(classRecord, viewerId);
     return {
       ...summary,
       description: classRecord.description,
       hasStarted: DateTimeUtil.hasStarted(summary.startDate, now),
       isReadOnly: classRecord.status === 'ENDED',
-      endedAt: classRecord.endedAt ? classRecord.endedAt.toISOString() : null
+      endedAt: classRecord.endedAt ? classRecord.endedAt.toISOString() : null,
+      owner: ClassDTO.toLecturerDTO(classRecord.owner),
+      coLecturers: classRecord.coLecturers.map((coLecturer) => ClassDTO.toLecturerDTO(coLecturer.lecturer))
     };
+  }
+
+  static toLecturerDTO(lecturer: { id: string; username: string; email: string }): Backend.LecturerDTO {
+    return { id: lecturer.id, fullName: lecturer.username, email: lecturer.email };
   }
 
   static toMemberDTO(member: Backend.MemberRecord): Backend.MemberDTO {

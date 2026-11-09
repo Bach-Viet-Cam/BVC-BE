@@ -1,3 +1,4 @@
+import VerifiedContentService from '../../community/service/VerifiedContentService.ts';
 import { test, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, readdir } from 'node:fs/promises';
@@ -22,6 +23,7 @@ test('HTTP: upload ngay, chỉ gửi URL khi so sánh, static root tùy chỉnh 
   const originalOrigin = EnvConfig.fileStoragePublicBaseUrl;
   Object.defineProperty(EnvConfig, 'fileStorageLocalRoot', { value: directory });
   Object.defineProperty(EnvConfig, 'fileStoragePublicBaseUrl', { value: 'https://be.example.com' });
+  mock.method(VerifiedContentService, 'isProtectedKey', async () => false);
   const uploads: Upload[] = [];
   const evaluations: Evaluation[] = [];
   const jobs: Audio.Job[] = [];
