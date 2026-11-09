@@ -10,7 +10,7 @@ export default class FaqRoute {
   static register(router: Router): void {
     const auth = AsyncHandler.wrap(requireAuthenticatedUser);
     const admin = requireRoles(AuthConstant.roles.SYSTEM_ADMIN);
-    router.get('/faqs', auth, validateRequest(FaqValidation.list), AsyncHandler.wrap(FaqController.list));
+    router.get('/faqs', validateRequest(FaqValidation.list), AsyncHandler.wrap(FaqController.list));
     router.get('/admin/faqs', auth, admin, validateRequest(FaqValidation.list), AsyncHandler.wrap(FaqController.list));
     router.post('/admin/faqs', auth, admin, validateRequest(FaqValidation.create), AsyncHandler.wrap(FaqController.save));
     router.patch('/admin/faqs/:id', auth, admin, validateRequest(FaqValidation.update), AsyncHandler.wrap(FaqController.save));

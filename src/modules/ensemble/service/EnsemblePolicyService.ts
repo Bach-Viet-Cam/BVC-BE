@@ -13,7 +13,8 @@ export default class EnsemblePolicyService {
   }
 
   static filterTracks<TTrack extends { instrumentId: string }>(input: { tracks: TTrack[]; studentInstrumentId: string }): TTrack[] {
-    return input.tracks.filter((track) => track.instrumentId !== input.studentInstrumentId);
+    // Trả đủ các bè để nghe mẫu; trình phát chỉ tắt bè của sinh viên trong lúc thu.
+    return input.tracks;
   }
 
   static resolveTargetBpm(input: { assignmentBpm: number | null; pieceBpm: number }): number {
