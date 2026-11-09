@@ -5,7 +5,7 @@ CREATE TABLE "class_lecturers" (
     "lecturer_id" TEXT NOT NULL,
     "added_by" TEXT NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-Sa
+
     CONSTRAINT "class_lecturers_pkey" PRIMARY KEY ("id")
 );
 
