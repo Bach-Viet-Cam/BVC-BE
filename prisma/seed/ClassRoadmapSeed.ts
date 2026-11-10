@@ -75,18 +75,19 @@ class SeedRunner {
     });
   }
 
-  static async upsertClass(data: { name: string; cohort: string; instrumentId: string; lecturerId: string; startDate: string; status: 'ACTIVE' | 'ENDED'; description?: string }) {
-    const existing = await prisma.class.findFirst({ where: { cohort: data.cohort, name: { equals: data.name, mode: 'insensitive' } } });
+  // A class runs exactly over its semester: cohort = semester name, start/end dates = semester dates (user decision 22/10).
+  static async upsertClass(data: { name: string; semester: Backend.Semester; instrumentId: string; lecturerId: string; status: 'ACTIVE' | 'ENDED'; description?: string }) {
+    const existing = await prisma.class.findFirst({ where: { cohort: data.semester.name, name: { equals: data.name, mode: 'insensitive' } } });
     if (existing) return existing;
     return prisma.class.create({
       data: {
         name: data.name,
-        cohort: data.cohort,
+        cohort: data.semester.name,
         description: data.description ?? null,
         instrumentId: data.instrumentId,
         ownerId: data.lecturerId,
-        startDate: DateTimeUtil.toDateOnly(data.startDate),
-        endDate: DateTimeUtil.toDateOnly(DateTimeUtil.addDays(data.startDate, 42)),
+        startDate: DateTimeUtil.toDateOnly(data.semester.startDate),
+        endDate: DateTimeUtil.toDateOnly(data.semester.endDate),
         status: data.status,
         endedAt: data.status === 'ENDED' ? new Date() : null
       }
@@ -101,12 +102,15 @@ class SeedRunner {
     const existing = await prisma.piece.findFirst({ where: { title, instruments: { some: { instrumentId } } } });
     if (existing) return existing;
     const genre = await SeedRunner.upsertCategory('GENRE', 'Dân ca Nam Bộ');
+    // Some databases still have pieces.level_id NOT NULL (legacy column), so always give it a level.
+    const level = await SeedRunner.upsertCategory('LEVEL', 'Cơ bản');
     return prisma.piece.create({
       data: {
         ownerId,
         title,
         kind,
         bpm: 90,
+        legacyLevelId: level.id,
         visibility: isVisible ? 'PUBLIC' : 'HIDDEN',
         genreId: genre.id,
         titleNormalized: TextNormalizer.normalize(title),
@@ -283,6 +287,10 @@ class SeedRunner {
   static async run(): Promise<void> {
     SeedRunner.assertSafeTarget();
     const today = DateTimeUtil.todayInVietnam();
+    // The semester containing today (else the last one); the finished class sits in the semester before it.
+    const currentIndex = Math.max(SEED_SEMESTERS.findIndex((semester) => semester.startDate <= today && today <= semester.endDate), 0);
+    const currentSemester = SEED_SEMESTERS[currentIndex] ?? SEED_SEMESTERS[SEED_SEMESTERS.length - 1];
+    const previousSemester = SEED_SEMESTERS[Math.max(currentIndex - 1, 0)];
 
     const admin = await SeedRunner.upsertUser('admin@bvc.local', 'Quản trị viên', ROLES.SYSTEM_ADMIN);
     const lecturer = await SeedRunner.upsertUser(process.env.SEED_LECTURER_EMAIL || 'huongnt@bvc.local', 'Nguyễn Thu Hương', ROLES.TEACHER);
@@ -304,21 +312,21 @@ class SeedRunner {
     }
 
     const runningClass = await SeedRunner.upsertClass({
-      name: 'TRD301 — Nhạc cụ truyền thống', cohort: 'FA26', instrumentId: instruments[0].id, lecturerId: lecturer.id,
-      startDate: DateTimeUtil.addDays(today, -21), status: 'ACTIVE', description: 'Lớp đàn tranh học kỳ Fall 2026.'
+      name: 'TRD301 — Nhạc cụ truyền thống', semester: currentSemester, instrumentId: instruments[0].id, lecturerId: lecturer.id,
+      status: 'ACTIVE', description: 'Lớp đàn tranh học kỳ Fall 2026.'
     });
     const finishedClass = await SeedRunner.upsertClass({
-      name: 'TRD201 — Nhạc cụ cơ bản', cohort: 'SP26', instrumentId: instruments[1].id, lecturerId: lecturer.id,
-      startDate: DateTimeUtil.addDays(today, -150), status: 'ENDED'
+      name: 'TRD201 — Nhạc cụ cơ bản', semester: previousSemester, instrumentId: instruments[1].id, lecturerId: lecturer.id,
+      status: 'ENDED'
     });
     const otherClass = await SeedRunner.upsertClass({
-      name: 'TRD401 — Hòa tấu nâng cao', cohort: 'FA26', instrumentId: instruments[2].id, lecturerId: otherLecturer.id,
-      startDate: DateTimeUtil.addDays(today, 7), status: 'ACTIVE'
+      name: 'TRD401 — Hòa tấu nâng cao', semester: currentSemester, instrumentId: instruments[2].id, lecturerId: otherLecturer.id,
+      status: 'ACTIVE'
     });
 
     const secondRunningClass = await SeedRunner.upsertClass({
-      name: 'TRD302 — Đàn bầu', cohort: 'FA26', instrumentId: instruments[1].id, lecturerId: lecturer.id,
-      startDate: DateTimeUtil.addDays(today, -14), status: 'ACTIVE', description: 'Lớp đàn bầu học kỳ Fall 2026.'
+      name: 'TRD302 — Đàn bầu', semester: currentSemester, instrumentId: instruments[1].id, lecturerId: lecturer.id,
+      status: 'ACTIVE', description: 'Lớp đàn bầu học kỳ Fall 2026.'
     });
 
     await SeedRunner.enroll(runningClass.id, runningClass.instrumentId, students.slice(0, 20).map((student) => student.id), lecturer.id);

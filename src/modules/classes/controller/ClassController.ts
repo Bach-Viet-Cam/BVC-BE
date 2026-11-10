@@ -32,7 +32,11 @@ export default class ClassController {
   static async createClass(request: Request, response: Response): Promise<Response> {
     const { body } = ClassController.getValidated<Backend.CreateClassInput>(request);
     const classDetail = await ClassService.createClass(ClassController.getLecturerId(request), body);
-    return ApiResponse.sendSuccessResponse(response, { statusCode: 201, data: classDetail, message: messages.CLASS_CREATED });
+    return ApiResponse.sendSuccessResponse(response, {
+      statusCode: 201,
+      data: classDetail,
+      message: body.assignments.length > 0 ? messages.CLASS_CREATED_WITH_COPY(body.assignments.length) : messages.CLASS_CREATED
+    });
   }
 
   static async lookupLecturers(request: Request, response: Response): Promise<Response> {
@@ -50,6 +54,12 @@ export default class ClassController {
     const { params } = ClassController.getValidated<unknown, { id: string }>(request);
     const classDetail = await ClassService.getClassDetail(params.id, ClassController.getLecturerId(request));
     return ApiResponse.sendSuccessResponse(response, { data: classDetail });
+  }
+
+  static async getCopySource(request: Request, response: Response): Promise<Response> {
+    const { params } = ClassController.getValidated<unknown, { id: string }>(request);
+    const copySource = await ClassService.getCopySource(params.id, ClassController.getLecturerId(request));
+    return ApiResponse.sendSuccessResponse(response, { data: copySource });
   }
 
   static async updateClass(request: Request, response: Response): Promise<Response> {

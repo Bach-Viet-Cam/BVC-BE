@@ -16,6 +16,8 @@ export default class AssignmentRoute {
     const wrap = AsyncHandler.wrap;
 
     assignmentRouter.get('/', validateRequest(AssignmentValidation.listSchema), ...lecturerOnly, wrap(AssignmentController.listAssignments));
+    // Registered before '/:id' so "overview" is not read as an assignment id.
+    assignmentRouter.get('/overview', validateRequest(AssignmentValidation.overviewSchema), ...lecturerOnly, wrap(AssignmentController.getOverview));
     // Registered before '/:id' so "sheet-music" is not read as an assignment id.
     assignmentRouter.get('/sheet-music', validateRequest(AssignmentValidation.sheetMusicSchema), ...lecturerOnly, wrap(AssignmentController.listClassSheetMusic));
     assignmentRouter.get('/:id', validateRequest(AssignmentValidation.idSchema), ...lecturerOnly, wrap(AssignmentController.getAssignment));
@@ -25,6 +27,7 @@ export default class AssignmentRoute {
       ...lecturerOnly,
       wrap(AssignmentController.getStudentSubmissions)
     );
+    assignmentRouter.post('/assign', validateRequest(AssignmentValidation.assignSchema), ...lecturerOnly, wrap(AssignmentController.assignToClasses));
     assignmentRouter.post('/', validateRequest(AssignmentValidation.createSchema), ...lecturerOnly, wrap(AssignmentController.createAssignment));
     assignmentRouter.put('/:id', validateRequest(AssignmentValidation.updateSchema), ...lecturerOnly, wrap(AssignmentController.updateAssignment));
     assignmentRouter.delete('/:id', validateRequest(AssignmentValidation.idSchema), ...lecturerOnly, wrap(AssignmentController.deleteAssignment));
