@@ -15,6 +15,15 @@ export default class AssignmentRepository {
     return record as Backend.AssignmentRecord | null;
   }
 
+  static async findCopyableAssignments(classId: string): Promise<Backend.AssignmentRecord[]> {
+    const records = await AssignmentRepository.client.assignment.findMany({
+      where: { classId, deletedAt: null, currentVersionId: { not: null } },
+      select: AssignmentModel.assignmentSelect,
+      orderBy: { createdAt: 'asc' }
+    });
+    return records as Backend.AssignmentRecord[];
+  }
+
   static async findLecturerAssignments(lecturerId: string, query: Backend.AssignmentListQuery): Promise<{ records: Backend.AssignmentRecord[]; total: number }> {
     const where: Prisma.AssignmentWhereInput = {
       deletedAt: null,

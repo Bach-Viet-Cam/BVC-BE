@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import MessageConstant from '../../../constants/MessageConstant.ts';
+import AssignmentValidation from '../../assignments/validation/AssignmentValidation.ts';
 import ClassConstant from '../constant/ClassConstant.ts';
 
 const limits = ClassConstant.limits;
@@ -34,6 +35,8 @@ const pagination = {
 };
 
 const classId = z.string().trim().min(1).max(64);
+const copyAssignment = z.object({ ...AssignmentValidation.contentShape, status: z.enum(['DRAFT', 'PUBLISHED']) });
+
 const classParams = z.object({ id: classId });
 const emptyQuery = z.object({});
 
@@ -56,7 +59,9 @@ export default class ClassValidation {
       cohort: requiredText('cohort', limits.COHORT_MAX),
       instrumentId,
       description,
-      coLecturerIds: z.array(z.uuid({ error: format('MSG-35', { field: labels.coLecturerIds }) })).default([]).transform((ids) => [...new Set(ids)])
+      coLecturerIds: z.array(z.uuid({ error: format('MSG-35', { field: labels.coLecturerIds }) })).default([]).transform((ids) => [...new Set(ids)]),
+      sourceClassId: classId.optional(),
+      assignments: z.array(copyAssignment).max(limits.COPY_ASSIGNMENTS_MAX, ClassConstant.messages.COPY_ASSIGNMENTS_TOO_MANY).default([])
     }),
     params: z.object({}),
     query: emptyQuery

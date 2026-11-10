@@ -22,3 +22,13 @@ test('assignSchema validates the bulk assign body and removes duplicate ids', ()
     assert.deepEqual(result.data.body, { assignmentIds: ['a1', 'a2'], classIds: ['c1'] });
   }
 });
+
+test('sheetMusicSchema requires exactly one of classId or instrumentId', () => {
+  const parse = (query: unknown) => AssignmentValidation.sheetMusicSchema.safeParse({ body: undefined, params: {}, query });
+  const instrumentId = '6a841ea4-c0cb-4c36-bdcd-bb81bf4b42a8';
+  assert.equal(parse({}).success, false);
+  assert.equal(parse({ classId: 'c1', instrumentId }).success, false);
+  assert.equal(parse({ classId: 'c1' }).success, true);
+  assert.equal(parse({ instrumentId }).success, true);
+  assert.equal(parse({ instrumentId: 'abc' }).success, false);
+});

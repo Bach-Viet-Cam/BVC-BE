@@ -79,8 +79,8 @@ export default class AssignmentController {
   }
 
   static async listClassSheetMusic(request: Request, response: Response): Promise<Response> {
-    const { query } = AssignmentController.getValidated<unknown, unknown, { classId: string }>(request);
-    return ApiResponse.sendSuccessResponse(response, { data: await AssignmentQueryService.listClassSheetMusic(query.classId, AssignmentController.getLecturerId(request)) });
+    const { query } = AssignmentController.getValidated<unknown, unknown, { classId?: string; instrumentId?: string }>(request);
+    return ApiResponse.sendSuccessResponse(response, { data: await AssignmentQueryService.listClassSheetMusic({ classId: query.classId, instrumentId: query.instrumentId }, AssignmentController.getLecturerId(request)) });
   }
 
   static async getStudentSubmissions(request: Request, response: Response): Promise<Response> {

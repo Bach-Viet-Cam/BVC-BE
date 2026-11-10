@@ -24,6 +24,7 @@ export default class ClassRoute {
     classRouter.get('/semesters', validateRequest(ClassValidation.semestersSchema), ...lecturerOnly, wrap(ClassController.listSemesters));
     classRouter.get('/import-template', validateRequest(ClassValidation.templateSchema), ...lecturerOnly, wrap(ClassController.downloadImportTemplate));
     classRouter.get('/lecturers/lookup', validateRequest(ClassValidation.lookupLecturersSchema), ...lecturerOnly, wrap(ClassController.lookupLecturers));
+    classRouter.get('/:id/copy-source', validateRequest(ClassValidation.classIdSchema), ...lecturerOnly, wrap(ClassController.getCopySource));
     classRouter.get('/:id', validateRequest(ClassValidation.classIdSchema), ...lecturerOnly, wrap(ClassController.getClass));
     classRouter.patch('/:id', validateRequest(ClassValidation.updateClassSchema), ...lecturerOnly, wrap(ClassController.updateClass));
     classRouter.post('/:id/end', validateRequest(ClassValidation.classIdSchema), ...lecturerOnly, wrap(ClassController.endClass));

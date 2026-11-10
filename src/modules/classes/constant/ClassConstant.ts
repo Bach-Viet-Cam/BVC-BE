@@ -12,6 +12,8 @@ export default class ClassConstant {
     FULL_NAME_MAX: 100,
     EMAIL_MAX: 255,
     LECTURER_LOOKUP_MAX: 10,
+    COPY_ASSIGNMENTS_MAX: 50,
+    COPY_TRANSACTION_TIMEOUT_MS: 30_000,
     PAGE_SIZE_DEFAULT: 20,
     PAGE_SIZE_MAX: 200
   });
@@ -61,6 +63,7 @@ export default class ClassConstant {
 
   static readonly messages = Object.freeze({
     CLASS_NOT_FOUND: 'Không tìm thấy lớp học.',
+    COPY_ASSIGNMENTS_TOO_MANY: `Danh sách sao chép tối đa ${ClassConstant.limits.COPY_ASSIGNMENTS_MAX} bài tập.`,
     MEMBER_NOT_FOUND: 'Không tìm thấy sinh viên trong lớp.',
     IMPORT_LOG_NOT_FOUND: 'Không tìm thấy phiên nhập danh sách.',
     CLASS_FINISHED: format('MSG-08', { action: 'thay đổi lớp', reason: 'lớp đã kết thúc' }),
@@ -84,7 +87,10 @@ export default class ClassConstant {
     IMPORT_NO_VALID_ROWS: format('MSG-08', { action: 'nhập danh sách', reason: 'không có dòng hợp lệ' }),
     IMPORT_ALREADY_PROCESSED: format('MSG-08', { action: 'xác nhận nhập', reason: 'phiên nhập này đã được xử lý' }),
     IMPORT_DATA_CHANGED: format('MSG-08', { action: 'xác nhận nhập', reason: 'dữ liệu sinh viên vừa thay đổi. Vui lòng tải lại file' }),
+    COPY_KIND_DUPLICATED: (kindLabel: string): string =>
+      format('MSG-08', { action: 'lưu bài tập', reason: `danh sách sao chép có nhiều hơn một bài ${kindLabel}` }),
     CLASS_CREATED: format('MSG-01', { action: 'Tạo', object: 'lớp' }),
+    CLASS_CREATED_WITH_COPY: (count: number): string => `Đã tạo lớp và sao chép ${count} bài tập.`,
     CLASS_UPDATED: format('MSG-01', { action: 'Cập nhật', object: 'lớp' }),
     CLASS_ENDED: format('MSG-01', { action: 'Kết thúc', object: 'lớp' }),
     MEMBER_ADDED: format('MSG-01', { action: 'Thêm', object: 'sinh viên' }),

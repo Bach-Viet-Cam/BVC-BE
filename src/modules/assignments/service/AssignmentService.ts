@@ -27,19 +27,56 @@ export default class AssignmentService {
 
     const assignmentId = await PrismaClientProvider.instance.$transaction(async (transaction) => {
       const status: Backend.AssignmentStatus = input.publish ? 'PUBLISHED' : 'DRAFT';
-      const created = await AssignmentRepository.createAssignment(
-        { classId: input.classId, createdById: lecturerId, status, publishedAt: input.publish ? new Date() : null, deadline: classRecord.endDate },
-        input,
-        transaction
+      const createdId = await AssignmentService.insertAssignment(
+        { classId: input.classId, lecturerId, content: input, status, publishedAt: input.publish ? new Date() : null, deadline: classRecord.endDate },
+        transaction,
+        { status }
       );
-      await AssignmentRepository.createVersionAndMakeCurrent(created.id, 1, input, lecturerId, transaction);
-      await AssignmentService.audit(lecturerId, auditActions.CREATE, created.id, transaction, { status });
       if (input.publish) {
-        await AssignmentService.notifyMembers(lecturerId, input.classId, classRecord.name, input.title, created.id, notifications.PUBLISHED_TITLE, transaction);
+        await AssignmentService.notifyMembers(lecturerId, input.classId, classRecord.name, input.title, createdId, notifications.PUBLISHED_TITLE, transaction);
       }
-      return created.id;
+      return createdId;
     });
     return AssignmentService.loadBaseDTO(assignmentId);
+  }
+
+  // Copy-on-create: inserts the assignments of a copied class inside the caller's transaction. No notifications are sent.
+  static async createManyInTransaction(
+    classId: string,
+    lecturerId: string,
+    items: Backend.CopyAssignmentInput[],
+    deadline: Date,
+    sourceClassId: string | null,
+    transaction: Prisma.TransactionClient,
+    now: Date = new Date()
+  ): Promise<string[]> {
+    const ids: string[] = [];
+    for (const item of items) {
+      ids.push(
+        await AssignmentService.insertAssignment(
+          { classId, lecturerId, content: item, status: item.status, publishedAt: item.status === 'PUBLISHED' ? now : null, deadline },
+          transaction,
+          { status: item.status, copiedFromClassId: sourceClassId }
+        )
+      );
+    }
+    return ids;
+  }
+
+  // Shared by create and copy: assignment record, version 1 and CREATE audit entry.
+  private static async insertAssignment(
+    params: { classId: string; lecturerId: string; content: Backend.AssignmentContentInput; status: Backend.AssignmentStatus; publishedAt: Date | null; deadline: Date },
+    transaction: Prisma.TransactionClient,
+    auditPayload: Record<string, unknown>
+  ): Promise<string> {
+    const created = await AssignmentRepository.createAssignment(
+      { classId: params.classId, createdById: params.lecturerId, status: params.status, publishedAt: params.publishedAt, deadline: params.deadline },
+      params.content,
+      transaction
+    );
+    await AssignmentRepository.createVersionAndMakeCurrent(created.id, 1, params.content, params.lecturerId, transaction);
+    await AssignmentService.audit(params.lecturerId, auditActions.CREATE, created.id, transaction, auditPayload);
+    return created.id;
   }
 
   // Bulk "assign to classes": every (source, class) pair is cloned into the class as a published assignment.

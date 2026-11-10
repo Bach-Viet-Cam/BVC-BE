@@ -46,6 +46,8 @@ const idList = z
   .transform((ids) => [...new Set(ids)]);
 
 export default class AssignmentValidation {
+  static readonly contentShape = content;
+
   static readonly createSchema = z.object({
     body: z.object({ classId: recordId, ...content, publish: z.boolean().default(false) }),
     params: z.object({}),
@@ -78,7 +80,13 @@ export default class AssignmentValidation {
 
   static readonly overviewSchema = z.object({ body: z.unknown(), params: z.object({}), query: emptyQuery });
 
-  static readonly sheetMusicSchema =z.object({ body: z.unknown(), params: z.object({}), query: z.object({ classId: recordId }) });
+  static readonly sheetMusicSchema = z.object({
+    body: z.unknown(),
+    params: z.object({}),
+    query: z
+      .object({ classId: recordId.optional(), instrumentId: z.uuid().optional() })
+      .refine((query) => (query.classId === undefined) !== (query.instrumentId === undefined), { message: 'Cần chọn đúng một trong lớp hoặc nhạc cụ.' })
+  });
 
   static readonly studentSubmissionsSchema = z.object({
     body: z.unknown(),

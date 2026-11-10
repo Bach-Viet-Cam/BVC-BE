@@ -132,8 +132,11 @@ export default class AssignmentQueryService {
     };
   }
 
-  static async listClassSheetMusic(classId: string, lecturerId: string): Promise<Backend.ClassSheetMusicDTO[]> {
-    const classRecord = await ClassAccessService.assertOwnedClass(classId, lecturerId);
-    return SubmissionRepository.findClassSheetMusic(classRecord.instrumentId);
+  static async listClassSheetMusic(target: { classId?: string; instrumentId?: string }, lecturerId: string): Promise<Backend.ClassSheetMusicDTO[]> {
+    if (target.classId) {
+      const classRecord = await ClassAccessService.assertOwnedClass(target.classId, lecturerId);
+      return SubmissionRepository.findClassSheetMusic(classRecord.instrumentId);
+    }
+    return SubmissionRepository.findClassSheetMusic(target.instrumentId as string);
   }
 }

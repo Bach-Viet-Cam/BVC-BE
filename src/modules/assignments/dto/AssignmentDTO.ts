@@ -1,20 +1,24 @@
 import PieceUtil from '../../../utils/PieceUtil.ts';
 
+type SheetMusicRecord = NonNullable<NonNullable<Backend.AssignmentRecord['currentVersion']>['sheetMusic']>;
+
 export default class AssignmentDTO {
+  static toSheetMusicDTO(sheet: SheetMusicRecord | null): Backend.AssignmentSheetMusicDTO | null {
+    if (!sheet) return null;
+    return {
+      id: sheet.id,
+      name: sheet.name,
+      pieceId: sheet.piece.id,
+      pieceTitle: sheet.piece.title,
+      defaultBpm: sheet.piece.bpm,
+      isAvailable: PieceUtil.isSheetMusicAvailable(sheet)
+    };
+  }
+
   static toBaseDTO(record: Backend.AssignmentRecord): Backend.AssignmentBaseDTO {
     const version = record.currentVersion;
     if (!version) throw new Error(`Assignment ${record.id} has no current version`);
-    const sheet = version.sheetMusic;
-    const sheetMusic = sheet
-      ? {
-          id: sheet.id,
-          name: sheet.name,
-          pieceId: sheet.piece.id,
-          pieceTitle: sheet.piece.title,
-          defaultBpm: sheet.piece.bpm,
-          isAvailable: PieceUtil.isSheetMusicAvailable(sheet)
-        }
-      : null;
+    const sheetMusic = AssignmentDTO.toSheetMusicDTO(version.sheetMusic);
     return {
       id: record.id,
       classId: record.classId,

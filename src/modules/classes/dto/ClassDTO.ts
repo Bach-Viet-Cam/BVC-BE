@@ -1,4 +1,12 @@
 import DateTimeUtil from '../../../utils/DateTimeUtil.ts';
+import AssignmentDTO from '../../assignments/dto/AssignmentDTO.ts';
+
+const copyKindOrder: Backend.AssignmentKind[] = ['SOLO', 'ENSEMBLE'];
+
+function copyKindRank(kind: Backend.AssignmentKind): number {
+  const index = copyKindOrder.indexOf(kind);
+  return index === -1 ? copyKindOrder.length : index;
+}
 
 export default class ClassDTO {
   static toClassSummaryDTO(classRecord: Backend.ClassRecord, viewerId: string): Backend.ClassSummaryDTO {
@@ -25,6 +33,32 @@ export default class ClassDTO {
       endedAt: classRecord.endedAt ? classRecord.endedAt.toISOString() : null,
       owner: ClassDTO.toLecturerDTO(classRecord.owner),
       coLecturers: classRecord.coLecturers.map((coLecturer) => ClassDTO.toLecturerDTO(coLecturer.lecturer))
+    };
+  }
+
+  static toCopySourceDTO(classRecord: Backend.ClassRecord, assignments: Backend.AssignmentRecord[], viewerId: string): Backend.ClassCopySourceDTO {
+    const lecturers = [classRecord.owner, ...classRecord.coLecturers.map((coLecturer) => coLecturer.lecturer)];
+    const items = assignments.map((record) => {
+      const version = record.currentVersion;
+      if (!version) throw new Error(`Assignment ${record.id} has no current version`);
+      return {
+        id: record.id,
+        title: version.title,
+        kind: version.kind,
+        description: version.description,
+        sheetMusic: AssignmentDTO.toSheetMusicDTO(version.sheetMusic),
+        requiredBpm: version.requiredBpm,
+        status: record.status
+      };
+    });
+    return {
+      id: classRecord.id,
+      name: classRecord.name,
+      cohort: classRecord.cohort,
+      description: classRecord.description,
+      instrument: { id: classRecord.instrument.id, name: classRecord.instrument.name },
+      coLecturers: lecturers.filter((lecturer) => lecturer.id !== viewerId).map((lecturer) => ClassDTO.toLecturerDTO(lecturer)),
+      assignments: items.sort((left, right) => copyKindRank(left.kind) - copyKindRank(right.kind))
     };
   }
 
