@@ -39,7 +39,15 @@ const content = { title, description, kind, sheetMusicId, requiredBpm };
 const idParams = z.object({ id: recordId });
 const emptyQuery = z.object({});
 
+const idList = z
+  .array(recordId)
+  .min(1)
+  .max(50)
+  .transform((ids) => [...new Set(ids)]);
+
 export default class AssignmentValidation {
+  static readonly contentShape = content;
+
   static readonly createSchema = z.object({
     body: z.object({ classId: recordId, ...content, publish: z.boolean().default(false) }),
     params: z.object({}),
@@ -68,7 +76,17 @@ export default class AssignmentValidation {
     })
   });
 
-  static readonly sheetMusicSchema =z.object({ body: z.unknown(), params: z.object({}), query: z.object({ classId: recordId }) });
+  static readonly assignSchema = z.object({ body: z.object({ assignmentIds: idList, classIds: idList }), params: z.object({}), query: emptyQuery });
+
+  static readonly overviewSchema = z.object({ body: z.unknown(), params: z.object({}), query: emptyQuery });
+
+  static readonly sheetMusicSchema = z.object({
+    body: z.unknown(),
+    params: z.object({}),
+    query: z
+      .object({ classId: recordId.optional(), instrumentId: z.uuid().optional() })
+      .refine((query) => (query.classId === undefined) !== (query.instrumentId === undefined), { message: 'Cần chọn đúng một trong lớp hoặc nhạc cụ.' })
+  });
 
   static readonly studentSubmissionsSchema = z.object({
     body: z.unknown(),

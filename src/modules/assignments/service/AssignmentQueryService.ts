@@ -1,7 +1,9 @@
 import AppError from '../../../utils/AppError.ts';
 import ClassAccessService from '../../classes/service/ClassAccessService.ts';
 import MemberRepository from '../../classes/repository/MemberRepository.ts';
+import SemesterPolicyService from '../../classes/service/SemesterPolicyService.ts';
 import GradingSettingsService from '../../platform/service/GradingSettingsService.ts';
+import SystemConfigService from '../../platform/service/SystemConfigService.ts';
 import AssignmentConstant from '../constant/AssignmentConstant.ts';
 import AssignmentDTO from '../dto/AssignmentDTO.ts';
 import AssignmentRepository from '../repository/AssignmentRepository.ts';
@@ -46,6 +48,43 @@ export default class AssignmentQueryService {
       };
     });
     return { items, pagination: { page: query.page, limit: query.limit, total } };
+  }
+
+  // One read model for the lecturer assignment page and its assign dialog: the current-semester classes with their assignments.
+  static async getOverview(lecturerId: string, now: Date = new Date()): Promise<Backend.AssignmentOverviewDTO> {
+    const semesters = await SystemConfigService.getSemesters();
+    const semester = SemesterPolicyService.findCurrent(semesters, now);
+    if (!semester) {
+      return { semester: null, emptyReason: SemesterPolicyService.resolveEmptyReason({ semesters, current: null, classCount: 0 }), classes: [] };
+    }
+
+    const classRecords = await AssignmentRepository.findClassesWithAssignments(lecturerId, semester.name);
+    const assignmentIds = classRecords.flatMap((record) => record.assignments.map((assignment) => assignment.id));
+    const [members, submitters, practiceCounts] = await Promise.all([
+      SubmissionRepository.findActiveMembers(classRecords.map((record) => record.id)),
+      SubmissionRepository.findCountedSubmitters(assignmentIds),
+      SubmissionRepository.countPracticesByAssignment(assignmentIds)
+    ]);
+
+    const membersByClass = new Map<string, Set<string>>();
+    for (const member of members) {
+      const classMembers = membersByClass.get(member.classId) ?? new Set<string>();
+      classMembers.add(member.user.id);
+      membersByClass.set(member.classId, classMembers);
+    }
+
+    const classes = classRecords.map((record) => {
+      const classMembers = membersByClass.get(record.id) ?? new Set<string>();
+      const assignments = record.assignments.map((assignment) =>
+        AssignmentDTO.toOverviewAssignment(assignment, {
+          practiceCount: practiceCounts.get(assignment.id) ?? 0,
+          submittedCount: submitters.filter((row) => row.assignmentId === assignment.id && classMembers.has(row.studentId)).length,
+          memberCount: classMembers.size
+        })
+      );
+      return { id: record.id, name: record.name, status: record.status, memberCount: classMembers.size, assignments };
+    });
+    return { semester, emptyReason: SemesterPolicyService.resolveEmptyReason({ semesters, current: semester, classCount: classes.length }), classes };
   }
 
   static async getAssignmentDetail(assignmentId: string, lecturerId: string): Promise<Backend.AssignmentDetailDTO> {
@@ -93,8 +132,11 @@ export default class AssignmentQueryService {
     };
   }
 
-  static async listClassSheetMusic(classId: string, lecturerId: string): Promise<Backend.ClassSheetMusicDTO[]> {
-    const classRecord = await ClassAccessService.assertOwnedClass(classId, lecturerId);
-    return SubmissionRepository.findClassSheetMusic(classRecord.instrumentId);
+  static async listClassSheetMusic(target: { classId?: string; instrumentId?: string }, lecturerId: string): Promise<Backend.ClassSheetMusicDTO[]> {
+    if (target.classId) {
+      const classRecord = await ClassAccessService.assertOwnedClass(target.classId, lecturerId);
+      return SubmissionRepository.findClassSheetMusic(classRecord.instrumentId);
+    }
+    return SubmissionRepository.findClassSheetMusic(target.instrumentId as string);
   }
 }

@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import EnvConfig from '../../../config/EnvConfig.ts';
 import StorageService from '../../../lib/storage/StorageService.ts';
 import AppError from '../../../utils/AppError.ts';
+import AudioSilenceTrimService from '../../audio/service/AudioSilenceTrimService.ts';
 import MusicLibraryConstant from '../constant/MusicLibraryConstant.ts';
 import MusicLibraryDTO from '../dto/MusicLibraryDTO.ts';
 import MediaFileRepository from '../repository/MediaFileRepository.ts';
@@ -12,6 +13,8 @@ const MESSAGES = MusicLibraryConstant.messages;
 
 // Upload flow: presign → browser PUTs the bytes to /uploads/:id/content (Bearer) → confirm (or attach, which confirms implicitly)
 export default class UploadService {
+  private static readonly silenceTrimmer = new AudioSilenceTrimService();
+
   static buildStorageKey(kind: MusicLibrary.MediaKind, fileName: string): string {
     const extension = MediaInspectionService.getExtension(fileName);
     const yearMonth = new Date().toISOString().slice(0, 7);
@@ -68,12 +71,30 @@ export default class UploadService {
   static async confirmFile(mediaFile: MusicLibrary.MediaFileRecord): Promise<MusicLibrary.MediaFileRecord> {
     if (mediaFile.status === 'READY') return mediaFile;
     try {
-      const inspectedFile = await MediaInspectionService.inspect(mediaFile);
+      const inspectedFile = await UploadService.trimAudioSilence(mediaFile, await MediaInspectionService.inspect(mediaFile));
       return await MediaFileRepository.markReady(mediaFile.id, inspectedFile);
     } catch (error) {
       await MediaFileRepository.deleteById(mediaFile.id);
       await StorageService.deleteQuietly(mediaFile.storageKey);
       throw error;
+    }
+  }
+
+  // Chỉ chạy sau khi file đã qua kiểm tra; mọi sự cố khi cắt đều giữ nguyên bản gốc thay vì từ chối upload
+  static async trimAudioSilence(
+    mediaFile: MusicLibrary.MediaFileRecord,
+    inspectedFile: MusicLibrary.InspectedFile
+  ): Promise<MusicLibrary.InspectedFile> {
+    if (mediaFile.kind !== 'AUDIO') return inspectedFile;
+    const original = await StorageService.driver.readObject(mediaFile.storageKey);
+    const trimmed = await UploadService.silenceTrimmer.trimBuffer(original, MediaInspectionService.getExtension(mediaFile.storageKey));
+    if (!trimmed) return inspectedFile;
+    try {
+      await StorageService.driver.putObject(mediaFile.storageKey, trimmed);
+      return await MediaInspectionService.inspect(mediaFile);
+    } catch {
+      await StorageService.driver.putObject(mediaFile.storageKey, original);
+      return inspectedFile;
     }
   }
 

@@ -19,4 +19,16 @@ export default class AudioConstant {
   });
   static readonly orphanRetentionMs = 24 * 60 * 60 * 1000;
   static readonly temporaryDirectory = 'bvc-audio-uploads';
+  // Cắt khoảng lặng đầu/cuối khi lưu audio: dưới ngưỡng này được coi là im lặng, vẫn giữ lại một đoạn đệm quanh tiếng
+  static readonly silenceThresholdDb = -50;
+  static readonly silencePaddingSec = 0.15;
+  static readonly trimTimeoutMs = 60_000;
+  static readonly trimTemporaryPrefix = 'bvc-audio-trim-';
+  // Kết quả nhỏ hơn mức này nghĩa là ffmpeg đã cắt hết (bản thu im lặng) nên giữ nguyên bản gốc
+  static readonly minTrimmedBytes = 1024;
+  static readonly trimCodecArgs: Readonly<Record<string, readonly string[]>> = Object.freeze({
+    wav: ['-c:a', 'pcm_s16le'],
+    mp3: ['-c:a', 'libmp3lame', '-b:a', '192k'],
+    m4a: ['-c:a', 'aac', '-b:a', '192k']
+  });
 }

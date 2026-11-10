@@ -74,9 +74,33 @@ declare namespace Backend {
     instrumentId: string;
     description?: string | null;
     coLecturerIds: string[];
+    sourceClassId?: string;
+    assignments: CopyAssignmentInput[];
   }
 
-  type UpdateClassInput = Partial<Omit<CreateClassInput, 'coLecturerIds'>>;
+  interface CopyAssignmentInput extends AssignmentContentInput {
+    status: 'DRAFT' | 'PUBLISHED';
+  }
+
+  interface ClassCopySourceDTO {
+    id: string;
+    name: string;
+    cohort: string;
+    description: string | null;
+    instrument: { id: string; name: string };
+    coLecturers: LecturerDTO[];
+    assignments: Array<{
+      id: string;
+      title: string;
+      kind: AssignmentKind;
+      description: string | null;
+      sheetMusic: AssignmentSheetMusicDTO | null;
+      requiredBpm: number | null;
+      status: AssignmentStatus;
+    }>;
+  }
+
+  type UpdateClassInput = Partial<Omit<CreateClassInput, 'coLecturerIds' | 'sourceClassId' | 'assignments'>>;
 
   interface SemesterListDTO {
     items: Semester[];

@@ -2,6 +2,10 @@ import type { Prisma } from '@prisma/client';
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
 import AuditLogger from '../../../lib/AuditLogger.ts';
 import AppError from '../../../utils/AppError.ts';
+import ClassRepository from '../../classes/repository/ClassRepository.ts';
+import SemesterPolicyService from '../../classes/service/SemesterPolicyService.ts';
+import SystemConfigService from '../../platform/service/SystemConfigService.ts';
+import AssignmentAssignPolicyService from './AssignmentAssignPolicyService.ts';
 import ClassAccessService from '../../classes/service/ClassAccessService.ts';
 import MemberRepository from '../../classes/repository/MemberRepository.ts';
 import NotificationService from '../../platform/service/NotificationService.ts';
@@ -23,19 +27,125 @@ export default class AssignmentService {
 
     const assignmentId = await PrismaClientProvider.instance.$transaction(async (transaction) => {
       const status: Backend.AssignmentStatus = input.publish ? 'PUBLISHED' : 'DRAFT';
-      const created = await AssignmentRepository.createAssignment(
-        { classId: input.classId, createdById: lecturerId, status, publishedAt: input.publish ? new Date() : null, deadline: classRecord.endDate },
-        input,
-        transaction
+      const createdId = await AssignmentService.insertAssignment(
+        { classId: input.classId, lecturerId, content: input, status, publishedAt: input.publish ? new Date() : null, deadline: classRecord.endDate },
+        transaction,
+        { status }
       );
-      await AssignmentRepository.createVersionAndMakeCurrent(created.id, 1, input, lecturerId, transaction);
-      await AssignmentService.audit(lecturerId, auditActions.CREATE, created.id, transaction, { status });
       if (input.publish) {
-        await AssignmentService.notifyMembers(lecturerId, input.classId, classRecord.name, input.title, created.id, notifications.PUBLISHED_TITLE, transaction);
+        await AssignmentService.notifyMembers(lecturerId, input.classId, classRecord.name, input.title, createdId, notifications.PUBLISHED_TITLE, transaction);
       }
-      return created.id;
+      return createdId;
     });
     return AssignmentService.loadBaseDTO(assignmentId);
+  }
+
+  // Copy-on-create: inserts the assignments of a copied class inside the caller's transaction. No notifications are sent.
+  static async createManyInTransaction(
+    classId: string,
+    lecturerId: string,
+    items: Backend.CopyAssignmentInput[],
+    deadline: Date,
+    sourceClassId: string | null,
+    transaction: Prisma.TransactionClient,
+    now: Date = new Date()
+  ): Promise<string[]> {
+    const ids: string[] = [];
+    for (const item of items) {
+      ids.push(
+        await AssignmentService.insertAssignment(
+          { classId, lecturerId, content: item, status: item.status, publishedAt: item.status === 'PUBLISHED' ? now : null, deadline },
+          transaction,
+          { status: item.status, copiedFromClassId: sourceClassId }
+        )
+      );
+    }
+    return ids;
+  }
+
+  // Shared by create and copy: assignment record, version 1 and CREATE audit entry.
+  private static async insertAssignment(
+    params: { classId: string; lecturerId: string; content: Backend.AssignmentContentInput; status: Backend.AssignmentStatus; publishedAt: Date | null; deadline: Date },
+    transaction: Prisma.TransactionClient,
+    auditPayload: Record<string, unknown>
+  ): Promise<string> {
+    const created = await AssignmentRepository.createAssignment(
+      { classId: params.classId, createdById: params.lecturerId, status: params.status, publishedAt: params.publishedAt, deadline: params.deadline },
+      params.content,
+      transaction
+    );
+    await AssignmentRepository.createVersionAndMakeCurrent(created.id, 1, params.content, params.lecturerId, transaction);
+    await AssignmentService.audit(params.lecturerId, auditActions.CREATE, created.id, transaction, auditPayload);
+    return created.id;
+  }
+
+  // Bulk "assign to classes": every (source, class) pair is cloned into the class as a published assignment.
+  // Pairs rejected by the planner are reported back instead of failing the request.
+  static async assignToClasses(lecturerId: string, input: { assignmentIds: string[]; classIds: string[] }, now: Date = new Date()): Promise<Backend.AssignResultDTO> {
+    const sources = (await Promise.all(input.assignmentIds.map((id) => AssignmentRepository.findById(id)))).filter(
+      (record): record is Backend.AssignmentRecord & { currentVersion: NonNullable<Backend.AssignmentRecord['currentVersion']> } =>
+        record !== null && record.deletedAt === null && record.currentVersion !== null && ClassAccessService.isClassLecturer(record.class, lecturerId)
+    );
+    if (sources.length === 0) throw AppError.notFound(messages.ASSIGNMENT_NOT_FOUND);
+
+    const currentSemester = SemesterPolicyService.findCurrent(await SystemConfigService.getSemesters(), now);
+    const classRecords = new Map<string, Backend.ClassRecord>();
+    const targets: Backend.AssignPlanTarget[] = [];
+    for (const classId of input.classIds) {
+      const classRecord = await ClassRepository.findClassById(classId);
+      if (!classRecord || !ClassAccessService.isClassLecturer(classRecord, lecturerId)) {
+        // Unknown or foreign classes are reported as skipped without revealing which of the two it is.
+        targets.push({ id: classId, cohort: '', status: 'ACTIVE', instrumentId: '', isLecturer: false, existing: [] });
+        continue;
+      }
+      classRecords.set(classId, classRecord);
+      targets.push({
+        id: classId,
+        cohort: classRecord.cohort,
+        status: classRecord.status,
+        instrumentId: classRecord.instrumentId,
+        isLecturer: true,
+        existing: await AssignmentRepository.findClassAssignmentKeys(classId)
+      });
+    }
+
+    const planSources = sources.map((record) => ({ id: record.id, cohort: record.class.cohort, title: record.currentVersion.title, kind: record.currentVersion.kind, sheetMusicId: record.currentVersion.sheetMusic?.id ?? null }));
+    const selectableSheets = new Set<string>();
+    for (const sheetMusicId of new Set(planSources.flatMap((source) => (source.sheetMusicId ? [source.sheetMusicId] : [])))) {
+      for (const instrumentId of new Set([...classRecords.values()].map((record) => record.instrumentId))) {
+        if (await AssignmentRepository.isSheetMusicSelectable(sheetMusicId, instrumentId)) selectableSheets.add(`${sheetMusicId}:${instrumentId}`);
+      }
+    }
+
+    const plan = AssignmentAssignPolicyService.plan({ sources: planSources, targets, currentSemesterName: currentSemester?.name ?? null, selectableSheets });
+    const sourcesById = new Map(sources.map((record) => [record.id, record]));
+    const createdIds: string[] = [];
+    for (const pair of plan.toCreate) {
+      const sourceVersion = sourcesById.get(pair.sourceId)!.currentVersion;
+      const classRecord = classRecords.get(pair.classId)!;
+      const content: Backend.AssignmentContentInput = {
+        title: sourceVersion.title,
+        description: sourceVersion.description,
+        kind: sourceVersion.kind,
+        sheetMusicId: sourceVersion.sheetMusic?.id ?? null,
+        requiredBpm: sourceVersion.requiredBpm
+      };
+      // One transaction per pair: earlier clones stay when a later one fails (the error is rethrown, never hidden).
+      createdIds.push(
+        await PrismaClientProvider.instance.$transaction(async (transaction) => {
+          const created = await AssignmentRepository.createAssignment(
+            { classId: pair.classId, createdById: lecturerId, status: 'PUBLISHED', publishedAt: now, deadline: classRecord.endDate },
+            content,
+            transaction
+          );
+          await AssignmentRepository.createVersionAndMakeCurrent(created.id, 1, content, lecturerId, transaction);
+          await AssignmentService.audit(lecturerId, auditActions.ASSIGN, created.id, transaction, { sourceId: pair.sourceId });
+          await AssignmentService.notifyMembers(lecturerId, pair.classId, classRecord.name, content.title, created.id, notifications.PUBLISHED_TITLE, transaction);
+          return created.id;
+        })
+      );
+    }
+    return { created: await Promise.all(createdIds.map((id) => AssignmentService.loadBaseDTO(id))), skipped: plan.skipped };
   }
 
   static async updateAssignment(assignmentId: string, lecturerId: string, input: Backend.AssignmentContentInput): Promise<Backend.AssignmentBaseDTO> {

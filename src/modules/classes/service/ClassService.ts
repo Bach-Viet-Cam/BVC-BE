@@ -11,6 +11,7 @@ import RoadmapRepository from '../../roadmaps/repository/RoadmapRepository.ts';
 import ClassLecturerRepository from '../repository/ClassLecturerRepository.ts';
 import ClassRepository from '../repository/ClassRepository.ts';
 import ClassAccessService from './ClassAccessService.ts';
+import ClassCopyPolicyService from './ClassCopyPolicyService.ts';
 import ClassLecturerService from './ClassLecturerService.ts';
 
 const messages = ClassConstant.messages;
@@ -35,6 +36,12 @@ export default class ClassService {
   static async getClassDetail(classId: string, lecturerId: string): Promise<Backend.ClassDetailDTO> {
     const classRecord = await ClassAccessService.assertOwnedClass(classId, lecturerId);
     return ClassDTO.toClassDetailDTO(classRecord, lecturerId);
+  }
+
+  static async getCopySource(classId: string, lecturerId: string): Promise<Backend.ClassCopySourceDTO> {
+    const classRecord = await ClassAccessService.assertOwnedClass(classId, lecturerId);
+    const assignments = await AssignmentRepository.findCopyableAssignments(classId);
+    return ClassDTO.toCopySourceDTO(classRecord, assignments, lecturerId);
   }
 
   static async listSemesters(now: Date = new Date()): Promise<Backend.SemesterListDTO> {
@@ -69,6 +76,9 @@ export default class ClassService {
     await ClassService.assertUniqueName(semester.name, input.name);
     await ClassLecturerService.assertAssignableLecturers(input.coLecturerIds, lecturerId);
 
+    if (input.sourceClassId) await ClassAccessService.assertOwnedClass(input.sourceClassId, lecturerId);
+    await ClassService.assertCopyAssignmentsValid(input);
+
     const classData: Backend.ClassWriteData = {
       name: input.name,
       cohort: semester.name,
@@ -83,18 +93,31 @@ export default class ClassService {
       PrismaClientProvider.instance.$transaction(async (transaction) => {
         const newClass = await ClassRepository.createClass(lecturerId, classData, transaction);
         await ClassLecturerRepository.createMany(newClass.id, input.coLecturerIds, lecturerId, transaction);
+        await AssignmentService.createManyInTransaction(newClass.id, lecturerId, input.assignments, classData.endDate, input.sourceClassId ?? null, transaction, now);
         const classRecord = (await ClassRepository.findClassById(newClass.id, transaction)) as Backend.ClassRecord;
         await AuditLogger.record({
           actorId: lecturerId,
           action: auditActions.CLASS_CREATE,
           entityType: ClassConstant.auditEntityTypes.CLASS,
           entityId: classRecord.id,
-          payload: { name: classRecord.name, cohort: classRecord.cohort, instrumentId: classRecord.instrumentId, startDate: semester.startDate, coLecturerIds: input.coLecturerIds }
+          payload: { name: classRecord.name, cohort: classRecord.cohort, instrumentId: classRecord.instrumentId, startDate: semester.startDate, coLecturerIds: input.coLecturerIds, sourceClassId: input.sourceClassId ?? null, assignmentCount: input.assignments.length }
         }, transaction);
         return classRecord;
-      })
+      }, { timeout: ClassConstant.limits.COPY_TRANSACTION_TIMEOUT_MS })
     );
     return ClassDTO.toClassDetailDTO(createdClass, lecturerId, now);
+  }
+
+  // Copied assignments must use sheet music selectable for the new class instrument and respect the one-per-kind rule.
+  static async assertCopyAssignmentsValid(input: Backend.CreateClassInput): Promise<void> {
+    const selectableSheetIds = new Set<string>();
+    for (const sheetMusicId of new Set(input.assignments.flatMap((item) => (item.sheetMusicId ? [item.sheetMusicId] : [])))) {
+      if (await AssignmentRepository.isSheetMusicSelectable(sheetMusicId, input.instrumentId)) selectableSheetIds.add(sheetMusicId);
+    }
+    const errors = ClassCopyPolicyService.findAssignmentErrors(input.assignments, selectableSheetIds);
+    if (errors.length > 0) {
+      throw new AppError(errors[0].message, 400, { code: errors[0].code, field: errors[0].field, fieldErrors: errors });
+    }
   }
 
   static async updateClass(classId: string, lecturerId: string, input: Backend.UpdateClassInput, now: Date = new Date()): Promise<Backend.ClassDetailDTO> {

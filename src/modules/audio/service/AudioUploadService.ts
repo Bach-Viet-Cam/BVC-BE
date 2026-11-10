@@ -2,16 +2,23 @@ import { unlink } from 'node:fs/promises';
 import FileStorageService from '../../storage/service/FileStorageService.ts';
 import AudioRepository from '../repository/AudioRepository.ts';
 import AudioFilePolicyService from './AudioFilePolicyService.ts';
+import AudioSilenceTrimService from './AudioSilenceTrimService.ts';
 import AudioDTO from '../dto/AudioDTO.ts';
 
 export default class AudioUploadService {
-  constructor(private readonly storage: FileStorageService, private readonly repository: AudioRepository = new AudioRepository()) {}
+  constructor(
+    private readonly storage: FileStorageService,
+    private readonly repository: AudioRepository = new AudioRepository(),
+    private readonly silenceTrimmer: Pick<AudioSilenceTrimService, 'trimFile'> = new AudioSilenceTrimService()
+  ) {}
 
   async upload(ownerId: string, file: Express.Multer.File | undefined): Promise<{ fileId: string; url: string }> {
     let savedKey: string | undefined;
     try {
       const contentType = await new AudioFilePolicyService().validate(file);
       if (!file) throw new Error('Không tìm thấy file audio.');
+      // File đã qua kiểm tra định dạng; cắt khoảng lặng đầu/cuối trước khi lưu (lỗi thì giữ bản gốc)
+      await this.silenceTrimmer.trimFile(file.path, contentType === 'audio/wav' ? 'wav' : 'mp3');
       const saved = await this.storage.save({ sourcePath: file.path, originalName: file.originalname, contentType, namespace: 'audio' });
       savedKey = saved.key;
       const record = await this.repository.createUpload({

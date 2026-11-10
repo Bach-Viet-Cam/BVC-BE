@@ -31,6 +31,17 @@ export default class SubmissionRepository {
     return rows.flatMap((row) => (row.assignmentId ? [{ assignmentId: row.assignmentId, studentId: row.studentId }] : []));
   }
 
+  // GBR-13: rejected / failed submissions are not counted.
+  static async countPracticesByAssignment(assignmentIds: string[]): Promise<Map<string, number>> {
+    if (assignmentIds.length === 0) return new Map();
+    const rows = await SubmissionRepository.client.submission.groupBy({
+      by: ['assignmentId'],
+      where: { assignmentId: { in: assignmentIds }, status: { notIn: [...AssignmentConstant.uncountedSubmissionStatuses] } },
+      _count: { _all: true }
+    });
+    return new Map(rows.flatMap((row) => (row.assignmentId ? [[row.assignmentId, row._count._all] as [string, number]] : [])));
+  }
+
   static async findSnapshotsByStudent(assignmentId: string): Promise<Map<string, Backend.SubmissionSnapshot[]>> {
     const rows = await SubmissionRepository.client.submission.findMany({
       where: { assignmentId },

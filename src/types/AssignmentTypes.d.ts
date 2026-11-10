@@ -36,7 +36,7 @@ declare namespace Backend {
     publishedAt: Date | null;
     closedAt: Date | null;
     updatedAt: Date;
-    class: { id: string; name: string; status: ClassStatus; instrumentId: string; ownerId: string; coLecturers: Array<{ lecturerId: string }> };
+    class: { id: string; name: string; cohort: string; status: ClassStatus; instrumentId: string; ownerId: string; coLecturers: Array<{ lecturerId: string }> };
     currentVersion: {
       id: string;
       version: number;
@@ -153,5 +153,78 @@ declare namespace Backend {
     pieceTitle: string;
     kind: PieceKind;
     defaultBpm: number | null;
+  }
+}
+
+declare namespace Backend {
+  type OverviewEmptyReason = 'NO_SEMESTER_CONFIGURED' | 'NO_CURRENT_SEMESTER' | 'NO_CLASSES_IN_SEMESTER';
+
+  interface OverviewAssignmentDTO {
+    id: string;
+    classId: string;
+    title: string;
+    kind: AssignmentKind;
+    status: AssignmentStatus;
+    version: number;
+    sheetMusicId: string | null;
+    sheetTitle: string | null;
+    practiceCount: number;
+    submittedCount: number;
+    memberCount: number;
+    updatedAt: string;
+  }
+
+  interface OverviewClassDTO {
+    id: string;
+    name: string;
+    status: ClassStatus;
+    memberCount: number;
+    assignments: OverviewAssignmentDTO[];
+  }
+
+  interface AssignmentOverviewDTO {
+    semester: Semester | null;
+    emptyReason: OverviewEmptyReason | null;
+    classes: OverviewClassDTO[];
+  }
+
+  interface ClassWithAssignmentsRecord {
+    id: string;
+    name: string;
+    status: ClassStatus;
+    assignments: AssignmentRecord[];
+  }
+}
+
+declare namespace Backend {
+  type AssignSkipReason = 'NOT_CLASS_LECTURER' | 'NOT_CURRENT_SEMESTER' | 'CLASS_NOT_ACTIVE' | 'SHEET_UNAVAILABLE' | 'ALREADY_ASSIGNED' | 'KIND_SLOT_TAKEN';
+
+  interface AssignPlanSource {
+    id: string;
+    cohort: string;
+    title: string;
+    kind: AssignmentKind;
+    sheetMusicId: string | null;
+  }
+
+  interface AssignPlanTarget {
+    id: string;
+    cohort: string;
+    status: ClassStatus;
+    instrumentId: string;
+    isLecturer: boolean;
+    existing: Array<{ title: string; kind: AssignmentKind; sheetMusicId: string | null }>;
+  }
+
+  interface AssignPlan {
+    toCreate: Array<{ sourceId: string; classId: string }>;
+    skipped: Array<{ assignmentId: string; classId: string; reason: AssignSkipReason }>;
+  }
+}
+
+declare namespace Backend {
+  interface AssignResultDTO {
+    created: AssignmentBaseDTO[];
+    skipped: AssignPlan['skipped'];
   }
 }
