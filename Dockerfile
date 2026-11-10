@@ -2,6 +2,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+# ffmpeg: cắt khoảng lặng đầu/cuối audio khi lưu (AudioSilenceTrimService)
+RUN apk add --no-cache ffmpeg
+
 # Copy dependency manifests
 COPY package*.json ./
 
