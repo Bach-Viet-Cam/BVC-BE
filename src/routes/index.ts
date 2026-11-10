@@ -10,6 +10,7 @@ import InstrumentRoute from '../modules/platform/route/InstrumentRoute.ts';
 import SystemConfigRoute from '../modules/platform/route/SystemConfigRoute.ts';
 import AdminStatsRoute from '../modules/platform/route/AdminStatsRoute.ts';
 import ContentCategoryRoute from '../modules/platform/route/ContentCategoryRoute.ts';
+import CatalogCategoryRoute from '../modules/platform/route/CatalogCategoryRoute.ts';
 import NotificationRoute from '../modules/platform/route/NotificationRoute.ts';
 import MyNotificationRoute from '../modules/platform/route/MyNotificationRoute.ts';
 import ProgressRoute from '../modules/classes/route/ProgressRoute.ts';
@@ -37,6 +38,7 @@ export default class ApiRoute {
     SystemConfigRoute.register(v1Router);
     AdminStatsRoute.register(v1Router);
     ContentCategoryRoute.register(v1Router);
+    CatalogCategoryRoute.register(v1Router);
     NotificationRoute.register(v1Router);
     MyNotificationRoute.register(v1Router);
     ProgressRoute.register(v1Router);

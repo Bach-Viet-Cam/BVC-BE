@@ -89,6 +89,38 @@ declare namespace Backend {
   interface ContentCategoryItem { id: string; name: string; parentId: string | null; }
   interface ContentCategoryInput { name: string; parentId?: string | null; }
   interface ContentCategoryUpdateInput { name: string; }
+  type CatalogCategoryType = 'GENRE' | 'LEVEL';
+  type CatalogCategoryStatus = 'ACTIVE' | 'INACTIVE';
+  interface CatalogCategoryRecord {
+    id: string;
+    type: CatalogCategoryType;
+    name: string;
+    description: string | null;
+    displayOrder: number;
+    status: CatalogCategoryStatus;
+    createdAt: Date;
+    updatedAt: Date;
+    _count: { genrePieces: number; levelSheetMusic: number; legacyPieces: number };
+  }
+  interface CatalogCategoryItem {
+    id: string;
+    type: CatalogCategoryType;
+    name: string;
+    description: string | null;
+    displayOrder: number;
+    status: CatalogCategoryStatus;
+    usageCount: number;
+    updatedAt: string;
+  }
+  interface CatalogCategoryListQuery {
+    type: CatalogCategoryType;
+    q?: string;
+    status: 'active' | 'inactive' | 'all';
+    page: number;
+    limit: number;
+  }
+  interface CatalogCategoryInput { type: CatalogCategoryType; name: string; description?: string | null; displayOrder?: number; }
+  interface CatalogCategoryUpdateInput { name?: string; description?: string | null; displayOrder?: number; }
   type NotificationTypeName = 'DEADLINE' | 'ANNOUNCEMENT' | 'SYSTEM' | 'BONUS';
   type NotificationTargetName = 'ALL' | 'STUDENT' | 'TEACHER';
   type NotificationStatusName = 'DRAFT' | 'SCHEDULED' | 'SENT';
