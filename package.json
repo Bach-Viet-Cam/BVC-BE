@@ -41,6 +41,7 @@
     "google-auth-library": "^10.6.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
+    "jszip": "^3.10.2",
     "multer": "^2.4.0",
     "music-metadata": "^12.2.1",
     "pdf-lib": "^1.17.1",

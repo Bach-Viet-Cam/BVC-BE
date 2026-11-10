@@ -51,8 +51,13 @@ export default class ClassRepository {
     return classRecord as Backend.ClassRecord | null;
   }
 
-  static async findClassByCohortAndName(cohort: string, name: string, excludedClassId?: string): Promise<{ id: string } | null> {
-    return ClassRepository.client.class.findFirst({
+  static async findClassByCohortAndName(
+    cohort: string,
+    name: string,
+    excludedClassId?: string,
+    client: Prisma.TransactionClient = ClassRepository.client
+  ): Promise<{ id: string } | null> {
+    return client.class.findFirst({
       where: {
         cohort,
         name: { equals: name, mode: 'insensitive' },
@@ -65,6 +70,14 @@ export default class ClassRepository {
   static async findInstrumentById(instrumentId: string): Promise<Backend.InstrumentDTO | null> {
     return ClassRepository.client.instrument.findUnique({
       where: { id: instrumentId },
+      select: { id: true, name: true, isActive: true }
+    });
+  }
+
+  // Subject codes are matched case-insensitively (file names and cell values are not normalized by the source system).
+  static async findInstrumentByCode(code: string): Promise<{ id: string; name: string; isActive: boolean } | null> {
+    return ClassRepository.client.instrument.findFirst({
+      where: { code: { equals: code, mode: 'insensitive' } },
       select: { id: true, name: true, isActive: true }
     });
   }

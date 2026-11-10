@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import ApiResponse from '../../../utils/ApiResponse.ts';
 import ClassConstant from '../constant/ClassConstant.ts';
+import ClassFileImportService from '../service/ClassFileImportService.ts';
 import ClassService from '../service/ClassService.ts';
 import ClassLecturerService from '../service/ClassLecturerService.ts';
 import ImportService from '../service/ImportService.ts';
@@ -127,6 +128,16 @@ export default class ClassController {
     const { params } = ClassController.getValidated<unknown, { id: string; logId: string }>(request);
     const { message, ...result } = await ImportService.confirmImport(params.id, ClassController.getLecturerId(request), params.logId);
     return ApiResponse.sendSuccessResponse(response, { data: result, message });
+  }
+
+  static async previewClassFileImport(request: Request, response: Response): Promise<Response> {
+    const preview = await ClassFileImportService.preview(ClassController.getLecturerId(request), request.file as Backend.UploadedImportFile);
+    return ApiResponse.sendSuccessResponse(response, { data: preview });
+  }
+
+  static async confirmClassFileImport(request: Request, response: Response): Promise<Response> {
+    const { message, ...result } = await ClassFileImportService.confirm(ClassController.getLecturerId(request), request.file as Backend.UploadedImportFile);
+    return ApiResponse.sendSuccessResponse(response, { statusCode: 201, data: result, message });
   }
 
   static async cancelImport(request: Request, response: Response): Promise<Response> {

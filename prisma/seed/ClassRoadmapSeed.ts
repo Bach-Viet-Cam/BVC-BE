@@ -6,13 +6,14 @@ import DateTimeUtil from '../../src/utils/DateTimeUtil.ts';
 import RoadmapConstant from '../../src/modules/roadmaps/constant/RoadmapConstant.ts';
 import RoadmapService from '../../src/modules/roadmaps/service/RoadmapService.ts';
 import AssignmentRepository from '../../src/modules/assignments/repository/AssignmentRepository.ts';
+import SystemConfigService from '../../src/modules/platform/service/SystemConfigService.ts';
 import PlatformConstant from '../../src/modules/platform/constant/PlatformConstant.ts';
 import TextNormalizer from '../../src/utils/TextNormalizer.ts';
 
 const prisma = PrismaClientProvider.instance;
 const ROLES = { STUDENT: 1, TEACHER: 2, SYSTEM_ADMIN: 3 };
 const INSTRUMENTS = ['Đàn tranh', 'Đàn bầu', 'Tỳ bà', 'Sáo trúc'];
-const INSTRUMENT_CODES: Record<string, string> = { 'Đàn tranh': 'DTR', 'Đàn bầu': 'DBA', 'Tỳ bà': 'DTB', 'Sáo trúc': 'DSA' };
+const INSTRUMENT_CODES: Record<string, string> = { 'Đàn tranh': 'DTR103', 'Đàn bầu': 'DBA103', 'Tỳ bà': 'DTB103', 'Sáo trúc': 'DSA103' };
 const STUDENT_NAMES = [
   'Trần Minh Anh', 'Phạm Gia Hân', 'Ngô Thảo My', 'Lê Quốc Bảo', 'Vũ Hải Đăng', 'Nguyễn Thị Lan', 'Đỗ Văn Hùng',
   'Hoàng Mai Chi', 'Bùi Tuấn Kiệt', 'Đặng Ngọc Hà', 'Phan Thanh Tùng', 'Võ Khánh Linh', 'Trịnh Đức Minh', 'Lý Bảo Ngọc',
@@ -39,12 +40,12 @@ const WEEK_CONTENTS = [
 // Practice assignments for TRD301 (sub-project 3a). Accuracy values spread from 20 % to 95 %.
 const SAMPLE_AUDIO_URL = '/samples/bvc-sample.wav';
 const SEED_SEMESTERS = [
-  { name: 'SP26_H1', startDate: '2026-01-05', endDate: '2026-02-22' },
-  { name: 'SP26_H2', startDate: '2026-03-02', endDate: '2026-04-26' },
-  { name: 'SU26_H1', startDate: '2026-05-04', endDate: '2026-06-28' },
-  { name: 'SU26_H2', startDate: '2026-07-06', endDate: '2026-08-23' },
-  { name: 'FA26_H1', startDate: '2026-09-07', endDate: '2026-11-01' },
-  { name: 'FA26_H2', startDate: '2026-11-09', endDate: '2026-12-27' }
+  { name: 'Spring2026_H1', startDate: '2026-01-05', endDate: '2026-02-22' },
+  { name: 'Spring2026_H2', startDate: '2026-03-02', endDate: '2026-04-26' },
+  { name: 'Summer2026_H1', startDate: '2026-05-04', endDate: '2026-06-28' },
+  { name: 'Summer2026_H2', startDate: '2026-07-06', endDate: '2026-08-23' },
+  { name: 'Fall2026_H1', startDate: '2026-09-07', endDate: '2026-11-01' },
+  { name: 'Fall2026_H2', startDate: '2026-11-09', endDate: '2026-12-27' }
 ];
 const SEED_ASSIGNMENTS: Array<{ title: string; kind: 'SOLO' | 'ENSEMBLE' | 'BONUS' | 'OTHER'; status: 'DRAFT' | 'PUBLISHED' | 'CLOSED'; deleted?: boolean; description: string }> = [
   { title: 'Độc tấu — Lý ngựa ô', kind: 'SOLO', status: 'PUBLISHED', description: 'Tập chậm ở 70 BPM rồi tăng dần lên tempo mẫu.' },
@@ -288,9 +289,6 @@ class SeedRunner {
     SeedRunner.assertSafeTarget();
     const today = DateTimeUtil.todayInVietnam();
     // The semester containing today (else the last one); the finished class sits in the semester before it.
-    const currentIndex = Math.max(SEED_SEMESTERS.findIndex((semester) => semester.startDate <= today && today <= semester.endDate), 0);
-    const currentSemester = SEED_SEMESTERS[currentIndex] ?? SEED_SEMESTERS[SEED_SEMESTERS.length - 1];
-    const previousSemester = SEED_SEMESTERS[Math.max(currentIndex - 1, 0)];
 
     const admin = await SeedRunner.upsertUser('admin@bvc.local', 'Quản trị viên', ROLES.SYSTEM_ADMIN);
     const lecturer = await SeedRunner.upsertUser(process.env.SEED_LECTURER_EMAIL || 'huongnt@bvc.local', 'Nguyễn Thu Hương', ROLES.TEACHER);
@@ -298,6 +296,12 @@ class SeedRunner {
 
     await SeedRunner.seedGradingSettings();
     await SeedRunner.seedSemesters();
+    // Use the semesters actually stored in the DB (an existing DB keeps its own names); SEED_SEMESTERS only when none are configured.
+    const configured = await SystemConfigService.getSemesters();
+    const semesters = configured.length > 0 ? configured : SEED_SEMESTERS;
+    const currentIndex = Math.max(semesters.findIndex((semester) => semester.startDate <= today && today <= semester.endDate), 0);
+    const currentSemester = semesters[currentIndex] ?? semesters[semesters.length - 1];
+    const previousSemester = semesters[Math.max(currentIndex - 1, 0)];
     const instruments = [];
     for (const name of INSTRUMENTS) {
       const existing = await prisma.instrument.findFirst({ where: { name } });

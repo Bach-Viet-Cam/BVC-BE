@@ -195,6 +195,13 @@ declare namespace Backend {
     rows: RawStudentRow[];
   }
 
+  interface ParsedClassFile {
+    subjectCode: string;
+    className: string;
+    semesterName: string;
+    rows: RawStudentRow[];
+  }
+
   interface ImportLogRecord {
     id: string;
     classId: string;
@@ -213,6 +220,31 @@ declare namespace Backend {
     validRows: number;
     errorRows: number;
     rows: Array<{ rowNumber: number; studentCode: string; fullName: string; email: string; isValid: boolean; reason: string | null }>;
+  }
+
+  interface ClassFilePreviewDTO {
+    fileName: string;
+    classInfo: {
+      name: string;
+      subjectCode: string;
+      cohort: string;
+      instrument: { id: string; name: string } | null;
+      startDate: string | null;
+      endDate: string | null;
+    };
+    blockingErrors: string[];
+    totalRows: number;
+    validRows: number;
+    errorRows: number;
+    rows: ImportPreviewDTO['rows'];
+  }
+
+  interface ClassFileImportResult {
+    classId: string;
+    className: string;
+    importedCount: number;
+    skippedCount: number;
+    message: string;
   }
 
   interface ImportConfirmResult {

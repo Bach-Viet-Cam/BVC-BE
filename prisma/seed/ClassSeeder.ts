@@ -25,9 +25,9 @@ export default class ClassSeeder {
   static readonly secondTeacherEmail = 'teacher2@seed.bvc.test';
   static readonly studentEmails = [1, 2, 3, 4, 5].map((index) => `student${index}@seed.bvc.test`);
   static readonly ensembleTracks = [
-    { instrumentCode: 'DSA', frequency: 440 },
-    { instrumentCode: 'DBA', frequency: 330 },
-    { instrumentCode: 'DTB', frequency: 392 },
+    { instrumentCode: 'DSA103', frequency: 440 },
+    { instrumentCode: 'DBA103', frequency: 330 },
+    { instrumentCode: 'DTB103', frequency: 392 },
     { instrumentCode: 'BGO', frequency: 220 }
   ];
   static readonly assignments: AssignmentSeed[] = [
@@ -55,7 +55,7 @@ export default class ClassSeeder {
   async run(): Promise<void> {
     const client = PrismaClientProvider.instance;
     const instruments = Object.fromEntries((await client.instrument.findMany()).map((item) => [item.code, item.id]));
-    const danTranh = instruments['DTR'] || instruments['dan-tranh'] || instruments['DAN_TRANH'];
+    const danTranh = instruments['DTR103'] || instruments['dan-tranh'] || instruments['DAN_TRANH'];
 
     const teacher = await client.user.upsert({ where: { email: ClassSeeder.teacherEmail }, update: {}, create: { email: ClassSeeder.teacherEmail, username: 'Nguyễn Thu Hương', role: 2, status: 'ACTIVE' } });
     const secondTeacher = await client.user.upsert({ where: { email: ClassSeeder.secondTeacherEmail }, update: {}, create: { email: ClassSeeder.secondTeacherEmail, username: 'Bùi Đức Trung', role: 2, status: 'ACTIVE' } });

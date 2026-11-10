@@ -76,8 +76,9 @@ export default class MemberService {
     });
   }
 
+  // classId is null while the class does not exist yet (file import): nobody is a member.
   static async buildValidationContext(
-    classId: string,
+    classId: string | null,
     rows: Backend.RawStudentRow[],
     client: Prisma.TransactionClient
   ): Promise<Backend.StudentValidationContext> {
@@ -86,7 +87,7 @@ export default class MemberService {
     const studentCodes = normalizedRows.map((row) => row.studentCode).filter(Boolean);
     const [users, activeMemberIds] = await Promise.all([
       MemberRepository.findUsersByEmailsOrCodes(emails, studentCodes, client),
-      MemberRepository.findActiveMemberIds(classId, client)
+      classId === null ? Promise.resolve(new Set<string>()) : MemberRepository.findActiveMemberIds(classId, client)
     ]);
 
     const usersByEmail = new Map<string, Backend.ExistingUserSnapshot>();
@@ -100,7 +101,7 @@ export default class MemberService {
   }
 
   static async validateAgainstDatabase(
-    classId: string,
+    classId: string | null,
     rows: Backend.RawStudentRow[],
     client: Prisma.TransactionClient
   ): Promise<{ rows: Backend.ValidatedStudentRow[]; context: Backend.StudentValidationContext }> {

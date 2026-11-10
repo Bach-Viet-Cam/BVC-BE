@@ -26,29 +26,29 @@ const prisma = PrismaClientProvider.instance;
 
 export default class DatabaseSeeder {
   static readonly instruments = [
-    { code: 'DTR', name: 'Đàn tranh', fminHz: 98, fmaxHz: 1568, toleranceCents: 30, description: 'Đàn 16 dây gảy bằng móng.' },
-    { code: 'DBA', name: 'Đàn bầu', fminHz: 65, fmaxHz: 1047, toleranceCents: 35, description: 'Đàn một dây, kỹ thuật bồi âm.' },
-    { code: 'DSA', name: 'Sáo trúc', fminHz: 261, fmaxHz: 2093, toleranceCents: 30, description: 'Sáo ngang làm từ ống trúc.' },
-    { code: 'DTB', name: 'Tỳ bà', fminHz: 110, fmaxHz: 1760, toleranceCents: 30, description: 'Đàn 4 dây hình quả lê.' },
-    { code: 'DNH', name: 'Đàn nhị', fminHz: 293, fmaxHz: 1760, toleranceCents: 35, description: 'Đàn hai dây kéo bằng cung vĩ.' }
+    { code: 'DTR103', name: 'Đàn tranh', fminHz: 98, fmaxHz: 1568, toleranceCents: 30, description: 'Đàn 16 dây gảy bằng móng.' },
+    { code: 'DBA103', name: 'Đàn bầu', fminHz: 65, fmaxHz: 1047, toleranceCents: 35, description: 'Đàn một dây, kỹ thuật bồi âm.' },
+    { code: 'DSA103', name: 'Sáo trúc', fminHz: 261, fmaxHz: 2093, toleranceCents: 30, description: 'Sáo ngang làm từ ống trúc.' },
+    { code: 'DTB103', name: 'Tỳ bà', fminHz: 110, fmaxHz: 1760, toleranceCents: 30, description: 'Đàn 4 dây hình quả lê.' },
+    { code: 'DNH103', name: 'Đàn nhị', fminHz: 293, fmaxHz: 1760, toleranceCents: 35, description: 'Đàn hai dây kéo bằng cung vĩ.' }
   ];
 
   static readonly instrumentTunes: Record<string, { tuneName: string; pitch: number; displayOrder: number }[]> = {
-    DNH: [
+    DNH103: [
       { tuneName: 'Dây 1 (Re 5)', pitch: 587.33, displayOrder: 1 },
       { tuneName: 'Dây 2 (Sol 4)', pitch: 392.0, displayOrder: 2 },
     ],
-    DBA: [
+    DBA103: [
       { tuneName: 'Dây buông (Do 3)', pitch: 130.81, displayOrder: 1 },
       { tuneName: 'Dây buông quãng 8 (Do 4)', pitch: 261.63, displayOrder: 2 },
     ],
-    DTB: [
+    DTB103: [
       { tuneName: 'Dây 1 (Do 5)', pitch: 523.25, displayOrder: 1 },
       { tuneName: 'Dây 2 (Sol 4)', pitch: 392.0, displayOrder: 2 },
       { tuneName: 'Dây 3 (Fa 4)', pitch: 349.23, displayOrder: 3 },
       { tuneName: 'Dây 4 (Do 4)', pitch: 261.63, displayOrder: 4 },
     ],
-    DTR: [
+    DTR103: [
       { tuneName: 'Dây 1 (Sol 3)', pitch: 196.0, displayOrder: 1 },
       { tuneName: 'Dây 2 (La 3)', pitch: 220.0, displayOrder: 2 },
       { tuneName: 'Dây 3 (Do 4)', pitch: 261.63, displayOrder: 3 },
@@ -56,7 +56,7 @@ export default class DatabaseSeeder {
       { tuneName: 'Dây 5 (Mi 4)', pitch: 329.63, displayOrder: 5 },
       { tuneName: 'Dây 6 (Sol 4)', pitch: 392.0, displayOrder: 6 },
     ],
-    DSA: [
+    DSA103: [
       { tuneName: 'Do 5 (C5)', pitch: 523.25, displayOrder: 1 },
       { tuneName: 'Re 5 (D5)', pitch: 587.33, displayOrder: 2 },
       { tuneName: 'Mi 5 (E5)', pitch: 659.25, displayOrder: 3 },
@@ -66,8 +66,8 @@ export default class DatabaseSeeder {
     ],
   };
 
-  // Codes used before the short form; renamed in place so re-seeding an existing DB does not duplicate instruments.
-  static readonly legacyInstrumentCodes: Record<string, string> = { DAN_TRANH: 'DTR', DAN_BAU: 'DBA', SAO_TRUC: 'DSA', TY_BA: 'DTB' };
+  // Codes used before the 103 suffix (long names and short forms); renamed in place so re-seeding an existing DB does not duplicate instruments.
+  static readonly legacyInstrumentCodes: Record<string, string> = { DAN_TRANH: 'DTR103', DAN_BAU: 'DBA103', SAO_TRUC: 'DSA103', TY_BA: 'DTB103', DTR: 'DTR103', DBA: 'DBA103', DSA: 'DSA103', DTB: 'DTB103', DNH: 'DNH103' };
 
   static readonly genres = ['Dân ca Bắc Bộ', 'Dân ca Trung Bộ', 'Dân ca Nam Bộ', 'Nhạc tài tử', 'Nhạc cung đình', 'Nhạc mới'];
   static readonly levels = ['Cơ bản', 'Trung cấp', 'Nâng cao'];
@@ -96,14 +96,14 @@ export default class DatabaseSeeder {
   ];
 
   // Semesters offered on the create-class form, same values as ClassRoadmapSeed.
-  // Six semesters for 2026: each season (SP, SU, FA) is split into two halves.
+  // Six semesters for 2026: each season (Spring, Summer, Fall) is split into two halves.
   static readonly semesters = [
-    { name: 'SP26_H1', startDate: '2026-01-05', endDate: '2026-02-22' },
-    { name: 'SP26_H2', startDate: '2026-03-02', endDate: '2026-04-26' },
-    { name: 'SU26_H1', startDate: '2026-05-04', endDate: '2026-06-28' },
-    { name: 'SU26_H2', startDate: '2026-07-06', endDate: '2026-08-23' },
-    { name: 'FA26_H1', startDate: '2026-09-07', endDate: '2026-11-01' },
-    { name: 'FA26_H2', startDate: '2026-11-09', endDate: '2026-12-27' }
+    { name: 'Spring2026_H1', startDate: '2026-01-05', endDate: '2026-02-22' },
+    { name: 'Spring2026_H2', startDate: '2026-03-02', endDate: '2026-04-26' },
+    { name: 'Summer2026_H1', startDate: '2026-05-04', endDate: '2026-06-28' },
+    { name: 'Summer2026_H2', startDate: '2026-07-06', endDate: '2026-08-23' },
+    { name: 'Fall2026_H1', startDate: '2026-09-07', endDate: '2026-11-01' },
+    { name: 'Fall2026_H2', startDate: '2026-11-09', endDate: '2026-12-27' }
   ];
 
   static readonly users = [
@@ -119,46 +119,46 @@ export default class DatabaseSeeder {
       title: 'Lý ngựa ô', composer: 'Dân gian', genre: 'Dân ca Nam Bộ', isPublic: true, hasCover: true,
       description: 'Làn điệu dân ca Nam Bộ vui tươi, phù hợp làm bài nhập môn.',
       sheets: [
-        { instrument: 'DTR', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 12 },
-        { instrument: 'DTR', kind: 'LEVEL', name: 'Đàn tranh – đơn giản', level: 'Cơ bản' },
-        { instrument: 'DTR', kind: 'LEVEL', name: 'Đàn tranh – luyến láy', level: 'Nâng cao', audioSec: 10 },
-        { instrument: 'DSA', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Trung cấp', audioSec: 11 }
+        { instrument: 'DTR103', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 12 },
+        { instrument: 'DTR103', kind: 'LEVEL', name: 'Đàn tranh – đơn giản', level: 'Cơ bản' },
+        { instrument: 'DTR103', kind: 'LEVEL', name: 'Đàn tranh – luyến láy', level: 'Nâng cao', audioSec: 10 },
+        { instrument: 'DSA103', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Trung cấp', audioSec: 11 }
       ]
     },
     {
       title: 'Trống cơm', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', isPublic: true,
       description: 'Dân ca quan họ Bắc Ninh với tiết tấu rộn ràng.',
       sheets: [
-        { instrument: 'DBA', kind: 'MAIN', name: 'Đàn bầu – bản gốc', level: 'Cơ bản', audioSec: 9 },
-        { instrument: 'DSA', kind: 'LEVEL', name: 'Sáo trúc – nhập môn', level: 'Cơ bản' }
+        { instrument: 'DBA103', kind: 'MAIN', name: 'Đàn bầu – bản gốc', level: 'Cơ bản', audioSec: 9 },
+        { instrument: 'DSA103', kind: 'LEVEL', name: 'Sáo trúc – nhập môn', level: 'Cơ bản' }
       ]
     },
     {
       title: 'Bèo dạt mây trôi', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', isPublic: true, hasCover: true,
       description: 'Bài dân ca trữ tình, giai điệu chậm, nhiều luyến láy.',
       sheets: [
-        { instrument: 'DBA', kind: 'MAIN', name: 'Đàn bầu – bản gốc', level: 'Trung cấp', audioSec: 14 },
-        { instrument: 'DTR', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 13 },
-        { instrument: 'DTR', kind: 'LEVEL', name: 'Đàn tranh – rút gọn', level: 'Cơ bản' }
+        { instrument: 'DBA103', kind: 'MAIN', name: 'Đàn bầu – bản gốc', level: 'Trung cấp', audioSec: 14 },
+        { instrument: 'DTR103', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 13 },
+        { instrument: 'DTR103', kind: 'LEVEL', name: 'Đàn tranh – rút gọn', level: 'Cơ bản' }
       ]
     },
     {
       title: 'Lưu thủy kim tiền', composer: 'Dân gian', genre: 'Nhạc tài tử', isPublic: true,
       description: 'Bài bản nhạc tài tử Nam Bộ.',
       sheets: [
-        { instrument: 'DTB', kind: 'MAIN', name: 'Tỳ bà – bản gốc', level: 'Nâng cao', audioSec: 15 },
-        { instrument: 'DTR', kind: 'LEVEL', name: 'Đàn tranh – luyện tập', level: 'Trung cấp', isHidden: true }
+        { instrument: 'DTB103', kind: 'MAIN', name: 'Tỳ bà – bản gốc', level: 'Nâng cao', audioSec: 15 },
+        { instrument: 'DTR103', kind: 'LEVEL', name: 'Đàn tranh – luyện tập', level: 'Trung cấp', isHidden: true }
       ]
     },
     {
       title: 'Dạ cổ hoài lang', composer: 'Cao Văn Lầu', genre: 'Nhạc tài tử', isPublic: true,
       description: 'Bản nhạc tiền thân của điệu vọng cổ.',
-      sheets: [{ instrument: 'DTR', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 16 }]
+      sheets: [{ instrument: 'DTR103', kind: 'MAIN', name: 'Đàn tranh – bản gốc', level: 'Trung cấp', audioSec: 16 }]
     },
     {
       title: 'Lý chiều chiều', composer: 'Dân gian', genre: 'Dân ca Trung Bộ', isPublic: true,
       description: 'Dân ca Thừa Thiên Huế.',
-      sheets: [{ instrument: 'DSA', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Cơ bản', audioSec: 8 }]
+      sheets: [{ instrument: 'DSA103', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Cơ bản', audioSec: 8 }]
     },
     {
       title: 'Lý cây bông', composer: 'Dân gian', genre: 'Dân ca Nam Bộ', isPublic: true,
@@ -168,13 +168,13 @@ export default class DatabaseSeeder {
     {
       title: 'Xuân và tuổi trẻ', composer: 'La Hối', genre: 'Nhạc mới', isPublic: false,
       description: 'Bài hát đang soạn, chưa công khai.',
-      sheets: [{ instrument: 'DTR', kind: 'MAIN', name: 'Đàn tranh – bản nháp', level: 'Trung cấp' }]
+      sheets: [{ instrument: 'DTR103', kind: 'MAIN', name: 'Đàn tranh – bản nháp', level: 'Trung cấp' }]
     },
     {
       title: 'Hò kéo pháo', composer: 'Dân gian', genre: 'Dân ca Bắc Bộ', isPublic: true,
       description: 'Bài bị admin ẩn – dùng để thử luồng kiểm duyệt và thông báo cho giảng viên.',
       adminHiddenReason: 'Bản thu mẫu đang được kiểm tra bản quyền.',
-      sheets: [{ instrument: 'DSA', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Trung cấp', audioSec: 10 }]
+      sheets: [{ instrument: 'DSA103', kind: 'MAIN', name: 'Sáo trúc – bản gốc', level: 'Trung cấp', audioSec: 10 }]
     }
   ];
 

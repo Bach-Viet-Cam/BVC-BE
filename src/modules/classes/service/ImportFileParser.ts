@@ -3,6 +3,7 @@ import ExcelJS from 'exceljs';
 import AppError from '../../../utils/AppError.ts';
 import ClassConstant from '../constant/ClassConstant.ts';
 import StudentRowValidator from './StudentRowValidator.ts';
+import XlsxCompatParser from './XlsxCompatParser.ts';
 
 const importFile = ClassConstant.importFile;
 const messages = ClassConstant.messages;
@@ -29,16 +30,37 @@ export default class ImportFileParser {
     return extension as Backend.ImportFileType;
   }
 
-  static async readXlsx(buffer: Buffer): Promise<string[][]> {
-    const workbook = new ExcelJS.Workbook();
+  static async loadWorkbook(buffer: Buffer): Promise<ExcelJS.Workbook> {
     try {
+      const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+      return workbook;
+    } catch {
+      // Fall through: retry once with the source system's non-standard package normalized.
+    }
+    try {
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(await XlsxCompatParser.normalizePackage(buffer) as unknown as ArrayBuffer);
+      return workbook;
     } catch {
       throw AppError.badRequest(messages.FILE_UNREADABLE, { code: 'MSG-08' });
     }
-    const worksheet = workbook.worksheets[0];
-    if (!worksheet) return [];
+  }
 
+  static async readXlsx(buffer: Buffer): Promise<string[][]> {
+    const workbook = await ImportFileParser.loadWorkbook(buffer);
+    const worksheet = workbook.worksheets[0];
+    return worksheet ? ImportFileParser.worksheetToMatrix(worksheet) : [];
+  }
+
+  static async readXlsxSheet(buffer: Buffer, sheetName: string): Promise<string[][] | null> {
+    const workbook = await ImportFileParser.loadWorkbook(buffer);
+    const target = sheetName.toLowerCase();
+    const worksheet = workbook.worksheets.find((sheet) => sheet.name.toLowerCase() === target);
+    return worksheet ? ImportFileParser.worksheetToMatrix(worksheet) : null;
+  }
+
+  private static worksheetToMatrix(worksheet: ExcelJS.Worksheet): string[][] {
     const matrix: string[][] = [];
     for (let rowIndex = 1; rowIndex <= worksheet.rowCount; rowIndex += 1) {
       const row = worksheet.getRow(rowIndex);

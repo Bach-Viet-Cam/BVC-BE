@@ -32,6 +32,33 @@ export default class ImportRepository {
     return log as Backend.ImportLogRecord;
   }
 
+  // Used by the file-import flow, which has no preview step: the log is written already CONFIRMED.
+  static async createConfirmedLog(data: {
+    classId: string;
+    lecturerId: string;
+    fileName: string;
+    fileType: Backend.ImportFileType;
+    rows: Backend.ValidatedStudentRow[];
+  }, client: Prisma.TransactionClient): Promise<Backend.ImportLogRecord> {
+    const validRows = data.rows.filter((row) => row.isValid).length;
+    const log = await client.studentImportLog.create({
+      data: {
+        classId: data.classId,
+        lecturerId: data.lecturerId,
+        fileName: data.fileName,
+        fileType: data.fileType,
+        totalRows: data.rows.length,
+        validRows,
+        errorRows: data.rows.length - validRows,
+        rows: data.rows as unknown as Prisma.InputJsonValue,
+        status: 'CONFIRMED',
+        confirmedAt: new Date()
+      },
+      select: ClassModel.importLogSelect
+    });
+    return log as Backend.ImportLogRecord;
+  }
+
   static async findLogById(logId: string, client: Prisma.TransactionClient = ImportRepository.client): Promise<Backend.ImportLogRecord | null> {
     const log = await client.studentImportLog.findUnique({ where: { id: logId }, select: ClassModel.importLogSelect });
     return log as Backend.ImportLogRecord | null;
