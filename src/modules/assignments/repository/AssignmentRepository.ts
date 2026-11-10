@@ -43,6 +43,30 @@ export default class AssignmentRepository {
     return { records: records as Backend.AssignmentRecord[], total };
   }
 
+  // The lecturer's classes of one semester (cohort) with their non-deleted assignments, newest first.
+  static async findClassesWithAssignments(lecturerId: string, cohort: string): Promise<Backend.ClassWithAssignmentsRecord[]> {
+    const classes = await AssignmentRepository.client.class.findMany({
+      where: { ...ClassModel.lecturerClassFilter(lecturerId), cohort },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        assignments: { where: { deletedAt: null }, orderBy: { updatedAt: 'desc' }, select: AssignmentModel.assignmentSelect }
+      }
+    });
+    return classes as Backend.ClassWithAssignmentsRecord[];
+  }
+
+  // Identity (title, kind, sheet) of every non-deleted assignment of the class, for the duplicate / one-per-kind checks.
+  static async findClassAssignmentKeys(classId: string): Promise<Array<{ title: string; kind: Backend.AssignmentKind; sheetMusicId: string | null }>> {
+    const rows = await AssignmentRepository.client.assignment.findMany({
+      where: { classId, deletedAt: null, currentVersionId: { not: null } },
+      select: { currentVersion: { select: { title: true, kind: true, sheetMusicId: true } } }
+    });
+    return rows.flatMap((row) => (row.currentVersion ? [row.currentVersion] : []));
+  }
+
   // Any non-deleted assignment of the class whose current version has this kind (drafts and closed ones included).
   static async existsKindInClass(classId: string, kind: Backend.AssignmentKind, excludeAssignmentId?: string): Promise<boolean> {
     const found = await AssignmentRepository.client.assignment.findFirst({

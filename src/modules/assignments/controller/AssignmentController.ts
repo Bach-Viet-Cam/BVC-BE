@@ -28,6 +28,12 @@ export default class AssignmentController {
     return ApiResponse.sendSuccessResponse(response, { statusCode: 201, data: assignment, message: messages.CREATED });
   }
 
+  static async assignToClasses(request: Request, response: Response): Promise<Response> {
+    const { body } = AssignmentController.getValidated<{ assignmentIds: string[]; classIds: string[] }>(request);
+    const result = await AssignmentService.assignToClasses(AssignmentController.getLecturerId(request), body);
+    return ApiResponse.sendSuccessResponse(response, { data: result, message: messages.ASSIGNED });
+  }
+
   static async updateAssignment(request: Request, response: Response): Promise<Response> {
     const { body, params } = AssignmentController.getValidated<Backend.AssignmentContentInput, { id: string }>(request);
     const assignment = await AssignmentService.updateAssignment(params.id, AssignmentController.getLecturerId(request), body);
@@ -61,6 +67,10 @@ export default class AssignmentController {
   static async listAssignments(request: Request, response: Response): Promise<Response> {
     const { query } = AssignmentController.getValidated<unknown, unknown, Backend.AssignmentListQuery>(request);
     return ApiResponse.sendSuccessResponse(response, { data: await AssignmentQueryService.listAssignments(AssignmentController.getLecturerId(request), query) });
+  }
+
+  static async getOverview(request: Request, response: Response): Promise<Response> {
+    return ApiResponse.sendSuccessResponse(response, { data: await AssignmentQueryService.getOverview(AssignmentController.getLecturerId(request)) });
   }
 
   static async getAssignment(request: Request, response: Response): Promise<Response> {

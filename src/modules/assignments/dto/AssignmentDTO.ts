@@ -33,4 +33,25 @@ export default class AssignmentDTO {
       updatedAt: record.updatedAt.toISOString()
     };
   }
+
+  static toOverviewAssignment(
+    record: Backend.AssignmentRecord,
+    counts: { practiceCount: number; submittedCount: number; memberCount: number }
+  ): Backend.OverviewAssignmentDTO {
+    const base = AssignmentDTO.toBaseDTO(record);
+    return {
+      id: base.id,
+      classId: base.classId,
+      title: base.title,
+      kind: base.kind,
+      status: base.status,
+      version: base.version,
+      sheetMusicId: base.sheetMusic?.id ?? null,
+      sheetTitle: base.sheetMusic ? base.sheetMusic.pieceTitle || base.sheetMusic.name : null,
+      practiceCount: counts.practiceCount,
+      submittedCount: counts.submittedCount,
+      memberCount: counts.memberCount,
+      updatedAt: base.updatedAt
+    };
+  }
 }

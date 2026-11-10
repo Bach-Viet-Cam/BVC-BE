@@ -37,6 +37,7 @@ export default class AssignmentConstant {
     CLOSED: saved('Đóng'),
     REOPENED: saved('Mở lại'),
     DELETED: saved('Xóa'),
+    ASSIGNED: saved('Gán'),
     COMMENT_SENT: saved('Gửi', 'nhận xét'),
     COMMENT_UPDATED: saved('Cập nhật', 'nhận xét'),
     ASSIGNMENT_NOT_FOUND: 'Không tìm thấy bài tập.',
@@ -67,7 +68,8 @@ export default class AssignmentConstant {
     PUBLISH: 'ASSIGNMENT_PUBLISH',
     CLOSE: 'ASSIGNMENT_CLOSE',
     REOPEN: 'ASSIGNMENT_REOPEN',
-    DELETE: 'ASSIGNMENT_DELETE'
+    DELETE: 'ASSIGNMENT_DELETE',
+    ASSIGN: 'ASSIGNMENT_ASSIGN'
   });
 
   static readonly auditEntityType = 'assignment';

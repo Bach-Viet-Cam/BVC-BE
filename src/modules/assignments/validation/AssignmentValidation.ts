@@ -39,6 +39,12 @@ const content = { title, description, kind, sheetMusicId, requiredBpm };
 const idParams = z.object({ id: recordId });
 const emptyQuery = z.object({});
 
+const idList = z
+  .array(recordId)
+  .min(1)
+  .max(50)
+  .transform((ids) => [...new Set(ids)]);
+
 export default class AssignmentValidation {
   static readonly createSchema = z.object({
     body: z.object({ classId: recordId, ...content, publish: z.boolean().default(false) }),
@@ -67,6 +73,10 @@ export default class AssignmentValidation {
       limit: z.coerce.number().int().min(1).max(100).default(20)
     })
   });
+
+  static readonly assignSchema = z.object({ body: z.object({ assignmentIds: idList, classIds: idList }), params: z.object({}), query: emptyQuery });
+
+  static readonly overviewSchema = z.object({ body: z.unknown(), params: z.object({}), query: emptyQuery });
 
   static readonly sheetMusicSchema =z.object({ body: z.unknown(), params: z.object({}), query: z.object({ classId: recordId }) });
 
