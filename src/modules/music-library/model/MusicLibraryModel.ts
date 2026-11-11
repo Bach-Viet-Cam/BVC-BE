@@ -48,6 +48,7 @@ export default class MusicLibraryModel {
         instrumentId: true,
         visibility: true,
         moderation: true,
+        uploaderId: true,
         instrument: { select: MusicLibraryModel.instrumentRefSelect }
       },
       orderBy: { createdAt: 'asc' }

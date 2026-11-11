@@ -1,7 +1,6 @@
 import StorageService from '../../../lib/storage/StorageService.ts';
 
 type PieceSheetSummary = Pick<MusicLibrary.PieceRecord['sheetMusic'][number], 'visibility' | 'moderation'>;
-
 export default class MusicLibraryDTO {
   static toCategoryRef(category: { id: string; name: string }): MusicLibrary.CategoryRefDTO {
     return { id: category.id, name: category.name };
@@ -49,8 +48,14 @@ export default class MusicLibraryDTO {
   }
 
   // ----- Lecturer -----
+  // A hidden piece is locked for contributors; only its owner keeps managing sheet music
+  static canManagePieceSheets(viewerId: string, piece: MusicLibrary.PieceAccessRecord): boolean {
+    return piece.ownerId === viewerId || (piece.visibility === 'PUBLIC' && piece.moderation === 'NORMAL');
+  }
+
   static async toLecturerPiece(piece: MusicLibrary.PieceRecord, viewerId: string) {
     const isAdminHidden = piece.moderation === 'ADMIN_HIDDEN';
+    const isOwner = piece.ownerId === viewerId;
     return {
       id: piece.id,
       title: piece.title,
@@ -65,9 +70,11 @@ export default class MusicLibraryDTO {
       effectiveVisibility: MusicLibraryDTO.toEffectiveVisibility(piece.visibility, piece.moderation),
       moderationReason: isAdminHidden ? piece.moderationReason : null,
       // R-01: only the owner edits the piece itself; any lecturer can add sheet music
-      canEdit: piece.ownerId === viewerId,
-      canChangeVisibility: !isAdminHidden,
+      canEdit: isOwner,
+      canChangeVisibility: isOwner && !isAdminHidden,
+      canManageSheets: MusicLibraryDTO.canManagePieceSheets(viewerId, piece),
       sheetMusicCount: piece.sheetMusic.length,
+      mySheetMusicCount: piece.sheetMusic.filter((sheetSummary) => sheetSummary.uploaderId === viewerId).length,
       publicSheetMusicCount: piece.sheetMusic.filter(MusicLibraryDTO.isVisibleSheet).length,
       createdAt: piece.createdAt.toISOString(),
       updatedAt: piece.updatedAt.toISOString()

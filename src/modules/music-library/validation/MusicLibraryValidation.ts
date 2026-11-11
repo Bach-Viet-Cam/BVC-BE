@@ -82,6 +82,7 @@ export default class MusicLibraryValidation {
       instrumentId: optionalId,
       levelId: optionalId,
       visibility: z.enum(['ALL', 'PUBLIC', 'HIDDEN', 'ADMIN_HIDDEN']).default('ALL'),
+      ownership: z.enum(['ALL', 'OWNED', 'CONTRIBUTED']).default('ALL'),
       page: ZodFieldRule.page(),
       pageSize: ZodFieldRule.pageSize(PAGE_SIZES.LECTURER_PIECES, PAGE_SIZES.MAX)
     })

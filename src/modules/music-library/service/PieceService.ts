@@ -23,12 +23,16 @@ export default class PieceService {
   // R-01: only the owner edits the piece itself (title, cover, genre, visibility)
   static async getOwnedPiece(lecturerId: string, pieceId: string): Promise<MusicLibrary.PieceRecord> {
     const piece = await PieceService.getActivePiece(pieceId);
-    if (piece.ownerId !== lecturerId) throw AppError.forbidden();
+    if (piece.ownerId !== lecturerId) throw AppError.withMessage(403, 'MSG-08', MESSAGES.PIECE_NOT_OWNER);
     return piece;
   }
 
+  static assertCanManageSheets(lecturerId: string, piece: MusicLibrary.PieceAccessRecord): void {
+    if (!MusicLibraryDTO.canManagePieceSheets(lecturerId, piece)) throw AppError.withMessage(403, 'MSG-08', MESSAGES.PIECE_LOCKED);
+  }
+
   static async listPieces(lecturerId: string, query: MusicLibrary.LecturerPieceQuery) {
-    const [pieces, total] = await PieceRepository.listForOwner(lecturerId, query);
+    const [pieces, total] = await PieceRepository.listForLecturer(lecturerId, query);
     const pieceDTOs = await Promise.all(pieces.map((piece) => MusicLibraryDTO.toLecturerPiece(piece, lecturerId)));
     return MusicLibraryDTO.toPaginated(pieceDTOs, total, query);
   }

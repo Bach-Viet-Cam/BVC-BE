@@ -64,6 +64,40 @@ describe('UC-05 Quản lý bài hát (giảng viên)', () => {
     expect(list.body.data.total).toBe(0);
   });
 
+  it('bài có bản nhạc mình đóng góp hiện trong thư viện của mình, lọc được theo chủ bài', async () => {
+    const otherLecturer = await TestContext.createUser('LECTURER', 'gv.b@test.local');
+    const ownPiece = await TestContext.createPiece(otherLecturer, { title: 'Bài của B' });
+    const contributedPiece = await TestContext.createPiece(lecturer, { title: 'Bài của A' });
+    await TestContext.createPiece(lecturer, { title: 'Bài A không ai đóng góp' });
+    await request(app).patch(`${api}/lecturer/pieces/${contributedPiece.id}/visibility`)
+      .set(TestContext.auth(lecturer)).send({ visibility: 'PUBLIC' });
+    expect((await TestContext.createSheet(otherLecturer, contributedPiece.id, { name: 'Bản của B' })).status).toBe(201);
+    expect((await TestContext.createSheet(lecturer, contributedPiece.id, { name: 'Bản của A' })).status).toBe(201);
+
+    const listOf = async (ownership?: string) => (await request(app).get(`${api}/lecturer/pieces`)
+      .query(ownership ? { ownership } : {}).set(TestContext.auth(otherLecturer))).body.data;
+    const all = await listOf();
+    expect(all.items.map((item: { title: string }) => item.title).sort()).toEqual(['Bài của A', 'Bài của B']);
+    const contributed = all.items.find((item: { id: string }) => item.id === contributedPiece.id);
+    expect(contributed).toMatchObject({
+      canEdit: false,
+      canChangeVisibility: false,
+      canManageSheets: true,
+      sheetMusicCount: 2,
+      mySheetMusicCount: 1
+    });
+    expect((await listOf('OWNED')).items.map((item: { id: string }) => item.id)).toEqual([ownPiece.id]);
+    expect((await listOf('CONTRIBUTED')).items.map((item: { id: string }) => item.id)).toEqual([contributedPiece.id]);
+
+    await request(app).patch(`${api}/lecturer/pieces/${contributedPiece.id}/visibility`)
+      .set(TestContext.auth(lecturer)).send({ visibility: 'HIDDEN' });
+    const afterHidden = (await listOf('CONTRIBUTED')).items[0];
+    expect(afterHidden).toMatchObject({ id: contributedPiece.id, effectiveVisibility: 'HIDDEN', canManageSheets: false });
+
+    await TestContext.prisma.piece.update({ where: { id: contributedPiece.id }, data: { deletedAt: new Date() } });
+    expect((await listOf('CONTRIBUTED')).total).toBe(0);
+  });
+
   it('sinh viên không gọi được API giảng viên (403), guest → 401', async () => {
     const student = await TestContext.createUser('STUDENT', 'sv@test.local');
     expect((await request(app).get(`${api}/lecturer/pieces`).set(TestContext.auth(student))).status).toBe(403);

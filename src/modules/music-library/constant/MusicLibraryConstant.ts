@@ -66,6 +66,8 @@ export default class MusicLibraryConstant {
     SHEET_NOT_FOUND: { action: 'tìm bản nhạc', reason: 'bản nhạc không tồn tại' },
     SHEET_NOT_PUBLIC: { action: 'mở bản nhạc', reason: 'bản nhạc không còn công khai' },
     PIECE_ADMIN_HIDDEN: { action: 'thay đổi hiển thị', reason: 'admin đã ẩn bài này, bạn không tự bật lại được' },
+    PIECE_NOT_OWNER: { action: 'sửa bài hát', reason: 'chỉ chủ bài mới sửa được' },
+    PIECE_LOCKED: { action: 'thay đổi bản nhạc', reason: 'bài hát đang bị ẩn' },
     SHEET_ADMIN_HIDDEN: { action: 'thay đổi hiển thị', reason: 'admin đã ẩn bản nhạc này, bạn không tự bật lại được' },
     MAIN_NEEDS_AUDIO: { action: 'công khai bản nhạc', reason: 'bản chính cần bản thu mẫu trước khi công khai' },
     MAIN_ALREADY_EXISTS: { action: 'tạo bản chính', reason: 'nhạc cụ này đã có bản chính' },

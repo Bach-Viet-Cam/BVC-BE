@@ -23,14 +23,16 @@ export default class SheetMusicService {
     return sheetMusic;
   }
 
-  // Any lecturer can add sheet music to any piece; the uploader and the piece owner manage it afterwards
-  static canManage(lecturerId: string, sheetMusic: { uploaderId: string }, pieceOwnerId: string): boolean {
-    return sheetMusic.uploaderId === lecturerId || pieceOwnerId === lecturerId;
+  // Any lecturer can add sheet music to a public piece; the uploader and the piece owner manage it afterwards
+  static canManage(lecturerId: string, sheetMusic: { uploaderId: string }, piece: MusicLibrary.PieceAccessRecord): boolean {
+    if (piece.ownerId === lecturerId) return true;
+    return sheetMusic.uploaderId === lecturerId && MusicLibraryDTO.canManagePieceSheets(lecturerId, piece);
   }
 
   static async getManageableSheetMusic(lecturerId: string, sheetMusicId: string): Promise<MusicLibrary.SheetMusicWithPieceRecord> {
     const sheetMusic = await SheetMusicService.getActiveSheetMusic(sheetMusicId);
-    if (!SheetMusicService.canManage(lecturerId, sheetMusic, sheetMusic.piece.ownerId)) throw AppError.forbidden();
+    if (sheetMusic.uploaderId !== lecturerId && sheetMusic.piece.ownerId !== lecturerId) throw AppError.forbidden();
+    PieceService.assertCanManageSheets(lecturerId, sheetMusic.piece);
     return sheetMusic;
   }
 
@@ -55,7 +57,7 @@ export default class SheetMusicService {
         count: group.items.length,
         items: await Promise.all(group.items.map((sheetMusic) => MusicLibraryDTO.toLecturerSheetMusic(
           sheetMusic,
-          SheetMusicService.canManage(lecturerId, sheetMusic, piece.ownerId)
+          SheetMusicService.canManage(lecturerId, sheetMusic, piece)
         )))
       })));
     const activeInstruments = await CatalogRepository.listActiveInstruments();
@@ -69,7 +71,12 @@ export default class SheetMusicService {
       return { ...MusicLibraryDTO.toCategoryRef(instrument), hasMain, defaultKind: hasMain ? 'LEVEL' : 'MAIN' };
     });
     return {
-      piece: { id: piece.id, title: piece.title, coverUrl: await MusicLibraryDTO.toCoverUrl(piece.coverFile) },
+      piece: {
+        id: piece.id,
+        title: piece.title,
+        coverUrl: await MusicLibraryDTO.toCoverUrl(piece.coverFile),
+        canManageSheets: MusicLibraryDTO.canManagePieceSheets(lecturerId, piece)
+      },
       total: sheetMusicList.length,
       groups,
       instrumentOptions
@@ -78,7 +85,7 @@ export default class SheetMusicService {
 
   static async getSheetMusic(lecturerId: string, sheetMusicId: string): Promise<LecturerSheetMusicDTO> {
     const sheetMusic = await SheetMusicService.getActiveSheetMusic(sheetMusicId);
-    return MusicLibraryDTO.toLecturerSheetMusic(sheetMusic, SheetMusicService.canManage(lecturerId, sheetMusic, sheetMusic.piece.ownerId));
+    return MusicLibraryDTO.toLecturerSheetMusic(sheetMusic, SheetMusicService.canManage(lecturerId, sheetMusic, sheetMusic.piece));
   }
 
   static async assertUniqueName(pieceId: string, name: string, excludedSheetMusicId?: string): Promise<void> {
@@ -118,7 +125,7 @@ export default class SheetMusicService {
     pieceId: string,
     sheetMusicInput: MusicLibrary.SheetMusicCreateInput
   ): Promise<LecturerSheetMusicDTO> {
-    await PieceService.getActivePiece(pieceId);
+    PieceService.assertCanManageSheets(lecturerId, await PieceService.getActivePiece(pieceId));
     await CatalogService.assertInstrument(sheetMusicInput.instrumentId);
     await CatalogService.assertCategory('LEVEL', sheetMusicInput.levelId, 'levelId');
     const existingMain = await SheetMusicRepository.findMain(pieceId, sheetMusicInput.instrumentId);

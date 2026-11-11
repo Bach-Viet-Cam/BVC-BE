@@ -74,6 +74,7 @@ describe('UC-06 Quản lý bản nhạc (giảng viên)', () => {
   it('giảng viên khác thêm được bản nhạc; người tạo bản và chủ bài sửa được, người khác thì không', async () => {
     const lecturerB = await TestContext.createUser('LECTURER', 'gv.b@test.local');
     const lecturerC = await TestContext.createUser('LECTURER', 'gv.c@test.local');
+    await request(app).patch(`${api}/lecturer/pieces/${pieceId}/visibility`).set(TestContext.auth(lecturer)).send({ visibility: 'PUBLIC' });
     const created = await TestContext.createSheet(lecturerB, pieceId, { name: 'Bản của B' });
     expect(created.status).toBe(201);
     expect(created.body.data.canManage).toBe(true);
@@ -93,6 +94,29 @@ describe('UC-06 Quản lý bản nhạc (giảng viên)', () => {
     const editPieceByB = await request(app).patch(`${api}/lecturer/pieces/${pieceId}/visibility`)
       .set(TestContext.auth(lecturerB)).send({ visibility: 'PUBLIC' });
     expect(editPieceByB.status).toBe(403);
+    expect(editPieceByB.body.message).toBe('Không thể sửa bài hát vì chỉ chủ bài mới sửa được.');
+  });
+
+  it('chủ bài ẩn bài → người đóng góp không thêm/sửa bản nhạc được nữa, chủ bài vẫn làm được', async () => {
+    const lecturerB = await TestContext.createUser('LECTURER', 'gv.b@test.local');
+    const pieceVisibilityUrl = `${api}/lecturer/pieces/${pieceId}/visibility`;
+    await request(app).patch(pieceVisibilityUrl).set(TestContext.auth(lecturer)).send({ visibility: 'PUBLIC' });
+    const created = await TestContext.createSheet(lecturerB, pieceId, { name: 'Bản của B' });
+    expect(created.status).toBe(201);
+    await request(app).patch(pieceVisibilityUrl).set(TestContext.auth(lecturer)).send({ visibility: 'HIDDEN' });
+
+    const addByB = await TestContext.createSheet(lecturerB, pieceId, { name: 'Bản mới của B' });
+    expect(addByB.status).toBe(403);
+    expect(addByB.body.message).toBe('Không thể thay đổi bản nhạc vì bài hát đang bị ẩn.');
+    const sheetUrl = `${api}/lecturer/sheet-music/${created.body.data.id}`;
+    expect((await request(app).put(sheetUrl).set(TestContext.auth(lecturerB)).send({ name: 'Bản B (sửa)' })).status).toBe(403);
+
+    const listByB = await request(app).get(`${api}/lecturer/pieces/${pieceId}/sheet-music`).set(TestContext.auth(lecturerB));
+    expect(listByB.body.data.piece.canManageSheets).toBe(false);
+    expect(listByB.body.data.groups[0].items[0].canManage).toBe(false);
+
+    expect((await request(app).put(sheetUrl).set(TestContext.auth(lecturer)).send({ name: 'Bản B (chủ bài sửa)' })).status).toBe(200);
+    expect((await TestContext.createSheet(lecturer, pieceId, { name: 'Bản của chủ bài' })).status).toBe(201);
   });
 
   it('"Tên bản" trùng trong cùng bài hát → MSG-05 (không phân biệt hoa thường)', async () => {

@@ -63,12 +63,18 @@ export default class PieceRepository {
     return PieceRepository.client.piece.findFirst({ where: { id: pieceId, deletedAt: null }, select: MusicLibraryModel.pieceSelect });
   }
 
-  static buildLecturerWhere(ownerId: string, query: MusicLibrary.LecturerPieceQuery): Prisma.PieceWhereInput {
+  static buildLecturerWhere(lecturerId: string, query: MusicLibrary.LecturerPieceQuery): Prisma.PieceWhereInput {
     const visibilityFilters: Record<MusicLibrary.LecturerVisibilityFilter, Prisma.PieceWhereInput> = {
       ALL: {},
       PUBLIC: { visibility: 'PUBLIC', moderation: 'NORMAL' },
       HIDDEN: { visibility: 'HIDDEN', moderation: 'NORMAL' },
       ADMIN_HIDDEN: { moderation: 'ADMIN_HIDDEN' }
+    };
+    const contributedWhere: Prisma.PieceWhereInput = { sheetMusic: { some: { uploaderId: lecturerId } } };
+    const ownershipFilters: Record<MusicLibrary.LecturerOwnershipFilter, Prisma.PieceWhereInput> = {
+      ALL: { OR: [{ ownerId: lecturerId }, contributedWhere] },
+      OWNED: { ownerId: lecturerId },
+      CONTRIBUTED: { ownerId: { not: lecturerId }, ...contributedWhere }
     };
     // Instrument and level both belong to sheet music: one sheet must match both
     const sheetFilter: Prisma.SheetMusicWhereInput = {
@@ -76,17 +82,19 @@ export default class PieceRepository {
       ...(query.levelId ? { levelId: query.levelId } : {})
     };
     return {
-      ownerId,
       deletedAt: null,
       ...visibilityFilters[query.visibility],
       ...(query.genreId ? { genreId: query.genreId } : {}),
-      ...(Object.keys(sheetFilter).length > 0 ? { sheetMusic: { some: sheetFilter } } : {}),
-      AND: PieceRepository.buildKeywordFilters(query.q, ['titleNormalized', 'composerNormalized'])
+      AND: [
+        ownershipFilters[query.ownership],
+        ...(Object.keys(sheetFilter).length > 0 ? [{ sheetMusic: { some: sheetFilter } }] : []),
+        ...PieceRepository.buildKeywordFilters(query.q, ['titleNormalized', 'composerNormalized'])
+      ]
     };
   }
 
-  static async listForOwner(ownerId: string, query: MusicLibrary.LecturerPieceQuery): Promise<[MusicLibrary.PieceRecord[], number]> {
-    const where = PieceRepository.buildLecturerWhere(ownerId, query);
+  static async listForLecturer(lecturerId: string, query: MusicLibrary.LecturerPieceQuery): Promise<[MusicLibrary.PieceRecord[], number]> {
+    const where = PieceRepository.buildLecturerWhere(lecturerId, query);
     return PieceRepository.client.$transaction([
       PieceRepository.client.piece.findMany({
         where,

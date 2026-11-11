@@ -9,12 +9,14 @@ declare namespace MusicLibrary {
   type SavedTargetType = import('@prisma/client').SavedTargetType;
   type SheetSlot = 'sheet' | 'audio' | 'video';
   type LecturerVisibilityFilter = 'ALL' | 'PUBLIC' | 'HIDDEN' | 'ADMIN_HIDDEN';
+  type LecturerOwnershipFilter = 'ALL' | 'OWNED' | 'CONTRIBUTED';
   type LibrarySort = 'newest' | 'title_asc' | 'title_desc';
 
   type CategoryRecord = import('@prisma/client').Prisma.CategoryGetPayload<{ select: Model['categoryRefSelect'] }>;
   type InstrumentRecord = import('@prisma/client').Prisma.InstrumentGetPayload<{ select: Model['instrumentRefSelect'] }>;
   type MediaFileRecord = import('@prisma/client').Prisma.MediaFileGetPayload<{ select: Model['mediaFileSelect'] }>;
   type PieceRecord = import('@prisma/client').Prisma.PieceGetPayload<{ select: Model['pieceSelect'] }>;
+  type PieceAccessRecord = Pick<PieceRecord, 'ownerId' | 'visibility' | 'moderation'>;
   type SheetMusicRecord = import('@prisma/client').Prisma.SheetMusicGetPayload<{ select: Model['sheetMusicSelect'] }>;
   type SheetMusicWithPieceRecord = import('@prisma/client').Prisma.SheetMusicGetPayload<{ select: Model['sheetMusicWithPieceSelect'] }>;
   type LibraryPieceRecord = import('@prisma/client').Prisma.PieceGetPayload<{ select: Model['libraryPieceSelect'] }>;
@@ -57,6 +59,7 @@ declare namespace MusicLibrary {
     instrumentId?: string;
     levelId?: string;
     visibility: LecturerVisibilityFilter;
+    ownership: LecturerOwnershipFilter;
   }
   interface LibraryPieceQuery extends Pagination {
     q?: string;
