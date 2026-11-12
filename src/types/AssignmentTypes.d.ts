@@ -29,6 +29,7 @@ declare namespace Backend {
   }
 
   interface AssignmentRecord {
+    maxSubmissions?: number | null;
     id: string;
     classId: string;
     status: AssignmentStatus;
@@ -55,6 +56,7 @@ declare namespace Backend {
   }
 
   interface AssignmentContentInput {
+    maxSubmissions?: number | null;
     title: string;
     description?: string | null;
     kind: AssignmentKind;
@@ -68,6 +70,7 @@ declare namespace Backend {
   }
 
   interface AssignmentBaseDTO {
+    maxSubmissions: number | null;
     id: string;
     classId: string;
     className: string;

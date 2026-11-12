@@ -62,7 +62,7 @@ export default class PracticeContextService {
       deadline: candidate.deadline.toISOString(),
       maxSubmissions: candidate.maxSubmissions,
       usedSubmissions,
-      remainingSubmissions: Math.max(0, candidate.maxSubmissions - usedSubmissions),
+      remainingSubmissions: candidate.maxSubmissions === null ? null : Math.max(0, candidate.maxSubmissions - usedSubmissions),
       // No fallback to the piece BPM: an assignment without a target BPM uses the default tempo (see PracticeSettingsService)
       targetBpm: candidate.targetBpm,
       state,

@@ -32,3 +32,5 @@ test('sheetMusicSchema requires exactly one of classId or instrumentId', () => {
   assert.equal(parse({ instrumentId }).success, true);
   assert.equal(parse({ instrumentId: 'abc' }).success, false);
 });
+
+test('giới hạn bài tập có thể bỏ trống/null hoặc là số nguyên dương', () => { const limit = AssignmentValidation.contentShape.maxSubmissions; for (const value of [undefined, null, 1, 3, 10]) assert.equal(limit.safeParse(value).success, true); for (const value of [0, -1, 1.5]) assert.equal(limit.safeParse(value).success, false); });

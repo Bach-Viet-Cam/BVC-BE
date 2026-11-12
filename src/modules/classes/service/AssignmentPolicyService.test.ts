@@ -58,3 +58,5 @@ describe('AssignmentPolicyService.countUsedSubmissions', () => {
     assert.equal(AssignmentPolicyService.countUsedSubmissions(submissions), 2);
   });
 });
+
+it('bài tập không giới hạn vẫn được nộp sau ba lượt', () => { assert.equal(AssignmentPolicyService.canSubmit({ isPublished: true, deadline: new Date('2099-01-01'), now: new Date(), maxSubmissions: null, submissions: Array.from({length: 4}, () => ({status: 'COMPLETED' as const})) }), true); });

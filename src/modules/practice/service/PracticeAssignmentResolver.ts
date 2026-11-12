@@ -18,7 +18,7 @@ export default class PracticeAssignmentResolver {
     const usedSubmissions = AssignmentPolicyService.countUsedSubmissions(candidate.submissions);
     const isOpen = classStatus === 'ACTIVE' && candidate.status === 'PUBLISHED' && candidate.deadline.getTime() >= now.getTime();
     if (!isOpen) return { state: 'ENDED', usedSubmissions };
-    return { state: usedSubmissions >= candidate.maxSubmissions ? 'EXHAUSTED' : 'OPEN', usedSubmissions };
+    return { state: candidate.maxSubmissions !== null && usedSubmissions >= candidate.maxSubmissions ? 'EXHAUSTED' : 'OPEN', usedSubmissions };
   }
 
   // Which of the student's classes this practice belongs to: the class holding the hinted assignment, then a class of

@@ -96,6 +96,7 @@ declare namespace Backend {
       description: string | null;
       sheetMusic: AssignmentSheetMusicDTO | null;
       requiredBpm: number | null;
+      maxSubmissions?: number | null;
       status: AssignmentStatus;
     }>;
   }

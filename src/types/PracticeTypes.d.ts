@@ -106,7 +106,7 @@ declare namespace Practice {
     description: string;
     status: Backend.AssignmentStatus;
     deadline: Date;
-    maxSubmissions: number;
+    maxSubmissions: number | null;
     targetBpm: number | null;
     currentVersionId: string | null;
     currentVersion: { kind: Backend.AssignmentKind } | null;
@@ -149,9 +149,9 @@ declare namespace Practice {
       title: string;
       description: string;
       deadline: string;
-      maxSubmissions: number;
+      maxSubmissions: number | null;
       usedSubmissions: number;
-      remainingSubmissions: number;
+      remainingSubmissions: number | null;
       targetBpm: number | null;
       state: AssignmentState;
       countsTowardAssignment: boolean;
