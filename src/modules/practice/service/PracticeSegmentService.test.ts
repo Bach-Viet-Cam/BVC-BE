@@ -12,7 +12,7 @@ const now = new Date('2026-11-03T10:00:00Z');
 const uploadId = '00000000-0000-4000-8000-000000000001';
 const sheet: Practice.SheetTemplate = {
   id: 'sheet-bau', pieceId: 'piece-1', instrumentId: 'inst-bau', kind: 'MAIN', analysisStatus: 'READY', analysisJobId: 'analysis-1',
-  referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau' }
+  referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau', name: 'Đàn bầu', fminHz: 65, fmaxHz: 1047, toleranceCents: 35 }
 };
 const original: Practice.SegmentOrigin = {
   id: 'sub-1', studentId: 'student', status: 'COMPLETED', evaluationId: 'ev-original', result: {}, pitchChart: { durationSec: 30 }, sheetMusic: sheet

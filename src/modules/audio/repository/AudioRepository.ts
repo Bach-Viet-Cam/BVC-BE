@@ -27,6 +27,14 @@ export default class AudioRepository {
     });
   }
 
+  // Thông số nhạc cụ gửi kèm job; null khi DB chưa có nhạc cụ tương ứng
+  async findInstrumentConfig(rhythmInstrumentId: string): Promise<Audio.InstrumentConfig | null> {
+    return this.client.instrument.findFirst({
+      where: { code: { in: AudioConstant.codesFor(rhythmInstrumentId) }, isActive: true },
+      select: { name: true, fminHz: true, fmaxHz: true, toleranceCents: true }
+    });
+  }
+
   async updatePublication(evaluationId: string, publicationState: Audio.PublicationState): Promise<void> {
     await this.client.audioEvaluationRequest.update({ where: { evaluationId }, data: {
       publicationState, ...(publicationState === 'published' ? { publishedAt: new Date() } : {}),

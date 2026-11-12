@@ -114,7 +114,7 @@ export default class PracticeModel {
     analysisStatus: true,
     analysisJobId: true,
     referenceAudio: { select: { storageKey: true, status: true } },
-    instrument: { select: { code: true } }
+    instrument: { select: { code: true, name: true, fminHz: true, fmaxHz: true, toleranceCents: true } }
   } satisfies Prisma.SheetMusicSelect;
 
   static readonly segmentOriginSelect = {

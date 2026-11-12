@@ -8,7 +8,8 @@ export default class AudioConstant {
   static readonly requestTimeoutMs = 10_000;
   // A 5-minute recording's analysis file (two f0 tracks + alignment) is about 1 MB
   static readonly analysisMaxBytes = 5 * 1024 * 1024;
-  // Platform instrument codes → Rhythm instrument ids; unknown codes are sent as is and Rhythm falls back
+  // Platform instrument codes → Rhythm instrument ids (identifier only); unknown codes are sent as is.
+  // Rhythm takes pitch range and tolerance from the job's `instrument` block, not from this id.
   // Short codes (DTR, DBA, ...) are kept as aliases for databases whose instrument codes are not renamed yet
   static readonly rhythmInstruments: Readonly<Record<string, string>> = Object.freeze({
     DTR: 'dan_tranh', DBA: 'dan_bau', DNH: 'dan_nhi', DSA: 'sao_truc', DTB: 'dan_ty_ba', DNG: 'dan_nguyet',
@@ -19,6 +20,16 @@ export default class AudioConstant {
     DTB103: 'dan_ty_ba', TY_BA: 'dan_ty_ba', 'ty-ba': 'dan_ty_ba',
     DNG103: 'dan_nguyet', DAN_NGUYET: 'dan_nguyet', 'dan-nguyet': 'dan_nguyet'
   });
+  static readonly messages = Object.freeze({
+    INSTRUMENT_NOT_CONFIGURED: 'Hệ thống chưa cấu hình nhạc cụ để phân tích audio.'
+  });
+
+  // Mọi mã nhạc cụ của nền tảng (kể cả alias) ứng với một id Rhythm, dùng để tìm dòng Instrument trong DB
+  static codesFor(rhythmInstrumentId: string): string[] {
+    const aliases = Object.entries(AudioConstant.rhythmInstruments).filter(([, id]) => id === rhythmInstrumentId).map(([code]) => code);
+    return [...new Set([...aliases, rhythmInstrumentId])];
+  }
+
   static readonly orphanRetentionMs = 24 * 60 * 60 * 1000;
   static readonly temporaryDirectory = 'bvc-audio-uploads';
   // Cắt khoảng lặng đầu/cuối khi lưu audio: dưới ngưỡng này được coi là im lặng, vẫn giữ lại một đoạn đệm quanh tiếng

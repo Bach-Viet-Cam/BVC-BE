@@ -15,6 +15,10 @@ export default class EvaluationJobBuilderService {
       evaluationId: ids.evaluationId, messageId: ids.messageId, attempt: ids.attempt,
       templateUrl: await this.createReadUrl(sheet.referenceAudio?.storageKey ?? ''),
       studentUrl, instrumentId: AudioConstant.rhythmInstruments[sheet.instrument.code] ?? sheet.instrument.code,
+      // Rhythm chấm theo đúng thông số nhạc cụ của sheet được nộp, lấy từ bảng Instrument
+      instrument: {
+        name: sheet.instrument.name, fminHz: sheet.instrument.fminHz, fmaxHz: sheet.instrument.fmaxHz, toleranceCents: sheet.instrument.toleranceCents
+      },
       requestedAt: this.now().toISOString(), callbackUrl: `${EnvConfig.fileStoragePublicBaseUrl}${callbackPath}`,
       // Lets Rhythm reuse the stored teacher analysis instead of analysing the reference audio again
       ...(sheet.analysisStatus === 'READY' && sheet.analysisJobId ? { templateAnalysisId: sheet.analysisJobId } : {})
