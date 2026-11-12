@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
 export default class AudioValidation {
+  // Trường `source` gửi kèm file trong multipart; thiếu thì coi là file tải lên (cắt cả hai đầu)
+  readonly uploadSchema = z.object({
+    body: z.object({ source: z.enum(['file', 'recording']).default('file') }).strict(),
+    params: z.object({}), query: z.object({})
+  });
   readonly createSchema = z.object({
     body: z.object({ templateUrl: z.url().max(4096), studentUrl: z.url().max(4096) }).strict(),
     params: z.object({}), query: z.object({})

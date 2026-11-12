@@ -3,6 +3,9 @@ declare namespace Audio {
   type EvaluationStatus = 'queued' | 'processing' | 'waiting' | 'completed' | 'failed' | 'rejected' | PublicationState;
   type JobCode = 'quality_check' | 'audio_analysis' | 'comparison' | 'feedback';
   interface EvaluationInput { templateUrl: string; studentUrl: string; }
+  // Nguồn của bài upload: chọn file có sẵn hay ghi âm trực tiếp; quyết định đầu nào được cắt theo cao độ
+  type UploadSource = 'file' | 'recording';
+  type TrimEdges = 'both' | 'end';
   // Thông số nhạc cụ lấy từ bảng Instrument, gửi kèm mỗi job để Rhythm không phải tự tra bảng riêng
   interface InstrumentConfig { name: string; fminHz: number; fmaxHz: number; toleranceCents: number; tunes?: InstrumentTune[]; }
   // Nốt dây buông/chuẩn trong bảng InstrumentTune, Rhythm dùng để phân biệt lỗi lên dây với lỗi kỹ thuật bấm

@@ -7,7 +7,9 @@ export default class AudioController {
   constructor(private readonly uploads: AudioUploadService, private readonly evaluations: AudioEvaluationService) {}
 
   readonly upload = async (request: Request, response: Response): Promise<Response> => ApiResponse.sendSuccessResponse(response, {
-    statusCode: 201, data: await this.uploads.upload(request.auth!.user.userId, request.file), message: 'Đã tải audio lên.'
+    statusCode: 201,
+    data: await this.uploads.upload(request.auth!.user.userId, request.file, (request.validated as { body: { source: Audio.UploadSource } }).body.source),
+    message: 'Đã tải audio lên.'
   });
 
   readonly create = async (request: Request, response: Response): Promise<Response> => ApiResponse.sendSuccessResponse(response, {

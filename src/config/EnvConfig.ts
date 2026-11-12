@@ -11,7 +11,7 @@ export default class EnvConfig {
     : process.env.FILE_STORAGE_LOCAL_ROOT.trim() ? path.resolve(process.env.FILE_STORAGE_LOCAL_ROOT.trim()) : '';
   // Origin of this API (no /uploads suffix), used to build absolute file and upload URLs
   static readonly fileStoragePublicBaseUrl = (process.env.FILE_STORAGE_PUBLIC_BASE_URL || `http://localhost:${Number(process.env.PORT) || 3000}`).trim().replace(/\/$/, '');
-  // Đường dẫn ffmpeg dùng để cắt khoảng lặng đầu/cuối audio; mặc định lấy từ PATH
+  // Đường dẫn ffmpeg dùng để cắt audio đầu/cuối theo cao độ; mặc định lấy từ PATH
   static readonly ffmpegPath = process.env.FFMPEG_PATH?.trim() || 'ffmpeg';
   static readonly rabbitmqUrl = process.env.RABBITMQ_URL?.trim() || '';
   static readonly rhythmServiceBaseUrl = (process.env.RHYTHM_SERVICE_BASE_URL || 'http://localhost:8001').trim().replace(/\/$/, '');
