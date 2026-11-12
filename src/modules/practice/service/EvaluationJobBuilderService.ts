@@ -17,7 +17,8 @@ export default class EvaluationJobBuilderService {
       studentUrl, instrumentId: AudioConstant.rhythmInstruments[sheet.instrument.code] ?? sheet.instrument.code,
       // Rhythm chấm theo đúng thông số nhạc cụ của sheet được nộp, lấy từ bảng Instrument
       instrument: {
-        name: sheet.instrument.name, fminHz: sheet.instrument.fminHz, fmaxHz: sheet.instrument.fmaxHz, toleranceCents: sheet.instrument.toleranceCents
+        name: sheet.instrument.name, fminHz: sheet.instrument.fminHz, fmaxHz: sheet.instrument.fmaxHz, toleranceCents: sheet.instrument.toleranceCents,
+        tunes: (sheet.instrument.tunes ?? []).map((tune) => ({ name: tune.tuneName, pitchHz: tune.pitch }))
       },
       requestedAt: this.now().toISOString(), callbackUrl: `${EnvConfig.fileStoragePublicBaseUrl}${callbackPath}`,
       // Lets Rhythm reuse the stored teacher analysis instead of analysing the reference audio again

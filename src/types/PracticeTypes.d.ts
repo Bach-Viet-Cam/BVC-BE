@@ -87,7 +87,7 @@ declare namespace Practice {
     analysisStatus: 'NONE' | 'PROCESSING' | 'READY' | 'ERROR';
     analysisJobId: string | null;
     referenceAudio: { storageKey: string; status: 'PENDING' | 'READY' } | null;
-    instrument: { code: string } & Audio.InstrumentConfig;
+    instrument: { code: string; name: string; fminHz: number; fmaxHz: number; toleranceCents: number; tunes?: { tuneName: string; pitch: number }[] };
   }
 
   // Sheet shown on the record screen, with the piece it belongs to
