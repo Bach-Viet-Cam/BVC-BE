@@ -586,7 +586,7 @@ model Assignment {
   deadline         DateTime
   targetBpm        Int?                @map("target_bpm")
   minAccuracy      Int?                @map("min_accuracy")
-  maxSubmissions   Int                 @default(3) @map("max_submissions")
+  maxSubmissions   Int?                 @map("max_submissions")
   isPublished      Boolean             @default(false) @map("is_published")
   bonusPoints      Int?                @map("bonus_points")
   createdAt        DateTime            @default(now()) @map("created_at")

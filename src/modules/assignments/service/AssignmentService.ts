@@ -128,6 +128,7 @@ export default class AssignmentService {
         description: sourceVersion.description,
         kind: sourceVersion.kind,
         sheetMusicId: sourceVersion.sheetMusic?.id ?? null,
+        maxSubmissions: sourcesById.get(pair.sourceId)!.maxSubmissions ?? null,
         requiredBpm: sourceVersion.requiredBpm
       };
       // One transaction per pair: earlier clones stay when a later one fails (the error is rethrown, never hidden).
@@ -231,6 +232,7 @@ export default class AssignmentService {
     const current = record.currentVersion;
     if (!current) return false;
     return (
+      (input.maxSubmissions === undefined || record.maxSubmissions === input.maxSubmissions) &&
       current.title === input.title &&
       current.description === (input.description ?? null) &&
       current.kind === input.kind &&

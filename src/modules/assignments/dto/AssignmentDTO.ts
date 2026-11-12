@@ -22,6 +22,7 @@ export default class AssignmentDTO {
     return {
       id: record.id,
       classId: record.classId,
+      maxSubmissions: record.maxSubmissions ?? null,
       className: record.class.name,
       classStatus: record.class.status,
       status: record.status,

@@ -4,6 +4,7 @@ export default class AssignmentModel {
   static readonly assignmentSelect = {
     id: true,
     classId: true,
+    maxSubmissions: true,
     status: true,
     deletedAt: true,
     publishedAt: true,

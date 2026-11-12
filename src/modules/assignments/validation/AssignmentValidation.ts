@@ -35,7 +35,7 @@ const requiredBpm = z
 const recordId = z.string().trim().min(1).max(64);
 const sheetMusicId = recordId.nullable().optional().transform((value) => value || null);
 
-const content = { title, description, kind, sheetMusicId, requiredBpm };
+const content = { title, description, kind, sheetMusicId, requiredBpm, maxSubmissions: z.number().int().min(1).max(2147483647).nullable().optional() };
 const idParams = z.object({ id: recordId });
 const emptyQuery = z.object({});
 

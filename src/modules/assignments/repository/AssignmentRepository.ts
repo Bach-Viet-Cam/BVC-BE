@@ -115,6 +115,7 @@ export default class AssignmentRepository {
       type: AssignmentConstant.typeByKind[content.kind],
       sheetMusicId: content.sheetMusicId || null,
       targetBpm: content.requiredBpm ?? null,
+      ...(content.maxSubmissions !== undefined ? { maxSubmissions: content.maxSubmissions } : {}),
       isPublished: status !== 'DRAFT'
     };
   }

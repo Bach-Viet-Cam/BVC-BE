@@ -90,3 +90,5 @@ test('Độc tấu: giữ luật cũ theo nhạc cụ lớp', () => {
   assert.equal(PracticeAssignmentResolver.resolve({ kind: 'MAIN', instrumentId: 'inst-violin' }, enrollment, now)?.candidate.id, 'solo');
   assert.equal(PracticeAssignmentResolver.resolve({ kind: 'MAIN', instrumentId: 'inst-erhu' }, enrollment, now), null);
 });
+
+test('bài không giới hạn không trở thành EXHAUSTED sau ba lượt', () => { const item = candidate('unlimited', {maxSubmissions: null, submissions: Array.from({length: 4}, () => ({status: 'COMPLETED' as const}))}); assert.equal(PracticeAssignmentResolver.resolve(sheet, enroll([item]), now)?.state, 'OPEN'); });

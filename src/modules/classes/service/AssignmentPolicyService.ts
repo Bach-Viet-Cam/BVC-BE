@@ -18,8 +18,8 @@ export default class AssignmentPolicyService {
     return input.deadline.getTime() < input.now.getTime() ? 'OVERDUE' : 'NOT_SUBMITTED';
   }
 
-  static canSubmit(input: { isPublished: boolean; deadline: Date; now: Date; maxSubmissions: number; submissions: { status: SubmissionStatusValue }[] }): boolean {
+  static canSubmit(input: { isPublished: boolean; deadline: Date; now: Date; maxSubmissions: number | null; submissions: { status: SubmissionStatusValue }[] }): boolean {
     if (!input.isPublished || input.deadline.getTime() < input.now.getTime()) return false;
-    return AssignmentPolicyService.countUsedSubmissions(input.submissions) < input.maxSubmissions;
+    return input.maxSubmissions === null || AssignmentPolicyService.countUsedSubmissions(input.submissions) < input.maxSubmissions;
   }
 }

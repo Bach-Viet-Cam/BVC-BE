@@ -16,7 +16,7 @@ export interface AssignmentRow {
   deadline: Date;
   targetBpm: number | null;
   minAccuracy: number | null;
-  maxSubmissions: number;
+  maxSubmissions: number | null;
   isPublished: boolean;
   bonusPoints: number | null;
   class: { id: string; name: string };

@@ -48,6 +48,7 @@ export default class ClassDTO {
         description: version.description,
         sheetMusic: AssignmentDTO.toSheetMusicDTO(version.sheetMusic),
         requiredBpm: version.requiredBpm,
+        maxSubmissions: record.maxSubmissions ?? null,
         status: record.status
       };
     });
