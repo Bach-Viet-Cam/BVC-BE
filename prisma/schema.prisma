@@ -26,6 +26,7 @@ enum ConfigGroup {
 }
 
 model User {
+  aiRatings AiFeedbackRating[]
   id                        String                   @id @default(uuid())
   email                     String                   @unique
   username                  String
@@ -668,6 +669,7 @@ model RubricCriterion {
 
 // A practice recording sent for AI analysis. assignmentId is empty for free practice on a library piece.
 model Submission {
+  aiRatings AiFeedbackRating[]
   review SubmissionReview?
   verifiedContent VerifiedContent?
   shareConsent Boolean @default(false) @map("share_consent")
@@ -1045,4 +1047,24 @@ model VerifiedContent {
   @@index([audioUploadId])
   @@index([cohort])
   @@map("verified_contents")
+}
+
+model AiFeedbackRating {
+  id String @id @default(uuid())
+  submissionId String @map("submission_id")
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  raterId String @map("rater_id")
+  rater User @relation(fields: [raterId], references: [id], onDelete: Restrict)
+  raterName String @map("rater_name")
+  raterRole Int @map("rater_role")
+  feedbackKey String @map("feedback_key")
+  feedbackText String @map("feedback_text")
+  accuracyStars Int @map("accuracy_stars")
+  satisfactionStars Int @map("satisfaction_stars")
+  comment String? @db.VarChar(2000)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  @@unique([submissionId, raterId, feedbackKey])
+  @@index([createdAt, id])
+  @@map("ai_feedback_ratings")
 }

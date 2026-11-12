@@ -1,3 +1,4 @@
+import AiRatingRoute from '../modules/platform/route/AiRatingRoute.ts';
 import FaqRoute from '../modules/platform/route/FaqRoute.ts';
 import VerifiedRoute from '../modules/community/route/VerifiedRoute.ts';
 import AudioRoute from '../modules/audio/route/AudioRoute.ts';
@@ -31,6 +32,7 @@ export default class ApiRoute {
     const v1Router: Router = express.Router();
     AuthRoute.register(v1Router);
     FaqRoute.register(v1Router);
+    AiRatingRoute.register(v1Router);
     VerifiedRoute.register(v1Router);
     MusicLibraryRoute.register(v1Router);
     UserRoute.register(v1Router);

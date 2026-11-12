@@ -1,0 +1,68 @@
+import { test, mock } from 'node:test';
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import request from 'supertest';
+import PrismaClientProvider from '../../../config/PrismaClient.ts';
+import AuthService from '../../auth/service/AuthService.ts';
+import { createApp } from '../../../app.ts';
+
+test('UC-20 HTTP: quyền, sao, nhận xét, cập nhật và lịch sử phiên bản AI', { skip: !process.env.AI_RATING_TEST_DATABASE_URL }, async () => {
+  const configured = process.env.AI_RATING_TEST_DATABASE_URL!;
+  assert.equal(process.env.DATABASE_URL, configured);
+  assert.ok(new URL(configured).pathname.includes('_test'), 'Chỉ chạy với database thử nghiệm được chỉ định.');
+  const client = PrismaClientProvider.instance;
+  const ids = Array.from({length: 5}, () => randomUUID());
+  const [student, teacher, otherStudent, otherTeacher, admin] = ids;
+  const roles = [1, 2, 1, 2, 3];
+  const instrumentId = randomUUID(), classId = randomUUID(), categoryId = randomUUID(), pieceId = randomUUID(), assignmentId = randomUUID(), submissionId = randomUUID();
+  try {
+    await client.user.createMany({data: ids.map((id, index) => ({id, username: `Người thử ${index}`, email: `${id}@example.test`, role: roles[index]}))});
+    await client.instrument.create({data: {id: instrumentId, code: instrumentId, name: 'Đàn thử'}});
+    await client.category.create({data: {id: categoryId, name: categoryId, type: 'GENRE'}});
+    await client.piece.create({data: {id: pieceId, ownerId: teacher, title: 'Bài thử đánh giá AI', genreId: categoryId}});
+    await client.class.create({data: {id: classId, name: 'Lớp thử', ownerId: teacher, instrumentId, startDate: new Date(), endDate: new Date('2099-01-01')}});
+    await client.assignment.create({data: {id: assignmentId, classId, title: 'Bài giao thử', type: 'RECORDING', deadline: new Date('2099-01-01')}});
+    await client.submission.create({data: {id: submissionId, assignmentId, studentId: student, pieceId, status: 'COMPLETED', aiFeedback: 'Giữ đều nhịp câu cuối.', evaluationId: randomUUID(), analyzedAt: new Date()}});
+    mock.method(AuthService, 'verifyAccessToken', ((token: string) => ({userId: token})) as never);
+    mock.method(AuthService, 'getAuthenticatedUser', (async (id: string) => ({userId: id, role: roles[ids.indexOf(id)], username: `Người thử ${ids.indexOf(id)}`, email: 'test@example.test'})) as never);
+    const app = createApp();
+    const get = (id: string, path: string) => request(app).get(path).set('Authorization', `Bearer ${id}`);
+    const put = (id: string, body: object) => request(app).put(`/api/v1/submissions/${submissionId}/ai-rating`).set('Authorization', `Bearer ${id}`).send(body);
+    const path = `/api/v1/submissions/${submissionId}/ai-rating`;
+    assert.equal((await request(app).get(path)).status, 401);
+    assert.equal((await get(otherStudent, path)).status, 404);
+    assert.equal((await get(otherTeacher, path)).status, 404);
+    const initial = await get(student, path);
+    assert.equal(initial.status, 200);
+    const body = {feedbackKey: initial.body.data.feedbackKey, accuracyStars: 4, satisfactionStars: 5};
+    assert.equal((await put(student, {...body, comment: 'Không được gửi'})).status, 400);
+    assert.equal((await put(student, {...body, accuracyStars: 6})).status, 400);
+    assert.equal((await put(student, body)).status, 200);
+    assert.equal((await put(student, {...body, accuracyStars: 3})).status, 200);
+    assert.equal(await client.aiFeedbackRating.count({where: {submissionId}}), 1);
+    assert.equal((await put(teacher, {...body, comment: 'AI chưa chỉ rõ câu lệch nhịp.'})).status, 200);
+    assert.equal((await get(student, '/api/v1/admin/ai-ratings')).status, 403);
+    const history = await get(admin, '/api/v1/admin/ai-ratings?role=LECTURER');
+    assert.equal(history.status, 200);
+    assert.ok(history.body.data.items.some((entry: {comment: string}) => entry.comment === 'AI chưa chỉ rõ câu lệch nhịp.'));
+    await client.submission.update({where: {id: submissionId}, data: {aiFeedback: 'Cao độ đã ổn định.', evaluationId: randomUUID()}});
+    assert.equal((await put(student, body)).status, 409);
+    const latest = await get(student, path);
+    assert.equal(latest.body.data.rating, null);
+    assert.equal((await put(student, {...body, feedbackKey: latest.body.data.feedbackKey})).status, 200);
+    const old = await client.aiFeedbackRating.findFirst({where: {submissionId, feedbackKey: body.feedbackKey}});
+    assert.equal(old?.feedbackText, 'Giữ đều nhịp câu cuối.');
+    assert.equal(await client.aiFeedbackRating.count({where: {submissionId}}), 3);
+  } finally {
+    mock.restoreAll();
+    await client.aiFeedbackRating.deleteMany({where: {submissionId}});
+    await client.submission.deleteMany({where: {id: submissionId}});
+    await client.assignment.deleteMany({where: {id: assignmentId}});
+    await client.class.deleteMany({where: {id: classId}});
+    await client.piece.deleteMany({where: {id: pieceId}});
+    await client.category.deleteMany({where: {id: categoryId}});
+    await client.instrument.deleteMany({where: {id: instrumentId}});
+    await client.user.deleteMany({where: {id: {in: ids}}});
+    await client.$disconnect();
+  }
+});
