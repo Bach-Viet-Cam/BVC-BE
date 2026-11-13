@@ -79,6 +79,39 @@ describe('Assignment queries (lecturer) + canSubmit', () => {
     expect(byCode.SE3).toMatchObject({ status: 'NOT_SUBMITTED', submissionCount: 0, bestAccuracy: null, lastSubmittedAt: null });
   });
 
+  it('returns practice stats, threshold, creator and media for one assignment', async () => {
+    const piece = await TestDatabase.createPiece(tranh.id, { title: 'Lý ngựa ô' });
+    const sheet = await TestDatabase.createSheetMusic(piece.id, tranh.id, { name: 'Bản chính' });
+    const assignment = await TestDatabase.createAssignment(classRecord.id, lecturer.id, { sheetMusicId: sheet.id });
+    const anh = await member('Trần Minh Anh', 'SE1');
+    await member('Phạm Gia Hân', 'SE2');
+    const outsider = await TestDatabase.createUser({ studentCode: 'SE9' });
+    await TestDatabase.resetGradingSettings(65, 30);
+    await TestDatabase.createSubmission(assignment.id, anh.id);
+    await TestDatabase.createSubmission(assignment.id, anh.id);
+    await TestDatabase.createSubmission(assignment.id, anh.id, { status: 'REJECTED' });
+    await TestDatabase.createSubmission(assignment.id, outsider.id);
+
+    const response = await get(`/assignments/${assignment.id}`);
+    expect(response.status).toBe(200);
+    expect(response.body.data.practiceStats).toMatchObject({ totalPractices: 3, practicedStudents: 1, memberCount: 2, averagePerStudent: 3 });
+    expect(response.body.data.practiceStats.last7Days).toHaveLength(7);
+    expect(response.body.data.minAccuracy).toBe(65);
+    expect(response.body.data.createdBy).toMatchObject({ id: lecturer.id });
+    expect(response.body.data.media.sheet).not.toBeNull();
+    expect(response.body.data.media.sheet).toMatchObject({ originalName: 'sheet.pdf', mimeType: 'application/pdf' });
+    expect(response.body.data.media.referenceAudio).toBeNull();
+    expect(response.body.data.media.tutorialVideo).toBeNull();
+  });
+
+  it('media is null without sheet music', async () => {
+    const assignment = await TestDatabase.createAssignment(classRecord.id, lecturer.id);
+    const response = await get(`/assignments/${assignment.id}`);
+    expect(response.status).toBe(200);
+    expect(response.body.data.media).toBeNull();
+    expect(response.body.data.practiceStats).toMatchObject({ totalPractices: 0, memberCount: 0 });
+  });
+
   it('removed student is excluded from students and submittedCount', async () => {
     const assignment = await TestDatabase.createAssignment(classRecord.id, lecturer.id);
     const removed = await TestDatabase.createUser({ studentCode: 'SE9' });
@@ -164,5 +197,104 @@ describe('Assignment queries (lecturer) + canSubmit', () => {
     expect(await SubmissionPolicyService.canSubmit(outsider.id, published.id)).toEqual({ allowed: false, reason });
     await TestDatabase.prisma.class.update({ where: { id: classRecord.id }, data: { status: 'ENDED' } });
     expect(await SubmissionPolicyService.canSubmit(anh.id, published.id)).toEqual({ allowed: false, reason });
+  });
+
+  describe('sheet group', () => {
+    async function seedSheet() {
+      await TestDatabase.resetSemesters([{ name: 'CUR', startDate: TestDatabase.futureDate(-30), endDate: TestDatabase.futureDate(30) }]);
+      const piece = await TestDatabase.createPiece(tranh.id, { title: 'Lý ngựa ô' });
+      const sheet = await TestDatabase.createSheetMusic(piece.id, tranh.id);
+      const classA = await TestDatabase.createClass(lecturer.id, tranh.id, { name: 'A-CLASS', cohort: 'CUR' });
+      const classB = await TestDatabase.createClass(lecturer.id, tranh.id, { name: 'B-CLASS', cohort: 'CUR' });
+      return { sheet, classA, classB };
+    }
+
+    async function addStudent(classId: string, code: string) {
+      const student = await TestDatabase.createUser({ username: `SV ${code}`, studentCode: code });
+      await TestDatabase.addMember(classId, student.id, lecturer.id);
+      return student;
+    }
+
+    it('aggregates copies of one sheet across current-semester classes', async () => {
+      const { sheet, classA, classB } = await seedSheet();
+      const copyA = await TestDatabase.createAssignment(classA.id, lecturer.id, { kind: 'SOLO', sheetMusicId: sheet.id });
+      const copyB = await TestDatabase.createAssignment(classB.id, lecturer.id, { kind: 'SOLO', sheetMusicId: sheet.id });
+      const anh = await addStudent(classA.id, 'SE1');
+      await addStudent(classA.id, 'SE2');
+      const han = await addStudent(classB.id, 'SE3');
+      await TestDatabase.createSubmission(copyA.id, anh.id);
+      await TestDatabase.createSubmission(copyA.id, anh.id);
+      await TestDatabase.createSubmission(copyB.id, han.id);
+      await TestDatabase.createSubmission(copyB.id, han.id, { status: 'REJECTED' });
+
+      const oldClass = await TestDatabase.createClass(lecturer.id, tranh.id, { name: 'OLD', cohort: 'SP25' });
+      await TestDatabase.createAssignment(oldClass.id, lecturer.id, { kind: 'SOLO', sheetMusicId: sheet.id });
+      const other = await TestDatabase.createLecturer();
+      const otherClass = await TestDatabase.createClass(other.id, tranh.id, { name: 'OTHER', cohort: 'CUR' });
+      await TestDatabase.createAssignment(otherClass.id, other.id, { kind: 'SOLO', sheetMusicId: sheet.id });
+
+      const response = await get(`/assignments/sheet-groups/${sheet.id}`);
+      expect(response.status).toBe(200);
+      const data = response.body.data;
+      expect(data.semester.name).toBe('CUR');
+      expect(data.sheetMusic.id).toBe(sheet.id);
+      expect(data.assignments.map((item: { className: string }) => item.className)).toEqual(['A-CLASS', 'B-CLASS']);
+      expect(data.assignments[0]).toMatchObject({ practiceCount: 2, submittedCount: 1, memberCount: 2, minAccuracy: expect.any(Number) });
+      expect(data.assignments[0].createdBy).toMatchObject({ id: lecturer.id });
+      expect(data.byClass).toHaveLength(2);
+      expect(data.practiceStats).toMatchObject({ totalPractices: 3, practicedStudents: 2, memberCount: 3 });
+      expect(data.media.sheet).not.toBeNull();
+    });
+
+    it('lists draft copies but leaves them out of stats', async () => {
+      const { sheet, classA } = await seedSheet();
+      await TestDatabase.createAssignment(classA.id, lecturer.id, { kind: 'SOLO', sheetMusicId: sheet.id, status: 'DRAFT' });
+      await addStudent(classA.id, 'SE1');
+
+      const response = await get(`/assignments/sheet-groups/${sheet.id}`);
+      expect(response.status).toBe(200);
+      expect(response.body.data.assignments[0].status).toBe('DRAFT');
+      expect(response.body.data.practiceStats).toMatchObject({ totalPractices: 0, memberCount: 0 });
+      expect(response.body.data.byClass).toEqual([]);
+    });
+
+    it('overview sheetStats matches the sheet group detail', async () => {
+      const { sheet, classA, classB } = await seedSheet();
+      const copyA = await TestDatabase.createAssignment(classA.id, lecturer.id, { kind: 'SOLO', sheetMusicId: sheet.id });
+      const bonusA = await TestDatabase.createAssignment(classA.id, lecturer.id, { kind: 'BONUS', sheetMusicId: sheet.id });
+      const copyB = await TestDatabase.createAssignment(classB.id, lecturer.id, { kind: 'SOLO', sheetMusicId: sheet.id });
+      await TestDatabase.createAssignment(classB.id, lecturer.id, { kind: 'SOLO', sheetMusicId: sheet.id, status: 'DRAFT' });
+      const anh = await addStudent(classA.id, 'SE1');
+      await addStudent(classA.id, 'SE2');
+      const han = await addStudent(classB.id, 'SE3');
+      await TestDatabase.createSubmission(copyA.id, anh.id);
+      await TestDatabase.createSubmission(bonusA.id, anh.id);
+      await TestDatabase.createSubmission(copyB.id, han.id);
+      await TestDatabase.createSubmission(copyB.id, han.id, { status: 'REJECTED' });
+
+      const detail = (await get(`/assignments/sheet-groups/${sheet.id}`)).body.data;
+      const overview = await get('/assignments/overview');
+      expect(overview.status).toBe(200);
+      expect(overview.body.data.sheetStats).toEqual([
+        {
+          sheetMusicId: sheet.id,
+          practiceCount: detail.practiceStats.totalPractices,
+          practicedStudents: detail.practiceStats.practicedStudents,
+          memberCount: detail.practiceStats.memberCount
+        }
+      ]);
+      expect(detail.practiceStats).toMatchObject({ totalPractices: 3, practicedStudents: 2, memberCount: 3 });
+    });
+
+    it('returns 404 when no copy exists and rejects a student token', async () => {
+      const { sheet } = await seedSheet();
+      const missing = await get(`/assignments/sheet-groups/${sheet.id}`);
+      expect(missing.status).toBe(404);
+      expect(missing.body.message).toBe('Không tìm thấy bài tập dùng sheet nhạc này trong học kỳ hiện tại.');
+
+      const studentToken = TestDatabase.tokenFor(await TestDatabase.createUser());
+      expect((await get(`/assignments/sheet-groups/${sheet.id}`, studentToken)).status).toBe(403);
+      expect((await get('/assignments/sheet-groups/not-a-uuid')).status).toBe(400);
+    });
   });
 });

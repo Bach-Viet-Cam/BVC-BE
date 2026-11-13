@@ -5,6 +5,8 @@ export default class AssignmentModel {
     id: true,
     classId: true,
     maxSubmissions: true,
+    minAccuracy: true,
+    createdBy: { select: { id: true, username: true } },
     status: true,
     deletedAt: true,
     publishedAt: true,

@@ -1,4 +1,5 @@
 import PieceUtil from '../../../utils/PieceUtil.ts';
+import MusicLibraryDTO from '../../music-library/dto/MusicLibraryDTO.ts';
 
 type SheetMusicRecord = NonNullable<NonNullable<Backend.AssignmentRecord['currentVersion']>['sheetMusic']>;
 
@@ -13,6 +14,27 @@ export default class AssignmentDTO {
       defaultBpm: sheet.piece.bpm,
       isAvailable: PieceUtil.isSheetMusicAvailable(sheet)
     };
+  }
+
+  static async toMediaFileDTO(file: MusicLibrary.MediaFileRecord | null): Promise<Backend.MediaFileDTO | null> {
+    if (!file) return null;
+    return {
+      url: await MusicLibraryDTO.toReadUrl(file),
+      originalName: file.originalName,
+      mimeType: file.mimeType,
+      sizeBytes: file.sizeBytes,
+      durationSec: file.durationSec,
+      pageCount: file.pageCount
+    };
+  }
+
+  static async toMediaDTO(media: Backend.AssignmentSheetMediaRecord): Promise<Backend.AssignmentMediaDTO> {
+    const [sheet, referenceAudio, tutorialVideo] = await Promise.all([
+      AssignmentDTO.toMediaFileDTO(media.sheetFile),
+      AssignmentDTO.toMediaFileDTO(media.referenceAudio),
+      AssignmentDTO.toMediaFileDTO(media.tutorialVideo)
+    ]);
+    return { sheet, referenceAudio, tutorialVideo };
   }
 
   static toBaseDTO(record: Backend.AssignmentRecord): Backend.AssignmentBaseDTO {

@@ -14,6 +14,8 @@ function buildRecord(sheetMusic: typeof sheet | null): Backend.AssignmentRecord 
   return {
     id: 'a1',
     classId: 'c1',
+    minAccuracy: null,
+    createdBy: null,
     status: 'PUBLISHED',
     deletedAt: null,
     publishedAt: new Date('2026-10-01T00:00:00Z'),
