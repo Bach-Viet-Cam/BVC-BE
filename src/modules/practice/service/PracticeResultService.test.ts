@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import AppError from '../../../utils/AppError.ts';
+import AuthConstant from '../../auth/constant/AuthConstant.ts';
 import PracticeConstant from '../constant/PracticeConstant.ts';
 import PracticeResultDTO from '../dto/PracticeResultDTO.ts';
 import ClassRankService from './ClassRankService.ts';
@@ -44,13 +45,16 @@ interface SetupOptions {
   total?: number;
   peers?: number[];
   analysis?: unknown;
+  review?: Practice.ReviewContextRecord | null;
+  isActiveMember?: boolean;
 }
 
 function setup(options: SetupOptions = {}) {
   const saved: Practice.PitchChartDTO[] = [];
   const analysisCalls: string[] = [];
   const repository = {
-    findOwnedResult: async () => (options.record === undefined ? baseRecord : options.record),
+    findResultById: async () => (options.record === undefined ? baseRecord : options.record),
+    findReviewContext: async () => (options.review === undefined ? reviewContext : options.review),
     countCompletedUntil: async () => options.total ?? 3,
     findCompletedAttempts: async () => options.attempts ?? [],
     findClassPeerBest: async () => options.peers ?? [],
@@ -61,15 +65,25 @@ function setup(options: SetupOptions = {}) {
   } as unknown as RhythmClientService;
   const service = new PracticeResultService({
     repository, pitchCharts: new PitchChartService(repository, client), classRank: new ClassRankService(),
-    createReadUrl: (key) => `https://be/uploads/${key}`
+    createReadUrl: (key) => `https://be/uploads/${key}`,
+    isActiveMember: async () => options.isActiveMember ?? true
   });
   return { service, saved, analysisCalls };
 }
 
+const owner = { userId: 'student', role: AuthConstant.roles.STUDENT };
+const classLecturer = { userId: 'lec', role: AuthConstant.roles.TEACHER };
+const reviewContext: Practice.ReviewContextRecord = {
+  studentId: 'student',
+  student: { id: 'student', username: 'Trần Minh Anh', studentCode: 'SE171000' },
+  comment: { content: 'Tốt', updatedAt: new Date('2026-10-25T00:00:00Z') },
+  assignment: { classId: 'class-1', deletedAt: null, class: { status: 'ACTIVE', ownerId: 'lec', coLecturers: [{ lecturerId: 'co' }] } }
+};
+
 const hasStatus = (statusCode: number) => (error: unknown) => error instanceof AppError && error.statusCode === statusCode;
 
 test('Kết quả gồm điểm tổng, điểm thành phần, tempo đã chỉnh lỗi nửa nhịp, nhận xét AI, lỗi và audio', async () => {
-  const result = await setup().service.getResult('student', 'sub-3');
+  const result = await setup().service.getResult(owner, 'sub-3');
   assert.deepEqual(result.submission, {
     id: 'sub-3', status: 'COMPLETED', submittedAt: '2026-10-24T07:32:00.000Z', analyzedAt: '2026-10-24T07:33:00.000Z', attemptNo: 3
   });
@@ -86,7 +100,7 @@ test('Kết quả gồm điểm tổng, điểm thành phần, tempo đã chỉn
 
 test('Bản thu im lặng: điểm 0, nhận xét dự phòng được đánh dấu, cảnh báo chất lượng và thời lượng được trả về', async () => {
   const { service } = setup({ record: { ...baseRecord, accuracy: 0, aiFeedback: null, result: silentResult } });
-  const result = await service.getResult('student', 'sub-3');
+  const result = await service.getResult(owner, 'sub-3');
   // 99.4 vs 58.7 BPM folds to 99.4 vs 117.4 → -15.3 % → tempo score 69
   assert.deepEqual(result.scores, { overall: 0, pitch: 0, rhythm: 0, tempo: 69 });
   assert.equal(result.tempo?.deviationPercent, -15.3);
@@ -97,27 +111,27 @@ test('Bản thu im lặng: điểm 0, nhận xét dự phòng được đánh d�
 });
 
 test('Bản nộp đang xử lý chỉ trả thông tin nhận diện; kết quả JSON hỏng không làm lỗi màn hình', async () => {
-  const processing = await setup({ record: { ...baseRecord, status: 'PROCESSING', accuracy: null, result: null } }).service.getResult('student', 'sub-3');
+  const processing = await setup({ record: { ...baseRecord, status: 'PROCESSING', accuracy: null, result: null } }).service.getResult(owner, 'sub-3');
   assert.equal(processing.scores, null);
   assert.deepEqual(processing.issues, []);
   assert.equal(processing.submission.attemptNo, 0);
-  const broken = await setup({ record: { ...baseRecord, accuracy: null, aiFeedback: null, result: 'not json' } }).service.getResult('student', 'sub-3');
+  const broken = await setup({ record: { ...baseRecord, accuracy: null, aiFeedback: null, result: 'not json' } }).service.getResult(owner, 'sub-3');
   assert.deepEqual(broken.scores, { overall: 0, pitch: 0, rhythm: 0, tempo: null });
   assert.equal(broken.aiFeedback, null);
 });
 
 test('File bản thu đã xóa thì không trả link nghe bản thu', async () => {
-  const result = await setup({ record: { ...baseRecord, fileDeletedAt: new Date() } }).service.getResult('student', 'sub-3');
+  const result = await setup({ record: { ...baseRecord, fileDeletedAt: new Date() } }).service.getResult(owner, 'sub-3');
   assert.equal(result.audio.studentUrl, null);
   assert.ok(result.audio.teacherUrl);
 });
 
 test('Không phải bài của học viên trả 404; lịch sử, xếp hạng và biểu đồ của bài chưa xong trả 409', async () => {
-  await assert.rejects(setup({ record: null }).service.getResult('student', 'sub-x'), hasStatus(404));
+  await assert.rejects(setup({ record: null }).service.getResult(owner, 'sub-x'), hasStatus(404));
   const { service } = setup({ record: { ...baseRecord, status: 'PROCESSING' } });
-  await assert.rejects(service.getHistory('student', 'sub-3'), hasStatus(409));
+  await assert.rejects(service.getHistory(owner, 'sub-3'), hasStatus(409));
   await assert.rejects(service.getClassRank('student', 'sub-3'), hasStatus(409));
-  await assert.rejects(service.getPitchChart('student', 'sub-3'), hasStatus(409));
+  await assert.rejects(service.getPitchChart(owner, 'sub-3'), hasStatus(409));
 });
 
 test('Tiến trình: các lần nộp cũ trước, đánh số theo tổng số lần, chênh lệch so với lần trước', async () => {
@@ -125,12 +139,12 @@ test('Tiến trình: các lần nộp cũ trước, đánh số theo tổng số
     { id: 'sub-3', accuracy: 82, createdAt: new Date('2026-10-24T07:32:00Z') },
     { id: 'sub-2', accuracy: 74, createdAt: new Date('2026-10-24T04:20:00Z') }
   ];
-  const history = await setup({ attempts, total: 3 }).service.getHistory('student', 'sub-3');
+  const history = await setup({ attempts, total: 3 }).service.getHistory(owner, 'sub-3');
   assert.deepEqual(history.attempts.map((attempt) => [attempt.attemptNo, attempt.accuracyPercent, attempt.isCurrent]), [[2, 74, false], [3, 82, true]]);
   assert.equal(history.deltaPercent, 8);
   assert.equal(history.bestPercent, 82);
   assert.equal(history.isFirstAttempt, false);
-  const first = await setup({ attempts: [attempts[0]], total: 1 }).service.getHistory('student', 'sub-3');
+  const first = await setup({ attempts: [attempts[0]], total: 1 }).service.getHistory(owner, 'sub-3');
   assert.equal(first.isFirstAttempt, true);
   assert.equal(first.deltaPercent, null);
 });
@@ -153,16 +167,16 @@ test('Biểu đồ cao độ: dựng từ file phân tích rồi lưu lại; l�
     alignment: { studentFrameByTeacherFrame: [0, 0] }
   };
   const fresh = setup({ analysis });
-  const chart = await fresh.service.getPitchChart('student', 'sub-3');
+  const chart = await fresh.service.getPitchChart(owner, 'sub-3');
   assert.deepEqual(chart.points.map(([, teacher, student]) => [teacher, student]), [[392, 380], [392, 380]]);
   assert.equal(fresh.saved.length, 1);
   const cached = setup({ record: { ...baseRecord, pitchChart: chart } });
-  assert.deepEqual(await cached.service.getPitchChart('student', 'sub-3'), chart);
+  assert.deepEqual(await cached.service.getPitchChart(owner, 'sub-3'), chart);
   assert.deepEqual(cached.analysisCalls, []);
 });
 
 test('MSG-26: Rhythm không có file phân tích thì trả 422, các phần khác không bị ảnh hưởng', async () => {
-  await assert.rejects(setup({ analysis: null }).service.getPitchChart('student', 'sub-3'), (error) => (
+  await assert.rejects(setup({ analysis: null }).service.getPitchChart(owner, 'sub-3'), (error) => (
     error instanceof AppError && error.statusCode === 422 && error.message === PracticeConstant.messages.PITCH_UNAVAILABLE
   ));
 });
@@ -172,4 +186,43 @@ test('Độ lệch tempo: chọn cách đọc gần tempo bản mẫu nhất khi
   assert.equal(PracticeResultDTO.toTempoDeviation(60, 126), 5);
   assert.equal(PracticeResultDTO.toTempoDeviation(0, 95), null);
   assert.equal(PracticeResultDTO.toTempoDeviation(null, 95), null);
+});
+
+test('Giảng viên của lớp xem được kết quả, kèm nhận xét và quyền nhận xét', async () => {
+  const result = await setup().service.getResult(classLecturer, 'sub-3');
+  assert.deepEqual(result.lecturerReview, {
+    comment: { content: 'Tốt', updatedAt: '2026-10-25T00:00:00.000Z' },
+    canComment: true,
+    student: { id: 'student', fullName: 'Trần Minh Anh', studentCode: 'SE171000' },
+    classId: 'class-1'
+  });
+  const coLecturer = await setup().service.getResult({ userId: 'co', role: AuthConstant.roles.TEACHER }, 'sub-3');
+  assert.equal(coLecturer.lecturerReview?.canComment, true);
+});
+
+test('Chủ bài nộp không nhận phần nhận xét của giảng viên', async () => {
+  const result = await setup().service.getResult(owner, 'sub-3');
+  assert.equal(result.lecturerReview, undefined);
+});
+
+test('Giảng viên lớp khác, sinh viên khác và bài luyện tự do đều trả 404', async () => {
+  await assert.rejects(setup().service.getResult({ userId: 'stranger', role: AuthConstant.roles.TEACHER }, 'sub-3'), hasStatus(404));
+  await assert.rejects(setup().service.getResult({ userId: 'lec', role: AuthConstant.roles.STUDENT }, 'sub-3'), hasStatus(404));
+  await assert.rejects(setup({ review: { ...reviewContext, assignment: null } }).service.getResult(classLecturer, 'sub-3'), hasStatus(404));
+  const deleted = { ...reviewContext, assignment: { ...reviewContext.assignment!, deletedAt: new Date() } };
+  await assert.rejects(setup({ review: deleted }).service.getResult(classLecturer, 'sub-3'), hasStatus(404));
+});
+
+test('Khóa nhận xét khi lớp đã kết thúc hoặc sinh viên đã rời lớp', async () => {
+  const ended = await setup({ review: { ...reviewContext, assignment: { classId: 'class-1', deletedAt: null, class: { status: 'ENDED', ownerId: 'lec', coLecturers: [] } } } })
+    .service.getResult(classLecturer, 'sub-3');
+  assert.equal(ended.lecturerReview?.canComment, false);
+  const left = await setup({ isActiveMember: false }).service.getResult(classLecturer, 'sub-3');
+  assert.equal(left.lecturerReview?.canComment, false);
+});
+
+test('Giảng viên của lớp xem được tiến trình và biểu đồ cao độ', async () => {
+  const { service } = setup({ analysis: { pitch: { sampleRate: 22050, hopLength: 512, teacherF0Hz: [392, 392], studentF0Hz: [380] }, alignment: { studentFrameByTeacherFrame: [0, 0] } } });
+  await service.getHistory(classLecturer, 'sub-3');
+  await service.getPitchChart(classLecturer, 'sub-3');
 });

@@ -52,6 +52,8 @@ model User {
   createdAssignments        Assignment[]             @relation("AssignmentCreatedBy")
   createdAssignmentVersions AssignmentVersion[]      @relation("AssignmentVersionCreatedBy")
   submissionComments        SubmissionComment[]
+  studentEvaluationsAbout   StudentEvaluation[]      @relation("StudentEvaluationStudent")
+  studentEvaluationsWritten StudentEvaluation[]      @relation("StudentEvaluationLecturer")
   submissions               Submission[]
   segmentAttempts           PracticeSegmentAttempt[]
   audioUploads              AudioUpload[]
@@ -419,7 +421,8 @@ model ContentCategory {
 
 // Class name is unique per cohort, case-insensitive (DBR-02): enforced in ClassService.
 model Class {
-  verifiedContents VerifiedContent[]
+  verifiedContents   VerifiedContent[]
+  studentEvaluations StudentEvaluation[]
 
   id                 String             @id @default(uuid())
   name               String
@@ -774,6 +777,23 @@ model SubmissionComment {
   lecturer     User       @relation(fields: [lecturerId], references: [id])
 
   @@map("submission_comments")
+}
+
+// Overall lecturer evaluation of one student in one class; editing overwrites it (no history).
+model StudentEvaluation {
+  id         String   @id @default(uuid())
+  classId    String   @map("class_id")
+  studentId  String   @map("student_id")
+  lecturerId String   @map("lecturer_id")
+  content    String   @db.VarChar(2000)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  class      Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student    User     @relation("StudentEvaluationStudent", fields: [studentId], references: [id])
+  lecturer   User     @relation("StudentEvaluationLecturer", fields: [lecturerId], references: [id])
+
+  @@unique([classId, studentId])
+  @@map("student_evaluations")
 }
 
 enum NotificationType {

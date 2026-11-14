@@ -11,6 +11,14 @@ export default class PracticeResultRepository {
     return this.client.submission.findFirst({ where: { id, studentId }, select: PracticeModel.resultSelect });
   }
 
+  async findResultById(id: string): Promise<Practice.ResultRecord | null> {
+    return this.client.submission.findUnique({ where: { id }, select: PracticeModel.resultSelect });
+  }
+
+  async findReviewContext(id: string): Promise<Practice.ReviewContextRecord | null> {
+    return this.client.submission.findUnique({ where: { id }, select: PracticeModel.reviewContextSelect });
+  }
+
   // Newest first, up to and including the given submission
   async findCompletedAttempts(record: Practice.ResultRecord, limit: number): Promise<Practice.AttemptRecord[]> {
     return this.client.submission.findMany({
