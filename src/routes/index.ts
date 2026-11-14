@@ -17,6 +17,7 @@ import MyNotificationRoute from '../modules/platform/route/MyNotificationRoute.t
 import ProgressRoute from '../modules/classes/route/ProgressRoute.ts';
 import AssignmentRoute from '../modules/classes/route/AssignmentRoute.ts';
 import ClassRoute from '../modules/classes/route/ClassRoute.ts';
+import StudentStatsRoute from '../modules/classes/route/StudentStatsRoute.ts';
 import LecturerAssignmentRoute from '../modules/assignments/route/AssignmentRoute.ts';
 import StudentProgressRoute from '../modules/progress/route/ProgressRoute.ts';
 import RoadmapRoute from '../modules/roadmaps/route/RoadmapRoute.ts';
@@ -46,6 +47,7 @@ export default class ApiRoute {
     ProgressRoute.register(v1Router);
     AssignmentRoute.register(v1Router);
     ClassRoute.register(v1Router);
+    StudentStatsRoute.register(v1Router);
     LecturerAssignmentRoute.register(v1Router);
     // Registered after the classes ProgressRoute, which keeps serving GET /classes/:id/progress for the FE.
     StudentProgressRoute.register(v1Router);

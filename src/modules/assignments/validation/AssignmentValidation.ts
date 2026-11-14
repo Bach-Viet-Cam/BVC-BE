@@ -80,6 +80,8 @@ export default class AssignmentValidation {
 
   static readonly overviewSchema = z.object({ body: z.unknown(), params: z.object({}), query: emptyQuery });
 
+  static readonly sheetGroupSchema = z.object({ body: z.unknown(), params: z.object({ sheetMusicId: z.uuid() }), query: emptyQuery });
+
   static readonly sheetMusicSchema = z.object({
     body: z.unknown(),
     params: z.object({}),

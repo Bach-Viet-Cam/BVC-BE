@@ -20,6 +20,9 @@ export default class AssignmentConstant {
   // GBR-13: rejected / failed submissions are not counted.
   static readonly uncountedSubmissionStatuses: readonly Backend.SubmissionStatus[] = Object.freeze(['REJECTED', 'FAILED']);
 
+  static readonly utcOffsetMinutes = 420;
+  static readonly seriesDays = 7;
+
   static readonly fieldLabels = Object.freeze({
     classId: 'Lớp',
     title: 'Tiêu đề',
@@ -43,6 +46,7 @@ export default class AssignmentConstant {
     ASSIGNMENT_NOT_FOUND: 'Không tìm thấy bài tập.',
     SUBMISSION_NOT_FOUND: 'Không tìm thấy bài nộp.',
     STUDENT_NOT_FOUND: 'Không tìm thấy sinh viên.',
+    SHEET_GROUP_NOT_FOUND: 'Không tìm thấy bài tập dùng sheet nhạc này trong học kỳ hiện tại.',
     SHEET_MUSIC_UNAVAILABLE: format('MSG-48', { resource: 'Bản nhạc' }),
     BPM_RANGE: format('MSG-03', { field: 'BPM yêu cầu', min: 1, max: 300 }),
     KIND_REQUIRED: format('MSG-35', { field: 'Loại bài' }),

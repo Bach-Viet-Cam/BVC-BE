@@ -30,6 +30,8 @@ declare namespace Backend {
 
   interface AssignmentRecord {
     maxSubmissions?: number | null;
+    minAccuracy: number | null;
+    createdBy: { id: string; username: string } | null;
     id: string;
     classId: string;
     status: AssignmentStatus;
@@ -122,8 +124,33 @@ declare namespace Backend {
     bestAccuracy: number | null;
   }
 
+  interface MediaFileDTO {
+    url: string | null;
+    originalName: string;
+    mimeType: string;
+    sizeBytes: number;
+    durationSec: number | null;
+    pageCount: number | null;
+  }
+
+  interface AssignmentMediaDTO {
+    sheet: MediaFileDTO | null;
+    referenceAudio: MediaFileDTO | null;
+    tutorialVideo: MediaFileDTO | null;
+  }
+
+  interface AssignmentSheetMediaRecord {
+    sheetFile: MusicLibrary.MediaFileRecord;
+    referenceAudio: MusicLibrary.MediaFileRecord | null;
+    tutorialVideo: MusicLibrary.MediaFileRecord | null;
+  }
+
   interface AssignmentDetailDTO extends AssignmentBaseDTO {
     students: AssignmentStudentDTO[];
+    practiceStats: PracticeStatsDTO;
+    minAccuracy: number;
+    createdBy: { id: string; fullName: string } | null;
+    media: AssignmentMediaDTO | null;
   }
 
   interface SubmissionCommentDTO {
@@ -185,10 +212,36 @@ declare namespace Backend {
     assignments: OverviewAssignmentDTO[];
   }
 
+  interface OverviewSheetStatDTO {
+    sheetMusicId: string;
+    practicedStudents: number;
+    memberCount: number;
+    practiceCount: number;
+  }
+
   interface AssignmentOverviewDTO {
     semester: Semester | null;
     emptyReason: OverviewEmptyReason | null;
     classes: OverviewClassDTO[];
+    sheetStats: OverviewSheetStatDTO[];
+  }
+
+  interface SheetGroupAssignmentDTO extends OverviewAssignmentDTO {
+    className: string;
+    maxSubmissions: number | null;
+    effectiveBpm: number | null;
+    minAccuracy: number;
+    publishedAt: string | null;
+    createdBy: { id: string; fullName: string } | null;
+  }
+
+  interface SheetGroupDetailDTO {
+    semester: Semester;
+    sheetMusic: AssignmentSheetMusicDTO;
+    media: AssignmentMediaDTO;
+    assignments: SheetGroupAssignmentDTO[];
+    practiceStats: PracticeStatsDTO;
+    byClass: ClassPracticeDTO[];
   }
 
   interface ClassWithAssignmentsRecord {
@@ -229,5 +282,35 @@ declare namespace Backend {
   interface AssignResultDTO {
     created: AssignmentBaseDTO[];
     skipped: AssignPlan['skipped'];
+  }
+}
+
+declare namespace Backend {
+  interface CountedPractice {
+    assignmentId: string;
+    studentId: string;
+    createdAt: Date;
+  }
+
+  interface PracticeStatsDTO {
+    totalPractices: number;
+    practicedStudents: number;
+    memberCount: number;
+    averagePerStudent: number;
+    last7Days: DailyCount[];
+  }
+
+  interface ClassPracticeDTO {
+    classId: string;
+    className: string;
+    practicedStudents: number;
+    memberCount: number;
+  }
+
+  interface PracticeStatsInput {
+    practices: CountedPractice[];
+    assignmentClassIds: Map<string, string>;
+    membersByClass: Map<string, Set<string>>;
+    now: Date;
   }
 }

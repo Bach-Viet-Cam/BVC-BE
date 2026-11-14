@@ -106,6 +106,15 @@ export default class PracticeModel {
     studentUpload: { select: { url: true, deletingAt: true } }
   } satisfies Prisma.SubmissionSelect;
 
+  static readonly reviewContextSelect = {
+    studentId: true,
+    student: { select: { id: true, username: true, studentCode: true } },
+    comment: { select: { content: true, updatedAt: true } },
+    assignment: {
+      select: { classId: true, deletedAt: true, class: { select: { status: true, ownerId: true, coLecturers: { select: { lecturerId: true } } } } }
+    }
+  } satisfies Prisma.SubmissionSelect;
+
   static readonly sheetSelect = {
     id: true,
     pieceId: true,
