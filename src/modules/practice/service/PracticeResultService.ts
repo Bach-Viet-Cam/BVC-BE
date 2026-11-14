@@ -86,14 +86,19 @@ export default class PracticeResultService {
       throw AppError.notFound(messages.SUBMISSION_NOT_FOUND);
     }
     // Same lock as saving a comment (A17/A18): finished class or a student who left.
-    const canComment = assignment.class.status === 'ACTIVE' && (await this.isActiveMember(assignment.classId, context.studentId));
+    const [isMember, attemptNo] = await Promise.all([
+      this.isActiveMember(assignment.classId, context.studentId),
+      this.repository.countAttemptsUntil(record)
+    ]);
+    const canComment = assignment.class.status === 'ACTIVE' && isMember;
     return {
       record,
       review: {
         comment: context.comment ? { content: context.comment.content, updatedAt: context.comment.updatedAt.toISOString() } : null,
         canComment,
         student: { id: context.student.id, fullName: context.student.username, studentCode: context.student.studentCode },
-        classId: assignment.classId
+        classId: assignment.classId,
+        attemptNo
       }
     };
   }

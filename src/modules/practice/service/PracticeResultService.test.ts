@@ -47,6 +47,7 @@ interface SetupOptions {
   analysis?: unknown;
   review?: Practice.ReviewContextRecord | null;
   isActiveMember?: boolean;
+  attemptsUntil?: number;
 }
 
 function setup(options: SetupOptions = {}) {
@@ -55,6 +56,7 @@ function setup(options: SetupOptions = {}) {
   const repository = {
     findResultById: async () => (options.record === undefined ? baseRecord : options.record),
     findReviewContext: async () => (options.review === undefined ? reviewContext : options.review),
+    countAttemptsUntil: async () => options.attemptsUntil ?? 4,
     countCompletedUntil: async () => options.total ?? 3,
     findCompletedAttempts: async () => options.attempts ?? [],
     findClassPeerBest: async () => options.peers ?? [],
@@ -194,7 +196,8 @@ test('Giảng viên của lớp xem được kết quả, kèm nhận xét và q
     comment: { content: 'Tốt', updatedAt: '2026-10-25T00:00:00.000Z' },
     canComment: true,
     student: { id: 'student', fullName: 'Trần Minh Anh', studentCode: 'SE171000' },
-    classId: 'class-1'
+    classId: 'class-1',
+    attemptNo: 4
   });
   const coLecturer = await setup().service.getResult({ userId: 'co', role: AuthConstant.roles.TEACHER }, 'sub-3');
   assert.equal(coLecturer.lecturerReview?.canComment, true);
@@ -225,4 +228,10 @@ test('Giảng viên của lớp xem được tiến trình và biểu đồ cao 
   const { service } = setup({ analysis: { pitch: { sampleRate: 22050, hopLength: 512, teacherF0Hz: [392, 392], studentF0Hz: [380] }, alignment: { studentFrameByTeacherFrame: [0, 0] } } });
   await service.getHistory(classLecturer, 'sub-3');
   await service.getPitchChart(classLecturer, 'sub-3');
+});
+
+test('Số lần nộp cho giảng viên đếm mọi lần nộp của bài, kể cả lần lỗi (khớp trang thống kê)', async () => {
+  const result = await setup({ total: 2, attemptsUntil: 3 }).service.getResult(classLecturer, 'sub-3');
+  assert.equal(result.lecturerReview?.attemptNo, 3);
+  assert.equal(result.submission.attemptNo, 2);
 });

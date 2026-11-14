@@ -362,6 +362,8 @@ declare namespace Practice {
     canComment: boolean;
     student: { id: string; fullName: string; studentCode: string | null };
     classId: string;
+    // Counts every submission of the assignment (failed ones too), like the lecturer stats screen
+    attemptNo: number;
   }
 
   interface ResultDTO {

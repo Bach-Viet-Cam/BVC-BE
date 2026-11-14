@@ -15,6 +15,14 @@ export default class PracticeResultRepository {
     return this.client.submission.findUnique({ where: { id }, select: PracticeModel.resultSelect });
   }
 
+  // Every submission of the same student on the same assignment up to and including this one (any status)
+  async countAttemptsUntil(record: Practice.ResultRecord): Promise<number> {
+    if (!record.assignmentId) return 0;
+    return this.client.submission.count({
+      where: { studentId: record.studentId, assignmentId: record.assignmentId, createdAt: { lte: record.createdAt } }
+    });
+  }
+
   async findReviewContext(id: string): Promise<Practice.ReviewContextRecord | null> {
     return this.client.submission.findUnique({ where: { id }, select: PracticeModel.reviewContextSelect });
   }
