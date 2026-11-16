@@ -11,7 +11,7 @@ test('UC-20 HTTP: quyền, sao, nhận xét, cập nhật và lịch sử phiên
   assert.equal(process.env.DATABASE_URL, configured);
   assert.ok(new URL(configured).pathname.includes('_test'), 'Chỉ chạy với database thử nghiệm được chỉ định.');
   const client = PrismaClientProvider.instance;
-  const ids = Array.from({length: 5}, () => randomUUID());
+  const ids: string[] = Array.from({length: 5}, () => randomUUID());
   const [student, teacher, otherStudent, otherTeacher, admin] = ids;
   const roles = [1, 2, 1, 2, 3];
   const instrumentId = randomUUID(), classId = randomUUID(), categoryId = randomUUID(), pieceId = randomUUID(), assignmentId = randomUUID(), submissionId = randomUUID();
