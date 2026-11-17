@@ -346,6 +346,26 @@ declare namespace Practice {
     label: string;
   }
 
+  // Who opens a result: the owning student, or a lecturer of the submission's class
+  interface ResultViewer { userId: string; role: UserRole; }
+
+  // Read only when a lecturer opens a student's submission
+  interface ReviewContextRecord {
+    studentId: string;
+    student: { id: string; username: string; studentCode: string | null };
+    comment: { content: string; updatedAt: Date } | null;
+    assignment: { classId: string; deletedAt: Date | null; class: { status: Backend.ClassStatus; ownerId: string; coLecturers: Array<{ lecturerId: string }> } } | null;
+  }
+
+  interface LecturerReviewDTO {
+    comment: { content: string; updatedAt: string } | null;
+    canComment: boolean;
+    student: { id: string; fullName: string; studentCode: string | null };
+    classId: string;
+    // Counts every submission of the assignment (failed ones too), like the lecturer stats screen
+    attemptNo: number;
+  }
+
   interface ResultDTO {
     submission: { id: string; status: SubmissionStatus; submittedAt: string; analyzedAt: string | null; attemptNo: number };
     piece: { id: string; title: string };
@@ -358,6 +378,7 @@ declare namespace Practice {
     issues: ResultIssueDTO[];
     qualityWarnings: { code: string; message: string }[];
     audio: { teacherUrl: string | null; studentUrl: string | null };
+    lecturerReview?: LecturerReviewDTO;
   }
 
   interface AttemptRecord { id: string; accuracy: number | null; createdAt: Date; }
