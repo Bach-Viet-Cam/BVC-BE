@@ -175,7 +175,7 @@ describe('Classes API (UC-09)', () => {
         .send({ studentCode: 'SE9', fullName: 'A', email: 'a9@fpt.edu.vn' }),
       request(app).delete(`/api/v1/classes/${classRecord.id}/members/${student.id}`).set('Authorization', lecturerToken),
       request(app).post(`/api/v1/classes/${classRecord.id}/imports`).set('Authorization', lecturerToken)
-        .attach('file', Buffer.from('Mã sinh viên,Họ tên,Email\nSE2,B,b@fpt.edu.vn\n'), 'ds.csv')
+        .attach('file', Buffer.from('x'), 'Students_DNH103_DNH103.E1.H2.xlsx')
     ]);
     for (const write of writes) {
       expect(write.status).toBe(409);
