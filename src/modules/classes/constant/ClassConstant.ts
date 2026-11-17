@@ -13,6 +13,7 @@ export default class ClassConstant {
     EMAIL_MAX: 255,
     LECTURER_LOOKUP_MAX: 10,
     COPY_ASSIGNMENTS_MAX: 50,
+    EVALUATION_MAX: 2000,
     COPY_TRANSACTION_TIMEOUT_MS: 30_000,
     PAGE_SIZE_DEFAULT: 20,
     PAGE_SIZE_MAX: 200
@@ -38,6 +39,7 @@ export default class ClassConstant {
 
   static readonly fieldLabels: Readonly<Record<string, string>> = Object.freeze({
     name: 'Mã lớp',
+    evaluation: 'Đánh giá',
     cohort: 'Học kỳ',
     instrumentId: 'Môn học',
     description: 'Mô tả',
@@ -65,6 +67,9 @@ export default class ClassConstant {
     CLASS_NOT_FOUND: 'Không tìm thấy lớp học.',
     COPY_ASSIGNMENTS_TOO_MANY: `Danh sách sao chép tối đa ${ClassConstant.limits.COPY_ASSIGNMENTS_MAX} bài tập.`,
     MEMBER_NOT_FOUND: 'Không tìm thấy sinh viên trong lớp.',
+    STUDENT_NOT_FOUND: 'Không tìm thấy sinh viên.',
+    EVALUATION_LOCKED: 'Không thể đánh giá vì lớp đã kết thúc hoặc sinh viên không còn trong lớp.',
+    EVALUATION_SAVED: 'Đã lưu đánh giá.',
     IMPORT_LOG_NOT_FOUND: 'Không tìm thấy phiên nhập danh sách.',
     CLASS_FINISHED: format('MSG-08', { action: 'thay đổi lớp', reason: 'lớp đã kết thúc' }),
     INSTRUMENT_LOCKED: format('MSG-08', { action: 'đổi môn học', reason: 'lớp đã bắt đầu' }),
