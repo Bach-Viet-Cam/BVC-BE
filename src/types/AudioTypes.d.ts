@@ -3,7 +3,14 @@ declare namespace Audio {
   type EvaluationStatus = 'queued' | 'processing' | 'waiting' | 'completed' | 'failed' | 'rejected' | PublicationState;
   type JobCode = 'quality_check' | 'audio_analysis' | 'comparison' | 'feedback';
   interface EvaluationInput { templateUrl: string; studentUrl: string; }
-  interface Job extends EvaluationInput { messageId: string; evaluationId: string; instrumentId: string; requestedAt: string; attempt?: number; callbackUrl?: string; templateAnalysisId?: string; templateStartSec?: number; templateEndSec?: number; baselineEvaluationId?: string; }
+  // Nguồn của bài upload: chọn file có sẵn hay ghi âm trực tiếp; quyết định đầu nào được cắt theo cao độ
+  type UploadSource = 'file' | 'recording';
+  type TrimEdges = 'both' | 'end';
+  // Thông số nhạc cụ lấy từ bảng Instrument, gửi kèm mỗi job để Rhythm không phải tự tra bảng riêng
+  interface InstrumentConfig { name: string; fminHz: number; fmaxHz: number; toleranceCents: number; tunes?: InstrumentTune[]; }
+  // Nốt dây buông/chuẩn trong bảng InstrumentTune, Rhythm dùng để phân biệt lỗi lên dây với lỗi kỹ thuật bấm
+  interface InstrumentTune { name: string; pitchHz: number; }
+  interface Job extends EvaluationInput { messageId: string; evaluationId: string; instrumentId: string; instrument: InstrumentConfig; requestedAt: string; attempt?: number; callbackUrl?: string; templateAnalysisId?: string; templateStartSec?: number; templateEndSec?: number; baselineEvaluationId?: string; }
   interface Result { overallScore: number; pitchAccuracyPercent: number; rhythmAccuracyPercent: number; aiFeedback: string;[key: string]: unknown; }
   interface EvaluationResponse { evaluationId: string; status: EvaluationStatus; stage?: JobCode | null; attempt?: number; result: Result | null; error: { code: string; message: string } | null; }
 }

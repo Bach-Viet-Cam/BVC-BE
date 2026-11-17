@@ -5,7 +5,7 @@ import EvaluationJobBuilderService from './EvaluationJobBuilderService.ts';
 const now = new Date('2026-11-03T10:00:00Z');
 const sheet: Practice.SheetTemplate = {
   id: 'sheet-bau', pieceId: 'piece-1', instrumentId: 'inst-bau', kind: 'MAIN', analysisStatus: 'READY', analysisJobId: 'analysis-1',
-  referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau' }
+  referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau', name: 'Đàn bầu', fminHz: 65, fmaxHz: 1047, toleranceCents: 35 }
 };
 const ids = { evaluationId: 'ev', messageId: 'm', attempt: 1 };
 
@@ -26,4 +26,23 @@ test('build gắn templateAnalysisId khi bản mẫu READY và callbackUrl theo 
 test('build bỏ templateAnalysisId khi bản mẫu chưa READY', async () => {
   const job = await builder().build({ ...sheet, analysisStatus: 'PROCESSING' }, ids, 'https://be/s.wav', '/api/v1/x');
   assert.equal(job.templateAnalysisId, undefined);
+});
+
+test('build gắn khối instrument lấy từ sheet', async () => {
+  const job = await builder().build(sheet, ids, 'https://be/s.wav', '/api/v1/x');
+  assert.deepEqual(job.instrument, { name: 'Đàn bầu', fminHz: 65, fmaxHz: 1047, toleranceCents: 35, tunes: [] });
+  assert.equal(job.instrumentId, 'dan_bau');
+});
+
+test('build dùng cấu hình của sheet được nộp, không phải của lớp', async () => {
+  const other = { ...sheet, instrument: { code: 'DTR103', name: 'Đàn tranh', fminHz: 98, fmaxHz: 1568, toleranceCents: 30 } };
+  const job = await builder().build(other, ids, 'https://be/s.wav', '/api/v1/x');
+  assert.deepEqual(job.instrument, { name: 'Đàn tranh', fminHz: 98, fmaxHz: 1568, toleranceCents: 30, tunes: [] });
+  assert.equal(job.instrumentId, 'dan_tranh');
+});
+
+test('build gửi bảng tunes của nhạc cụ theo dạng name/pitchHz', async () => {
+  const tuned = { ...sheet, instrument: { ...sheet.instrument, tunes: [{ tuneName: 'Dây buông (Do 3)', pitch: 130.81 }] } };
+  const job = await builder().build(tuned, ids, 'https://be/s.wav', '/api/v1/x');
+  assert.deepEqual(job.instrument.tunes, [{ name: 'Dây buông (Do 3)', pitchHz: 130.81 }]);
 });

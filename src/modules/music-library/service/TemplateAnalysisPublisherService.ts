@@ -8,6 +8,7 @@ export interface TemplateAnalysisJob {
   mediaFileId: string;
   mediaUrl: string;
   instrumentCode: string;
+  instrument: Audio.InstrumentConfig;
   requestedAt: string;
 }
 

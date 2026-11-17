@@ -20,7 +20,7 @@ export function uploadAudio(): RequestHandler {
     response.once('close', cleanup);
     multer({
       storage: multer.diskStorage({ destination: directory, filename: (_request, _file, callback) => callback(null, randomUUID()) }),
-      limits: { fileSize: AudioConstant.maxFileBytes, files: 1, fields: 0, parts: 1 }
+      limits: { fileSize: AudioConstant.maxFileBytes, files: 1, fields: 1, parts: 2 }
     }).single('file')(request, response, (error: unknown) => {
       if (error) return next(AppError.badRequest(error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE'
         ? 'File audio không được vượt quá 25 MiB.' : 'Không thể tải file lên. Vui lòng gửi đúng một file audio.'));

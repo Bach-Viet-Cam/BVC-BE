@@ -16,7 +16,9 @@ export default class AudioEvaluationService {
   ) {}
 
   async create(ownerId: string, input: Audio.EvaluationInput): Promise<Audio.EvaluationResponse> {
-    const job: Audio.Job = { ...input, evaluationId: randomUUID(), messageId: randomUUID(), instrumentId: AudioConstant.instrumentCode, requestedAt: new Date().toISOString() };
+    const instrument = await this.repository.findInstrumentConfig(AudioConstant.instrumentCode);
+    if (!instrument) throw new AppError(AudioConstant.messages.INSTRUMENT_NOT_CONFIGURED, 503);
+    const job: Audio.Job = { ...input, evaluationId: randomUUID(), messageId: randomUUID(), instrumentId: AudioConstant.instrumentCode, instrument, requestedAt: new Date().toISOString() };
     await this.repository.createRequest(ownerId, input, job, this.storage.provider);
     const state = await this.publisher.publish(job);
     try { await this.repository.updatePublication(job.evaluationId, state); } catch {

@@ -12,7 +12,7 @@ const now = new Date('2026-10-22T10:00:00Z');
 const input: Practice.CreateInput = { sheetMusicId: 'sheet-bau', studentUploadId: '00000000-0000-4000-8000-000000000001' };
 const sheet: Practice.SheetTemplate = {
   id: 'sheet-bau', pieceId: 'piece-1', instrumentId: 'inst-bau', kind: 'MAIN', analysisStatus: 'READY', analysisJobId: 'analysis-1',
-  referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau' }
+  referenceAudio: { storageKey: 'media/teacher.wav', status: 'READY' }, instrument: { code: 'dan_bau', name: 'Đàn bầu', fminHz: 65, fmaxHz: 1047, toleranceCents: 35 }
 };
 const candidate: Practice.AssignmentCandidate = {
   id: 'asg-1', title: 'Bài 3', description: '', status: 'PUBLISHED', deadline: new Date('2026-12-01'), maxSubmissions: 3, targetBpm: null,
@@ -81,6 +81,7 @@ test('Gửi bản thu tạo Submission Đang xử lý và gửi job theo bản n
   assert.equal(submission.stage, 'QUALITY_CHECK');
   assert.equal(jobs.length, 1);
   assert.equal(jobs[0].instrumentId, 'dan_bau'); // sheet instrument, not the class instrument
+  assert.equal(jobs[0].instrument.fminHz, 65);
   assert.equal(jobs[0].templateUrl, 'https://storage/media/teacher.wav?signed');
   assert.equal(jobs[0].studentUrl, 'https://be/s.wav');
   assert.equal(jobs[0].attempt, 1);

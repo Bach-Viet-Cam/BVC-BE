@@ -12,7 +12,7 @@ interface AnalysisTarget {
   id: string;
   kind: MusicLibrary.SheetKind;
   referenceAudio: { id: string; storageKey: string; status: string } | null;
-  instrument: { code: string };
+  instrument: { code: string } & Audio.InstrumentConfig;
 }
 
 interface RhythmMetadata {
@@ -43,6 +43,10 @@ export default class AnalysisService {
       mediaFileId: sheetMusic.referenceAudio.id,
       mediaUrl: StorageService.driver.createReadUrl(sheetMusic.referenceAudio.storageKey),
       instrumentCode: AnalysisService.toRhythmInstrument(sheetMusic.instrument.code),
+      instrument: {
+        name: sheetMusic.instrument.name, fminHz: sheetMusic.instrument.fminHz,
+        fmaxHz: sheetMusic.instrument.fmaxHz, toleranceCents: sheetMusic.instrument.toleranceCents
+      },
       requestedAt: new Date().toISOString()
     };
     await SheetMusicRepository.update(sheetMusic.id, {

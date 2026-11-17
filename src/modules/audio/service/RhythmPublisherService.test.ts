@@ -4,7 +4,7 @@ import { EventEmitter } from 'node:events';
 import type { ChannelModel, ConfirmChannel, Options } from 'amqplib';
 import RhythmPublisherService from './RhythmPublisherService.ts';
 
-const job: Audio.Job = { messageId: 'msg-1', evaluationId: 'eval-1', templateUrl: 'https://example.com/t.wav', studentUrl: 'https://example.com/s.wav', instrumentId: 'dan_bau', requestedAt: new Date().toISOString() };
+const job: Audio.Job = { messageId: 'msg-1', evaluationId: 'eval-1', templateUrl: 'https://example.com/t.wav', studentUrl: 'https://example.com/s.wav', instrumentId: 'dan_bau', instrument: { name: 'Đàn bầu', fminHz: 65, fmaxHz: 1047, toleranceCents: 35 }, requestedAt: new Date().toISOString() };
 
 test('Publisher chỉ báo thành công sau confirm và dùng đúng contract queue', async () => {
   const emitter = new EventEmitter();
