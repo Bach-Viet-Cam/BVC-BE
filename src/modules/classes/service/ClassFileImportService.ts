@@ -145,14 +145,19 @@ export default class ClassFileImportService {
     return errors;
   }
 
-  static async analyze(file: Backend.UploadedImportFile): Promise<FileImportAnalysis> {
+  // Reads and parses a Students_[Subject]_[Class].xlsx upload; shared with the per-class import (UC-10).
+  static async readClassFile(file: Backend.UploadedImportFile): Promise<Backend.ParsedClassFile> {
     const extension = file.originalname.includes('.') ? (file.originalname.split('.').pop()?.toLowerCase() ?? '') : '';
     if (extension !== 'xlsx') throw AppError.badRequest(messages.FILE_IMPORT_ONLY_XLSX, { code: 'MSG-13' });
     if (file.size > importFile.MAX_BYTES) throw AppError.badRequest(messages.FILE_TOO_LARGE, { code: 'MSG-14' });
 
     const matrix = await ImportFileParser.readXlsxSheet(file.buffer, 'Students');
     if (!matrix) throw AppError.badRequest(messages.FILE_IMPORT_SHEET_MISSING, { code: 'MSG-08' });
-    const parsed = ClassFileImportParser.parse(file.originalname, matrix);
+    return ClassFileImportParser.parse(file.originalname, matrix);
+  }
+
+  static async analyze(file: Backend.UploadedImportFile): Promise<FileImportAnalysis> {
+    const parsed = await ClassFileImportService.readClassFile(file);
 
     const instrument = await ClassRepository.findInstrumentByCode(parsed.subjectCode);
     const semester = await ClassFileImportService.findSemester(parsed.semesterName);

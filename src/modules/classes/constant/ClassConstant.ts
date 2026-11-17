@@ -103,6 +103,9 @@ export default class ClassConstant {
     fileImportSummary: (className: string, importedCount: number, skippedCount: number): string =>
       `Đã tạo lớp ${className} và nhập ${importedCount} sinh viên${skippedCount > 0 ? `, bỏ qua ${skippedCount} dòng.` : '.'}`,
     IMPORT_NO_VALID_ROWS: format('MSG-08', { action: 'nhập danh sách', reason: 'không có dòng hợp lệ' }),
+    IMPORT_CLASS_MISMATCH: (fileClassName: string, className: string): string =>
+      `File dành cho lớp ${fileClassName}, không khớp với lớp hiện tại ${className}. Vui lòng chọn đúng file của lớp.`,
+    IMPORT_ALL_ALREADY_IN_CLASS: 'Tất cả sinh viên trong file đã có trong lớp.',
     IMPORT_ALREADY_PROCESSED: format('MSG-08', { action: 'xác nhận nhập', reason: 'phiên nhập này đã được xử lý' }),
     IMPORT_DATA_CHANGED: format('MSG-08', { action: 'xác nhận nhập', reason: 'dữ liệu sinh viên vừa thay đổi. Vui lòng tải lại file' }),
     COPY_KIND_DUPLICATED: (kindLabel: string): string =>
