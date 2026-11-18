@@ -3,6 +3,7 @@ import PrismaClientProvider from '../../../config/PrismaClient.ts';
 import AssignmentConstant from '../constant/AssignmentConstant.ts';
 import PieceUtil from '../../../utils/PieceUtil.ts';
 import ClassModel from '../../classes/model/ClassModel.ts';
+import MusicLibraryModel from '../../music-library/model/MusicLibraryModel.ts';
 import AssignmentModel from '../model/AssignmentModel.ts';
 
 export default class AssignmentRepository {
@@ -97,6 +98,17 @@ export default class AssignmentRepository {
       select: { instrumentId: true, visibility: true, moderation: true, piece: { select: { visibility: true, moderation: true, deletedAt: true } } }
     });
     return sheet !== null && sheet.instrumentId === instrumentId && PieceUtil.isSheetMusicAvailable(sheet);
+  }
+
+  static async findSheetMedia(sheetMusicId: string): Promise<Backend.AssignmentSheetMediaRecord | null> {
+    return AssignmentRepository.client.sheetMusic.findUnique({
+      where: { id: sheetMusicId },
+      select: {
+        sheetFile: { select: MusicLibraryModel.mediaFileSelect },
+        referenceAudio: { select: MusicLibraryModel.mediaFileSelect },
+        tutorialVideo: { select: MusicLibraryModel.mediaFileSelect }
+      }
+    });
   }
 
   static async createAssignment(
