@@ -13,9 +13,9 @@ export default class LlmKeyService {
     return LlmKeyService.getClient().list();
   }
 
-  static async create(actorId: string, body: { name: string; key: string }): Promise<Backend.LlmKeyItem> {
+  static async create(actorId: string, body: { name: string; key: string; provider: Backend.LlmProvider }): Promise<Backend.LlmKeyItem> {
     const item = await LlmKeyService.getClient().create(body);
-    await AuditLogger.record({ actorId, action: 'LLM_KEY_CREATE', entityType: 'LLM_API_KEY', entityId: item.id, payload: { name: item.name } });
+    await AuditLogger.record({ actorId, action: 'LLM_KEY_CREATE', entityType: 'LLM_API_KEY', entityId: item.id, payload: { name: item.name, provider: item.provider } });
     return item;
   }
 
@@ -24,7 +24,7 @@ export default class LlmKeyService {
     // Never put the key itself in the audit payload, only that it was replaced
     await AuditLogger.record({
       actorId, action: 'LLM_KEY_UPDATE', entityType: 'LLM_API_KEY', entityId: id,
-      payload: { name: item.name, ...(body.status ? { status: body.status } : {}), ...(body.key ? { keyReplaced: true } : {}) }
+      payload: { name: item.name, status: item.status, ...(body.key ? { keyReplaced: true } : {}) }
     });
     return item;
   }

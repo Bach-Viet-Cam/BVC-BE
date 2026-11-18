@@ -20,7 +20,7 @@ export default class LlmKeyClientService {
     return (await this.read(LlmKeyValidation.list, await this.send('GET', ''))).items;
   }
 
-  async create(input: { name: string; key: string }): Promise<Backend.LlmKeyItem> {
+  async create(input: { name: string; key: string; provider: Backend.LlmProvider }): Promise<Backend.LlmKeyItem> {
     return this.read(LlmKeyValidation.item, await this.send('POST', '', input));
   }
 
@@ -64,6 +64,7 @@ export default class LlmKeyClientService {
       return AppError.conflict('API key đã tồn tại.');
     }
     if (response.status === 422) return AppError.badRequest('Dữ liệu API key không hợp lệ.');
+    if (code === 'LLM_KEY_ENCRYPTION_UNAVAILABLE') return new AppError('Dịch vụ chưa cấu hình khóa mã hóa API key.', 503);
     return new AppError(LlmKeyClientService.unavailableMessage, 503);
   }
 
