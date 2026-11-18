@@ -3,10 +3,12 @@ import { z } from 'zod';
 export default class LlmKeyValidation {
   static readonly name = z.string().trim().min(1, 'Vui lòng nhập tên API key.').max(100, 'Tên API key tối đa 100 ký tự.');
   static readonly key = z.string().trim().min(10, 'API key không hợp lệ.').max(512, 'API key không hợp lệ.');
+  static readonly provider = z.enum(['gemini', 'openrouter'], { message: 'Vui lòng chọn nhà cung cấp AI.' });
   // Upstream row: unknown fields are stripped by the schema (non-strict object)
   static readonly item = z.object({
     id: z.string(),
     name: z.string(),
+    provider: z.enum(['gemini', 'openrouter']),
     status: z.enum(['active', 'disabled', 'invalid']),
     cooldownUntil: z.string().nullable(),
     lastUsedAt: z.string().nullable(),
@@ -16,7 +18,7 @@ export default class LlmKeyValidation {
     createdAt: z.string()
   });
   static readonly list = z.object({ items: z.array(LlmKeyValidation.item) });
-  static readonly createBody = z.object({ name: LlmKeyValidation.name, key: LlmKeyValidation.key }).strict();
+  static readonly createBody = z.object({ name: LlmKeyValidation.name, key: LlmKeyValidation.key, provider: LlmKeyValidation.provider }).strict();
   static readonly updateBody = z.object({
     name: LlmKeyValidation.name.optional(),
     status: z.enum(['active', 'disabled']).optional(),
