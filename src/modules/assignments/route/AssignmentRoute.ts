@@ -20,6 +20,8 @@ export default class AssignmentRoute {
     assignmentRouter.get('/overview', validateRequest(AssignmentValidation.overviewSchema), ...lecturerOnly, wrap(AssignmentController.getOverview));
     // Registered before '/:id' so "sheet-music" is not read as an assignment id.
     assignmentRouter.get('/sheet-music', validateRequest(AssignmentValidation.sheetMusicSchema), ...lecturerOnly, wrap(AssignmentController.listClassSheetMusic));
+    // Registered before '/:id' so "sheet-groups" is not read as an assignment id.
+    assignmentRouter.get('/sheet-groups/:sheetMusicId', validateRequest(AssignmentValidation.sheetGroupSchema), ...lecturerOnly, wrap(AssignmentController.getSheetGroup));
     assignmentRouter.get('/:id', validateRequest(AssignmentValidation.idSchema), ...lecturerOnly, wrap(AssignmentController.getAssignment));
     assignmentRouter.get(
       '/:id/students/:studentId/submissions',

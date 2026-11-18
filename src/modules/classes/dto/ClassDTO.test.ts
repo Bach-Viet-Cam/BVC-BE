@@ -33,6 +33,8 @@ function buildAssignment(id: string, kind: Backend.AssignmentKind, status: Backe
   return {
     id,
     classId: 'c1',
+    minAccuracy: null,
+    createdBy: null,
     status,
     deletedAt: null,
     publishedAt: null,
