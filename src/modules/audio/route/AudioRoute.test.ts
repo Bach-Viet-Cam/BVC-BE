@@ -8,16 +8,13 @@ import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import EnvConfig from '../../../config/EnvConfig.ts';
 import AudioRepository from '../repository/AudioRepository.ts';
-import AppError from '../../../utils/AppError.ts';
 import AuthService from '../../auth/service/AuthService.ts';
 import RhythmPublisherService from '../service/RhythmPublisherService.ts';
-import RhythmClientService from '../service/RhythmClientService.ts';
 import { createApp } from '../../../app.ts';
 
 interface Upload { id: string; url: string; ownerId: string; provider: string; key: string; deletingAt: null; }
-interface Evaluation { evaluationId: string; ownerId: string; publicationState: string; }
 
-test('HTTP: upload ngay, chỉ gửi URL khi so sánh, static root tùy chỉnh và quyền sở hữu', async () => {
+test('HTTP: upload audio, static root tùy chỉnh và API demo so sánh không được expose', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'bvc-http-test-'));
   const originalRoot = EnvConfig.fileStorageLocalRoot;
   const originalOrigin = EnvConfig.fileStoragePublicBaseUrl;
@@ -25,29 +22,13 @@ test('HTTP: upload ngay, chỉ gửi URL khi so sánh, static root tùy chỉnh 
   Object.defineProperty(EnvConfig, 'fileStoragePublicBaseUrl', { value: 'https://be.example.com' });
   mock.method(VerifiedContentService, 'isProtectedKey', async () => false);
   const uploads: Upload[] = [];
-  const evaluations: Evaluation[] = [];
   const jobs: Audio.Job[] = [];
-  let completed = false;
   mock.method(AuthService, 'verifyAccessToken', ((token: string) => ({ userId: token === 'other' ? 'other' : 'owner' })) as never);
   mock.method(AuthService, 'getAuthenticatedUser', (async (userId: string) => ({ userId, username: userId, role: 1, email: 'test@example.com' })) as never);
   mock.method(AudioRepository.prototype, 'createUpload', async (data: Parameters<AudioRepository['createUpload']>[0]) => {
     const upload = { ...data, id: randomUUID(), deletingAt: null }; uploads.push(upload); return upload;
   });
-  mock.method(AudioRepository.prototype, 'createRequest', async (ownerId: string, input: Audio.EvaluationInput, job: Audio.Job, provider: string) => {
-    const owned = uploads.filter((upload) => upload.ownerId === ownerId && upload.provider === provider);
-    if (!owned.some((upload) => upload.url === input.templateUrl) || !owned.some((upload) => upload.url === input.studentUrl)) {
-      throw AppError.badRequest('URL không thuộc người dùng.');
-    }
-    evaluations.push({ evaluationId: job.evaluationId, ownerId, publicationState: 'publishing' });
-  });
-  mock.method(AudioRepository.prototype, 'updatePublication', async (evaluationId: string, publicationState: Audio.PublicationState) => {
-    Object.assign(evaluations.find((record) => record.evaluationId === evaluationId)!, { publicationState });
-  });
-  mock.method(AudioRepository.prototype, 'findRequest', async (ownerId: string, evaluationId: string) => evaluations.find((record) => record.ownerId === ownerId && record.evaluationId === evaluationId) || null);
   mock.method(RhythmPublisherService.instance, 'publish', async (job: Audio.Job) => { jobs.push(job); return 'published'; });
-  mock.method(RhythmClientService.prototype, 'get', async (evaluationId: string) => completed ? {
-    evaluationId, status: 'completed', result: { overallScore: 85, pitchAccuracyPercent: 80, rhythmAccuracyPercent: 92.5, aiFeedback: 'Giữ nhịp tốt.' }, error: null
-  } : null);
   const server = createApp().listen(0, '127.0.0.1');
   await new Promise<void>((resolve) => server.once('listening', resolve));
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -66,21 +47,13 @@ test('HTTP: upload ngay, chỉ gửi URL khi so sánh, static root tùy chỉnh 
     assert.equal(jobs.length, 0);
     const playback = await fetch(base + new URL(template.url).pathname);
     assert.equal(playback.status, 200); assert.equal(await playback.text(), 'RIFF0000WAVE');
-    const compare = async (token = 'owner', templateUrl = template.url) => fetch(`${base}/api/v1/audio-evaluations`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ templateUrl, studentUrl: student.url })
+    // API demo so sánh templateUrl/studentUrl không còn được expose.
+    const compare = await fetch(`${base}/api/v1/audio-evaluations`, {
+      method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ templateUrl: template.url, studentUrl: student.url })
     });
-    assert.equal((await compare('other')).status, 400);
-    assert.equal((await compare('owner', 'https://untrusted.example.com/audio.wav')).status, 400);
-    const response = await compare(); assert.equal(response.status, 202);
-    const record = (await response.json() as { data: Audio.EvaluationResponse }).data;
-    assert.equal(jobs.length, 1); assert.equal(jobs[0].instrumentId, 'dan_bau');
-    assert.equal(jobs[0].templateUrl, template.url); assert.equal(uploads.length, 2);
-    const statusUrl = `${base}/api/v1/audio-evaluations/${record.evaluationId}`;
-    assert.equal((await (await fetch(statusUrl, { headers })).json() as { data: Audio.EvaluationResponse }).data.status, 'queued');
-    assert.equal((await fetch(statusUrl, { headers: { Authorization: 'Bearer other' } })).status, 404);
-    completed = true;
-    const result = (await (await fetch(statusUrl, { headers })).json() as { data: Audio.EvaluationResponse }).data;
-    assert.equal(result.status, 'completed'); assert.equal(result.result?.overallScore, 85);
+    assert.equal(compare.status, 404);
+    assert.equal((await fetch(`${base}/api/v1/audio-evaluations/${randomUUID()}`, { headers })).status, 404);
+    assert.equal(jobs.length, 0); assert.equal(uploads.length, 2);
     assert.equal((await readdir(path.join(directory, 'audio'))).length, 2);
   } finally {
     server.closeAllConnections();
