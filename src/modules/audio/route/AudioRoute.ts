@@ -17,7 +17,9 @@ export default class AudioRoute {
     const validation = new AudioValidation();
     const auth = AsyncHandler.wrap(requireAuthenticatedUser);
     router.post('/audio-uploads', auth, AsyncHandler.wrap(uploadAudio()), validateRequest(validation.uploadSchema), AsyncHandler.wrap(controller.upload));
-    router.post('/audio-evaluations', auth, validateRequest(validation.createSchema), AsyncHandler.wrap(controller.create));
-    router.get('/audio-evaluations/:evaluationId', auth, validateRequest(validation.statusSchema), AsyncHandler.wrap(controller.get));
+    // API so sánh trực tiếp templateUrl/studentUrl chỉ dùng để demo, không thuộc SRS nên không expose.
+    // Bỏ comment hai dòng dưới khi cần chạy lại bản demo.
+    // router.post('/audio-evaluations', auth, validateRequest(validation.createSchema), AsyncHandler.wrap(controller.create));
+    // router.get('/audio-evaluations/:evaluationId', auth, validateRequest(validation.statusSchema), AsyncHandler.wrap(controller.get));
   }
 }
