@@ -5,13 +5,19 @@ import path from 'node:path';
 import os from 'node:os';
 import AudioFilePolicyService from './AudioFilePolicyService.ts';
 
+// GBR-10 limits normally come from System Configuration; the unit tests use fixed ones and a fixed duration
+const TEST_RULES = { extensions: ['mp3', 'wav', 'm4a'], formatLabel: 'MP3, WAV, M4A', maxMb: 25, maxBytes: 25 * 1024 * 1024 };
+const testPolicy = (overrides: ConstructorParameters<typeof AudioFilePolicyService>[0] = {}) => new AudioFilePolicyService({
+  getFileRules: async () => TEST_RULES, readDurationSec: async () => 5, assertDuration: async () => undefined, ...overrides
+});
+
 test('Kiểm tra nội dung file thay vì tin extension và MIME', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'bvc-policy-test-'));
   try {
     const source = path.join(directory, 'input');
     await writeFile(source, 'RIFF0000WAVE');
     const file = { path: source, originalname: 'teacher.wav', mimetype: 'audio/wav', size: 12 } as Express.Multer.File;
-    const policy = new AudioFilePolicyService();
+    const policy = testPolicy();
     assert.equal(await policy.validate(file), 'audio/wav');
     await assert.rejects(policy.validate({ ...file, originalname: 'teacher.mp3', mimetype: 'audio/mpeg' }));
     await writeFile(source, 'not an audio');

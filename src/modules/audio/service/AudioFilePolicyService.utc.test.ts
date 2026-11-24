@@ -6,14 +6,21 @@ import os from 'node:os';
 import AppError from '../../../utils/AppError.ts';
 import AudioFilePolicyService from './AudioFilePolicyService.ts';
 
-const FORMAT_MESSAGE = 'File phải là WAV hoặc MP3 với nội dung và định dạng audio phù hợp.';
-const SIZE_MESSAGE = 'File phải có dữ liệu và không vượt quá 25 MiB.';
+// GBR-10 limits normally come from System Configuration; the unit tests use fixed ones and a fixed duration
+const TEST_RULES = { extensions: ['mp3', 'wav', 'm4a'], formatLabel: 'MP3, WAV, M4A', maxMb: 25, maxBytes: 25 * 1024 * 1024 };
+const testPolicy = (overrides: ConstructorParameters<typeof AudioFilePolicyService>[0] = {}) => new AudioFilePolicyService({
+  getFileRules: async () => TEST_RULES, readDurationSec: async () => 5, assertDuration: async () => undefined, ...overrides
+});
+
+const FORMAT_MESSAGE = 'Định dạng file không được hỗ trợ. Vui lòng chọn file có định dạng MP3, WAV, M4A.';
+const EMPTY_MESSAGE = 'File phải có dữ liệu và không vượt quá 25 MB.';
+const SIZE_MESSAGE = 'File vượt quá dung lượng tối đa 25 MB.';
 const MAX = 25 * 1024 * 1024;
 
 describe('AudioFilePolicyService.validate (UTC-AD)', () => {
   let directory: string;
   let source: string;
-  const policy = new AudioFilePolicyService();
+  const policy = testPolicy();
   const make = (overrides: Partial<Express.Multer.File> = {}): Express.Multer.File =>
     ({ path: source, originalname: 'teacher.wav', mimetype: 'audio/wav', size: 12, ...overrides } as Express.Multer.File);
   const expectBadRequest = (message: string) => (error: unknown) =>
@@ -39,13 +46,13 @@ describe('AudioFilePolicyService.validate (UTC-AD)', () => {
   });
   it('UTC-AD-005 rejects size 0', async () => {
     await writeFile(source, 'RIFF0000WAVE');
-    await assert.rejects(policy.validate(make({ size: 0 })), expectBadRequest(SIZE_MESSAGE));
+    await assert.rejects(policy.validate(make({ size: 0 })), expectBadRequest(EMPTY_MESSAGE));
   });
-  it('UTC-AD-006 rejects size 25 MiB + 1', async () => {
+  it('UTC-AD-006 rejects size over the configured limit (MSG-14)', async () => {
     await writeFile(source, 'RIFF0000WAVE');
     await assert.rejects(policy.validate(make({ size: MAX + 1 })), expectBadRequest(SIZE_MESSAGE));
   });
-  it('UTC-AD-007 accepts size exactly 25 MiB', async () => {
+  it('UTC-AD-007 accepts size exactly the configured limit', async () => {
     await writeFile(source, 'RIFF0000WAVE');
     assert.equal(await policy.validate(make({ size: MAX })), 'audio/wav');
   });
@@ -75,7 +82,7 @@ describe('AudioFilePolicyService.validate (UTC-AD)', () => {
     await writeFile(source, Buffer.from([0xff, 0xfb, 0x90, 0x64]));
     assert.equal(await policy.validate(make({ originalname: 'a.mp3', mimetype: 'audio/x-mp3', size: 4 })), 'audio/mpeg');
   });
-  it('UTC-AD-054 rejects extension outside wav/mp3 (.ogg) even with valid WAV content', async () => {
+  it('UTC-AD-054 rejects extension outside the configured formats (.ogg) even with valid WAV content', async () => {
     await writeFile(source, 'RIFF0000WAVE');
     await assert.rejects(policy.validate(make({ originalname: 'a.ogg' })), expectBadRequest(FORMAT_MESSAGE));
   });
@@ -101,5 +108,45 @@ describe('AudioFilePolicyService.validate (UTC-AD)', () => {
   });
   it('UTC-AD-060 rejects when the temp file does not exist (ENOENT)', async () => {
     await assert.rejects(policy.validate(make({ path: path.join(directory, 'missing-file') })), (error: NodeJS.ErrnoException) => error.code === 'ENOENT');
+  });
+});
+
+describe('AudioFilePolicyService.validate: System Configuration limits (GBR-10)', () => {
+  let directory: string;
+  let source: string;
+  const wav = (overrides: Partial<Express.Multer.File> = {}): Express.Multer.File =>
+    ({ path: source, originalname: 'ban-thu.wav', mimetype: 'audio/wav', size: 12, ...overrides } as Express.Multer.File);
+
+  before(async () => { directory = await mkdtemp(path.join(os.tmpdir(), 'bvc-utc-limits-')); source = path.join(directory, 'input'); });
+  after(async () => { await rm(directory, { recursive: true, force: true }); });
+
+  it('UTC-AD-070 size limit and messages follow the configured MB value', async () => {
+    await writeFile(source, 'RIFF0000WAVE');
+    const policy = testPolicy({ getFileRules: async () => ({ ...TEST_RULES, maxMb: 2, maxBytes: 2 * 1024 * 1024 }) });
+    await assert.rejects(policy.validate(wav({ size: 2 * 1024 * 1024 + 1 })), (error: unknown) =>
+      error instanceof AppError && error.message === 'File vượt quá dung lượng tối đa 2 MB.' && error.code === 'MSG-14');
+    await assert.rejects(policy.validate(wav({ size: 0 })), (error: unknown) =>
+      error instanceof AppError && error.message === 'File phải có dữ liệu và không vượt quá 2 MB.');
+  });
+  it('UTC-AD-071 duration outside the configured range is rejected with the range check error', async () => {
+    await writeFile(source, 'RIFF0000WAVE');
+    const outOfRange = AppError.withMessage(400, 'MSG-15', { min: '0:02', max: '0:08' }, 'file');
+    const policy = testPolicy({ readDurationSec: async () => 9, assertDuration: async (seconds) => { if (seconds > 8) throw outOfRange; } });
+    await assert.rejects(policy.validate(wav()), (error: unknown) => error === outOfRange);
+  });
+  it('UTC-AD-072 a duration that cannot be read gives MSG-13', async () => {
+    await writeFile(source, 'RIFF0000WAVE');
+    const policy = testPolicy({ readDurationSec: async () => { throw new Error('bad header'); } });
+    await assert.rejects(policy.validate(wav()), (error: unknown) => error instanceof AppError && error.code === 'MSG-13');
+  });
+  it('UTC-AD-073 accepts M4A content (ftyp box) with .m4a and audio/mp4', async () => {
+    await writeFile(source, Buffer.from('\0\0\0\x20ftypM4A \0\0\0\0', 'latin1'));
+    assert.equal(await testPolicy().validate(wav({ originalname: 'thu.m4a', mimetype: 'audio/x-m4a', size: 16 })), 'audio/mp4');
+  });
+  it('UTC-AD-074 a format removed from the configured list is rejected', async () => {
+    await writeFile(source, 'RIFF0000WAVE');
+    const policy = testPolicy({ getFileRules: async () => ({ ...TEST_RULES, extensions: ['mp3'], formatLabel: 'MP3' }) });
+    await assert.rejects(policy.validate(wav()), (error: unknown) =>
+      error instanceof AppError && error.message === 'Định dạng file không được hỗ trợ. Vui lòng chọn file có định dạng MP3.');
   });
 });

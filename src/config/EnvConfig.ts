@@ -18,6 +18,8 @@ export default class EnvConfig {
   static readonly rhythmServiceInternalApiKey = process.env.RHYTHM_SERVICE_INTERNAL_API_KEY?.trim() || '';
   // Shared secret the Rhythm service sends as X-Callback-Secret on its progress callback
   static readonly aiCallbackSecret = process.env.AI_CALLBACK_SECRET?.trim() || '';
+  // Signs the audio URLs the BE hands out (API responses, Rhythm jobs); falls back to JWT_SECRET when not set
+  static readonly fileUrlSigningSecret = process.env.FILE_URL_SIGNING_SECRET?.trim() || process.env.JWT_SECRET || '';
 
   static readonly port: number = Number.isInteger(parsedPort) && parsedPort > 0 ? parsedPort : 3000;
   static readonly appOrigin: string = process.env.APP_ORIGIN || '*';

@@ -10,6 +10,10 @@ import EnvConfig from '../../../config/EnvConfig.ts';
 import AudioRepository from '../repository/AudioRepository.ts';
 import AuthService from '../../auth/service/AuthService.ts';
 import RhythmPublisherService from '../service/RhythmPublisherService.ts';
+import AudioFilePolicyService from '../service/AudioFilePolicyService.ts';
+import CatalogService from '../../music-library/service/CatalogService.ts';
+import MediaInspectionService from '../../music-library/service/MediaInspectionService.ts';
+import AudioAccessRepository from '../../storage/repository/AudioAccessRepository.ts';
 import { createApp } from '../../../app.ts';
 
 interface Upload { id: string; url: string; ownerId: string; provider: string; key: string; deletingAt: null; }
@@ -28,6 +32,10 @@ test('HTTP: upload audio, static root tùy chỉnh và API demo so sánh không 
   mock.method(AudioRepository.prototype, 'createUpload', async (data: Parameters<AudioRepository['createUpload']>[0]) => {
     const upload = { ...data, id: randomUUID(), deletingAt: null }; uploads.push(upload); return upload;
   });
+  // GBR-10 limits come from System Configuration; this HTTP test has no database, so they are fixed here
+  mock.method(CatalogService, 'getFileRules', async () => ({ extensions: ['mp3', 'wav', 'm4a'], formatLabel: 'MP3, WAV, M4A', maxMb: 25, maxBytes: 25 * 1024 * 1024 }));
+  mock.method(AudioFilePolicyService, 'readDuration', async () => 5);
+  mock.method(MediaInspectionService, 'assertAudioDuration', async () => undefined);
   mock.method(RhythmPublisherService.instance, 'publish', async (job: Audio.Job) => { jobs.push(job); return 'published'; });
   const server = createApp().listen(0, '127.0.0.1');
   await new Promise<void>((resolve) => server.once('listening', resolve));
@@ -45,8 +53,13 @@ test('HTTP: upload audio, static root tùy chỉnh và API demo so sánh không 
     const second = await upload(); assert.equal(second.status, 201);
     const student = (await second.json() as { data: { url: string } }).data;
     assert.equal(jobs.length, 0);
-    const playback = await fetch(base + new URL(template.url).pathname);
+    // AD-010: the recording opens only for its owner (or a lecturer of its class / an admin)
+    const filePath = base + new URL(template.url).pathname;
+    mock.method(AudioAccessRepository, 'findUpload', async (key: string) => uploads.some((upload) => upload.key === key) ? { ownerId: 'owner', lecturerIds: [] } : null);
+    const playback = await fetch(filePath, { headers });
     assert.equal(playback.status, 200); assert.equal(await playback.text(), 'RIFF0000WAVE');
+    assert.equal((await fetch(filePath, { headers: { Authorization: 'Bearer other' } })).status, 404);
+    assert.equal((await fetch(filePath)).status, 401);
     // API demo so sánh templateUrl/studentUrl không còn được expose.
     const compare = await fetch(`${base}/api/v1/audio-evaluations`, {
       method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({ templateUrl: template.url, studentUrl: student.url })

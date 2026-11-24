@@ -1,5 +1,6 @@
 import StorageService from '../../../lib/storage/StorageService.ts';
 import PrismaClientProvider from '../../../config/PrismaClient.ts';
+import PracticeSubmissionRepository from '../../practice/repository/PracticeSubmissionRepository.ts';
 import type { PieceAvailability } from '../service/EnsemblePolicyService.ts';
 
 export interface EnsembleTrackRecord {
@@ -67,27 +68,15 @@ export default class EnsembleRepository {
     });
   }
 
-  static async findPublishedAssignment(assignmentId: string): Promise<{
-    id: string;
-    classId: string;
-    status: 'DRAFT' | 'PUBLISHED' | 'CLOSED';
-    deadline: Date;
-    currentVersion: { kind: Backend.AssignmentKind } | null;
-    sheetMusic: { pieceId: string } | null;
-    targetBpm: number | null;
-  } | null> {
-    return EnsembleRepository.client.assignment.findFirst({
-      where: { id: assignmentId, isPublished: true },
-      select: {
-        id: true,
-        classId: true,
-        status: true,
-        deadline: true,
-        currentVersion: { select: { kind: true } },
-        sheetMusic: { select: { pieceId: true } },
-        targetBpm: true
-      }
-    });
+  // The student's classes with the published or closed assignments of this piece and the student's own submissions,
+  // the same data the practice submission uses to decide which assignment a send counts toward
+  static async findEnrollments(studentId: string, pieceId: string): Promise<Practice.ClassAssignments[]> {
+    return new PracticeSubmissionRepository(EnsembleRepository.client).findClassAssignments(studentId, pieceId);
+  }
+
+  static async findInstrumentName(instrumentId: string): Promise<string | null> {
+    const instrument = await EnsembleRepository.client.instrument.findUnique({ where: { id: instrumentId }, select: { name: true } });
+    return instrument?.name ?? null;
   }
 
   static async findReadyMainSheetId(pieceId: string, instrumentId: string): Promise<string | null> {

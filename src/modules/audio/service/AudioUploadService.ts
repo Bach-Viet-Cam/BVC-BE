@@ -10,16 +10,17 @@ export default class AudioUploadService {
   constructor(
     private readonly storage: FileStorageService,
     private readonly repository: AudioRepository = new AudioRepository(),
-    private readonly pitchTrimmer: Pick<AudioPitchTrimService, 'trimFile'> = new AudioPitchTrimService()
+    private readonly pitchTrimmer: Pick<AudioPitchTrimService, 'trimFile'> = new AudioPitchTrimService(),
+    private readonly policy: Pick<AudioFilePolicyService, 'validate'> = new AudioFilePolicyService()
   ) {}
 
   async upload(ownerId: string, file: Express.Multer.File | undefined, source: Audio.UploadSource = 'file'): Promise<{ fileId: string; url: string }> {
     let savedKey: string | undefined;
     try {
-      const contentType = await new AudioFilePolicyService().validate(file);
+      const contentType = await this.policy.validate(file);
       if (!file) throw new Error('Không tìm thấy file audio.');
       // File đã qua kiểm tra định dạng; cắt theo cao độ trước khi lưu (file tải lên: hai đầu, ghi âm trực tiếp: chỉ cuối; lỗi thì giữ bản gốc)
-      await this.pitchTrimmer.trimFile(file.path, contentType === 'audio/wav' ? 'wav' : 'mp3', AudioConstant.trimEdgesBySource[source]);
+      await this.pitchTrimmer.trimFile(file.path, AudioUploadService.trimExtension(contentType), AudioConstant.trimEdgesBySource[source]);
       const saved = await this.storage.save({ sourcePath: file.path, originalName: file.originalname, contentType, namespace: 'audio' });
       savedKey = saved.key;
       const record = await this.repository.createUpload({
@@ -34,5 +35,10 @@ export default class AudioUploadService {
         if (error.code !== 'ENOENT') console.error('Không thể dọn file audio tạm.');
       });
     }
+  }
+
+  private static trimExtension(contentType: string): string {
+    if (contentType === 'audio/wav') return 'wav';
+    return contentType === 'audio/mp4' ? 'm4a' : 'mp3';
   }
 }

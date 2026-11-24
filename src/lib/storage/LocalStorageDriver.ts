@@ -2,9 +2,10 @@ import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
 import EnvConfig from '../../config/EnvConfig.ts';
+import SignedFileUrlService from '../../modules/storage/service/SignedFileUrlService.ts';
 
 // Stores objects under FILE_STORAGE_LOCAL_ROOT; app.ts serves that folder statically at /uploads.
-// Read URLs are plain public URLs: anyone holding the URL can download the file.
+// Read URLs of audio files are signed with an expiry (SignedFileUrlService); other files are plain public URLs.
 export default class LocalStorageDriver implements Backend.StorageDriver {
   static readonly publicPath = '/uploads';
 
@@ -22,7 +23,7 @@ export default class LocalStorageDriver implements Backend.StorageDriver {
 
   createReadUrl(storageKey: string): string {
     const encodedKey = storageKey.split('/').map(encodeURIComponent).join('/');
-    return `${EnvConfig.fileStoragePublicBaseUrl}${LocalStorageDriver.publicPath}/${encodedKey}`;
+    return SignedFileUrlService.sign(`${EnvConfig.fileStoragePublicBaseUrl}${LocalStorageDriver.publicPath}/${encodedKey}`);
   }
 
   async statObject(storageKey: string): Promise<Backend.StoredObjectInfo | null> {
