@@ -415,6 +415,7 @@ File storage and audio analysis variables:
 - `FILE_STORAGE_PROVIDER`: only `local` is supported; files are written under `FILE_STORAGE_LOCAL_ROOT`
 - `FILE_STORAGE_LOCAL_ROOT`: folder for every uploaded file (default `uploads`), served statically at `/uploads`
 - `FILE_STORAGE_PUBLIC_BASE_URL`: origin of this API (no `/uploads` suffix); file and upload URLs are built from it
+- `FILE_URL_SIGNING_SECRET`: HMAC key for the signed `/uploads/audio` URLs (`?exp=&sig=`) the BE gives to players and the Rhythm service; empty means `JWT_SECRET` is used
 - `FFMPEG_PATH`: optional path to ffmpeg, used to trim the unpitched head/tail of uploaded audio (default `ffmpeg` on PATH); if ffmpeg fails the original file is stored
 - `RABBITMQ_URL`: broker for the Rhythm evaluation queue
 - `RHYTHM_SERVICE_BASE_URL`, `RHYTHM_SERVICE_INTERNAL_API_KEY`: Rhythm service API and its shared internal key

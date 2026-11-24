@@ -1,5 +1,6 @@
 import EnvConfig from '../../../config/EnvConfig.ts';
 import AudioConstant from '../../audio/constant/AudioConstant.ts';
+import SignedFileUrlService from '../../storage/service/SignedFileUrlService.ts';
 
 interface JobIds { evaluationId: string; messageId: string; attempt: number; }
 
@@ -14,7 +15,8 @@ export default class EvaluationJobBuilderService {
     return {
       evaluationId: ids.evaluationId, messageId: ids.messageId, attempt: ids.attempt,
       templateUrl: await this.createReadUrl(sheet.referenceAudio?.storageKey ?? ''),
-      studentUrl, instrumentId: AudioConstant.rhythmInstruments[sheet.instrument.code] ?? sheet.instrument.code,
+      // The student recording is private; Rhythm downloads it through a signed URL (AD-010)
+      studentUrl: SignedFileUrlService.sign(studentUrl), instrumentId: AudioConstant.rhythmInstruments[sheet.instrument.code] ?? sheet.instrument.code,
       // Rhythm chấm theo đúng thông số nhạc cụ của sheet được nộp, lấy từ bảng Instrument
       instrument: {
         name: sheet.instrument.name, fminHz: sheet.instrument.fminHz, fmaxHz: sheet.instrument.fmaxHz, toleranceCents: sheet.instrument.toleranceCents,

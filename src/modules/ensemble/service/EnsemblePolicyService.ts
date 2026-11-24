@@ -21,15 +21,9 @@ export default class EnsemblePolicyService {
     return input.assignmentBpm ?? input.pieceBpm;
   }
 
-  static isCountedAssignment(input: {
-    kind: Backend.AssignmentKind | null | undefined;
-    status: 'DRAFT' | 'PUBLISHED' | 'CLOSED' | string;
-    deadline: Date;
-    now?: number;
-  }): boolean {
-    const now = input.now ?? Date.now();
-    return input.kind === 'ENSEMBLE'
-      && input.status === 'PUBLISHED'
-      && input.deadline.getTime() >= now;
+  // GBR-25: an ensemble take counts only toward an ENSEMBLE assignment that is OPEN, the state the practice submission
+  // uses (class active, assignment published, before its deadline and with attempts left)
+  static isCountedAssignment(input: { kind: Backend.AssignmentKind | null | undefined; state: Practice.AssignmentState }): boolean {
+    return input.kind === 'ENSEMBLE' && input.state === 'OPEN';
   }
 }

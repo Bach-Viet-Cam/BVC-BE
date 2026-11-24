@@ -10,10 +10,10 @@ export default class VerifiedAudioService {
     try { url = new URL(fileUrl, base); } catch { throw AppError.notFound('Bản thu cũ không khả dụng.'); }
     if (url.origin !== base.origin || url.search || url.hash || url.username || url.password) throw AppError.notFound('Bản thu cũ không khả dụng.');
     const key = url.pathname.replace(/^\/uploads\//, '');
-    return { path: await VerifiedAudioService.resolve(key, 'local'), contentType: key.endsWith('.mp3') ? 'audio/mpeg' : 'audio/wav' };
+    return { path: await VerifiedAudioService.resolve(key, 'local'), contentType: key.endsWith('.mp3') ? 'audio/mpeg' : key.endsWith('.m4a') ? 'audio/mp4' : 'audio/wav' };
   }
   static async resolve(key: string, provider: string): Promise<string> {
-    if (provider !== 'local' || !/^audio\/[0-9a-f-]{36}\.(wav|mp3)$/.test(key)) throw AppError.notFound('Bản thu không khả dụng.');
+    if (provider !== 'local' || !/^audio\/[0-9a-f-]{36}\.(wav|mp3|m4a)$/.test(key)) throw AppError.notFound('Bản thu không khả dụng.');
     const root = await realpath(EnvConfig.fileStorageLocalRoot);
     const candidate = path.resolve(root, key);
     try {
