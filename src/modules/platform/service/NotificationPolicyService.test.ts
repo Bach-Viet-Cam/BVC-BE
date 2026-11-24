@@ -1,49 +1,75 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { test } from 'node:test';
 import NotificationPolicyService from './NotificationPolicyService.ts';
 
-describe('NotificationPolicyService.resolveOutcome', () => {
-  const now = new Date('2026-10-16T05:00:00Z');
-  const future = new Date('2026-10-16T06:00:00Z');
-  const past = new Date('2026-10-16T04:00:00Z');
+const NOW = new Date('2026-11-17T00:00:00.000Z');
+const PAST = new Date('2026-11-16T10:00:00.000Z');
+const FUTURE = new Date('2026-11-17T06:00:00.000Z');
+const PAST_ERROR = 'Thời điểm hẹn giờ phải ở tương lai.';
 
-  it('lưu nháp luôn là DRAFT và giữ nguyên scheduledAt, kể cả quá khứ', () => {
-    assert.deepEqual(NotificationPolicyService.resolveOutcome({ action: 'draft', scheduledAt: past, now }), { outcome: 'DRAFT', scheduledAt: past });
-  });
-  it('gửi không hẹn giờ → gửi ngay', () => {
-    assert.deepEqual(NotificationPolicyService.resolveOutcome({ action: 'send', scheduledAt: null, now }), { outcome: 'SEND_NOW', scheduledAt: null });
-  });
-  it('gửi có hẹn giờ ở tương lai → SCHEDULED', () => {
-    assert.deepEqual(NotificationPolicyService.resolveOutcome({ action: 'send', scheduledAt: future, now }), { outcome: 'SCHEDULED', scheduledAt: future });
-  });
-  it('hẹn giờ ở quá khứ → lỗi (Review Focus 1)', () => {
-    const result = NotificationPolicyService.resolveOutcome({ action: 'send', scheduledAt: past, now });
-    assert.ok(result.error?.includes('tương lai'));
-  });
-  it('hẹn giờ đúng bằng hiện tại → lỗi', () => {
-    assert.ok(NotificationPolicyService.resolveOutcome({ action: 'send', scheduledAt: now, now }).error);
-  });
-  it('ngày không hợp lệ → lỗi', () => {
-    assert.ok(NotificationPolicyService.resolveOutcome({ action: 'send', scheduledAt: new Date('khong-hop-le'), now }).error);
+test('UTC-NPP-001 - send without schedule sends now', () => {
+  assert.deepEqual(NotificationPolicyService.resolveOutcome({ action: 'send', scheduledAt: null, now: NOW }), {
+    outcome: 'SEND_NOW',
+    scheduledAt: null
   });
 });
 
-describe('NotificationPolicyService.canModify', () => {
-  it('nháp và hẹn giờ còn sửa/xóa được', () => {
-    assert.equal(NotificationPolicyService.canModify('DRAFT'), true);
-    assert.equal(NotificationPolicyService.canModify('SCHEDULED'), true);
-  });
-  it('đã gửi thì bất biến', () => {
-    assert.equal(NotificationPolicyService.canModify('SENT'), false);
+test('UTC-NPP-002 - send with past schedule becomes draft', () => {
+  // R1: sai giờ UTC+7
+  assert.deepEqual(NotificationPolicyService.resolveOutcome({ action: 'send', scheduledAt: PAST, now: NOW }), {
+    outcome: 'DRAFT',
+    scheduledAt: null,
+    error: PAST_ERROR
   });
 });
 
-describe('NotificationPolicyService.recipientRoles', () => {
-  it('ALL → null (mọi vai trò)', () => {
-    assert.equal(NotificationPolicyService.recipientRoles('ALL'), null);
+test('UTC-NPP-003 - draft keeps past schedule', () => {
+  assert.deepEqual(NotificationPolicyService.resolveOutcome({ action: 'draft', scheduledAt: PAST, now: NOW }), {
+    outcome: 'DRAFT',
+    scheduledAt: PAST
   });
-  it('STUDENT → [1], TEACHER → [2]', () => {
-    assert.deepEqual(NotificationPolicyService.recipientRoles('STUDENT'), [1]);
-    assert.deepEqual(NotificationPolicyService.recipientRoles('TEACHER'), [2]);
+});
+
+test('UTC-NPP-004 - send with future schedule is scheduled', () => {
+  assert.deepEqual(NotificationPolicyService.resolveOutcome({ action: 'send', scheduledAt: FUTURE, now: NOW }), {
+    outcome: 'SCHEDULED',
+    scheduledAt: FUTURE
   });
+});
+
+test('UTC-NPP-005 - schedule equal to now is rejected', () => {
+  assert.deepEqual(NotificationPolicyService.resolveOutcome({ action: 'send', scheduledAt: NOW, now: NOW }), {
+    outcome: 'DRAFT',
+    scheduledAt: null,
+    error: PAST_ERROR
+  });
+});
+
+test('UTC-NPP-006 - invalid date is rejected', () => {
+  // R1: expected để trống error
+  assert.deepEqual(
+    NotificationPolicyService.resolveOutcome({ action: 'send', scheduledAt: new Date('khong-hop-le'), now: NOW }),
+    {
+      outcome: 'DRAFT',
+      scheduledAt: null,
+      error: PAST_ERROR
+    }
+  );
+});
+
+test('UTC-NPP-007 - draft notification is modifiable', () => {
+  assert.equal(NotificationPolicyService.canModify('DRAFT'), true);
+});
+
+test('UTC-NPP-008 - sent notification is immutable', () => {
+  assert.equal(NotificationPolicyService.canModify('SENT'), false);
+});
+
+test('UTC-NPP-009 - ALL target has no role filter', () => {
+  assert.equal(NotificationPolicyService.recipientRoles('ALL'), null);
+});
+
+test('UTC-NPP-010 - STUDENT target maps to role 1', () => {
+  // R1: ghi [2] ở lần 1
+  assert.deepEqual(NotificationPolicyService.recipientRoles('STUDENT'), [1]);
 });

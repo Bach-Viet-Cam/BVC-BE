@@ -42,6 +42,16 @@ export default class SubmissionRepository {
     return new Map(rows.flatMap((row) => (row.assignmentId ? [[row.assignmentId, row._count._all] as [string, number]] : [])));
   }
 
+  // Every counted practice (one row per submission), for the practice statistics.
+  static async findCountedPractices(assignmentIds: string[]): Promise<Backend.CountedPractice[]> {
+    if (assignmentIds.length === 0) return [];
+    const rows = await SubmissionRepository.client.submission.findMany({
+      where: { assignmentId: { in: assignmentIds }, status: { notIn: [...AssignmentConstant.uncountedSubmissionStatuses] } },
+      select: { assignmentId: true, studentId: true, createdAt: true }
+    });
+    return rows.flatMap((row) => (row.assignmentId ? [{ assignmentId: row.assignmentId, studentId: row.studentId, createdAt: row.createdAt }] : []));
+  }
+
   static async findSnapshotsByStudent(assignmentId: string): Promise<Map<string, Backend.SubmissionSnapshot[]>> {
     const rows = await SubmissionRepository.client.submission.findMany({
       where: { assignmentId },
