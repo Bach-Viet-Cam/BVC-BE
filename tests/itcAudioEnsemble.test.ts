@@ -291,12 +291,13 @@ describe('Virtual ensemble (GET /api/v1/pieces/:pieceId/ensemble-tracks)', () =>
   it('ITC-AD-005 tracks without and with an ensemble assignment', async () => {
     const free = await tracks(world.p1, world.sv1);
     expect(free.status).toBe(200);
-    expect.soft(names(free.body), 'step 2: own part not returned (GBR-07)').toEqual(['Sáo trúc', 'Đàn bầu'].sort());
+    // Round 1 decision: the API returns every part (the player mutes the student's own part while recording).
+    expect.soft(names(free.body), 'step 2: every part is returned').toEqual(['Sáo trúc', 'Đàn bầu', 'Đàn tranh'].sort());
     expect.soft([free.body.data.targetBpm, free.body.data.isAssignmentCounted], 'step 2').toEqual([80, false]);
     expect.soft(free.body.data.mySheetMusicId, 'step 2').toBe(world.s1);
     const assigned = await tracks(world.p1, world.sv1, world.ae);
     expect.soft(assigned.status, 'step 3').toBe(200);
-    expect.soft(names(assigned.body), 'step 3').toEqual(['Sáo trúc', 'Đàn bầu'].sort());
+    expect.soft(names(assigned.body), 'step 3').toEqual(['Sáo trúc', 'Đàn bầu', 'Đàn tranh'].sort());
     expect.soft([assigned.body.data.targetBpm, assigned.body.data.isAssignmentCounted], 'step 3').toEqual([72, true]);
   });
 
@@ -308,7 +309,8 @@ describe('Virtual ensemble (GET /api/v1/pieces/:pieceId/ensemble-tracks)', () =>
     const none = await tracks(world.p3, world.sv1);
     expect.soft([none.status, none.body.message], 'step 4').toEqual([404, NO_TRACKS]);
     const ownOnly = await tracks(world.p5, world.sv1);
-    expect.soft([ownOnly.status, ownOnly.body.message], 'step 5 (MSG-38)').toEqual([404, NO_TRACKS]);
+    // Round 1 decision: a piece whose only track is the student's own part still opens with that track.
+    expect.soft([ownOnly.status, names(ownOnly.body)], 'step 5').toEqual([200, ['Đàn tranh']]);
     const lecturer = await tracks(world.p1, world.gvA);
     expect.soft([lecturer.status, lecturer.body.message], 'step 6').toEqual([403, FORBIDDEN]);
   });
@@ -348,7 +350,7 @@ describe('Virtual ensemble (GET /api/v1/pieces/:pieceId/ensemble-tracks)', () =>
     expect(response.status).toBe(200);
     expect.soft(response.body.data.mySheetMusicId).toBeNull();
     expect.soft(response.body.data.myInstrumentName).toBe('Sáo trúc');
-    expect.soft(names(response.body), 'no Sáo trúc track (GBR-07)').toEqual(['Đàn bầu', 'Đàn tranh'].sort());
+    expect.soft(names(response.body), 'every part is returned').toEqual(['Sáo trúc', 'Đàn bầu', 'Đàn tranh'].sort());
     for (const track of response.body.data.tracks) {
       expect.soft(Object.keys(track).sort()).toEqual(['defaultVolume', 'durationSec', 'fileUrl', 'id', 'instrumentId', 'instrumentName', 'offsetMs']);
     }
@@ -544,7 +546,8 @@ describe('Flows with the real Rhythm service', () => {
       expect.soft(fourth.status, 'step 4').toBe(409);
       const final = await request(app).get(`${api}/practice/submissions/${id}`).set(auth(world.sv1));
       expect.soft(final.body.data?.status, 'step 5').toBe('FAILED');
-      expect.soft(final.body.data?.errorMessage, 'step 5 (MSG-52)').toBe('Bạn đã dùng hết 3 lần thử lại. Hãy tải file về và nộp lại sau.');
+      // Round 1 decision: after the last retry the student sees the error of that attempt.
+      expect.soft(final.body.data?.errorMessage, 'step 5').toBe('Chưa thể tạo nhận xét AI. Vui lòng thử lại.');
       const row = await prisma.submission.findUniqueOrThrow({ where: { id } });
       expect.soft([row.status, row.retryCount], 'step 6').toEqual(['FAILED', 3]);
       const stored = await prisma.audioUpload.findUnique({ where: { id: uploadId } });
@@ -596,7 +599,7 @@ describe('Flows with the real Rhythm service', () => {
     const put = await request(app).put(`${api}/lecturer/sheet-music/${s4}/files/audio`).set(auth(world.gvA)).send({ fileId });
     expect(put.status).toBe(200);
     expect.soft((await status()).label, 'step 2').toBe('Đang chuẩn bị');
-    expect.soft(await practice(), 'step 3 (MSG-40)').toEqual({ isAvailable: false, reason: 'Tệp bản nhạc chưa sẵn sàng. Vui lòng quay lại sau.' });
+    expect.soft(await practice(), 'step 3').toEqual({ isAvailable: false, reason: 'Bản nhạc đang được chuẩn bị, vui lòng quay lại sau.' });
 
     await harness.startRhythm();
     await ItcHarness.waitFor(async () => (await status()).label !== 'Đang chuẩn bị', 180_000, 'analysis of S4', 2000);
