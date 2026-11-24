@@ -32,8 +32,15 @@ export function createApp(): Express {
   });
   app.use('/uploads', AsyncHandler.wrap(protectVerifiedAudio));
   new FileStorageRoute().register(app);
+  // Cho phép frontend nhúng file (PDF bản nhạc) bằng iframe; các route API khác vẫn giữ header chống clickjacking của helmet.
+  const frameAncestors = ["'self'", ...EnvConfig.corsOrigins.filter((origin) => origin !== '*')].join(' ');
   app.use('/uploads', (_request, response, next) => {
     response.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    response.removeHeader('X-Frame-Options');
+    response.setHeader(
+      'Content-Security-Policy',
+      `default-src 'self'; script-src 'none'; object-src 'self'; frame-ancestors ${frameAncestors}`
+    );
     next();
   }, express.static(EnvConfig.fileStorageLocalRoot, { dotfiles: 'deny' }));
   app.use('/api', ApiRoute.createRouter());
