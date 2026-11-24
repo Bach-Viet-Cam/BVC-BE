@@ -1,4 +1,4 @@
-import { protectVerifiedAudio } from './modules/community/middleware/VerifiedAudioMiddleware.ts';
+import { protectAudioFiles } from './modules/storage/middleware/AudioAccessMiddleware.ts';
 import AsyncHandler from './utils/AsyncHandler.ts';
 import FileStorageRoute from './modules/storage/route/FileStorageRoute.ts';
 import express from 'express';
@@ -30,7 +30,7 @@ export function createApp(): Express {
   app.get('/api/health', (_request, response) => {
     response.json({ status: 'OK', timestamp: new Date().toISOString() });
   });
-  app.use('/uploads', AsyncHandler.wrap(protectVerifiedAudio));
+  app.use('/uploads', AsyncHandler.wrap(protectAudioFiles));
   new FileStorageRoute().register(app);
   // Cho phép frontend nhúng file (PDF bản nhạc) bằng iframe; các route API khác vẫn giữ header chống clickjacking của helmet.
   const frameAncestors = ["'self'", ...EnvConfig.corsOrigins.filter((origin) => origin !== '*')].join(' ');

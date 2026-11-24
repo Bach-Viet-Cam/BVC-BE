@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import multer from 'multer';
 import type { RequestHandler } from 'express';
 import AppError from '../../../utils/AppError.ts';
+import CatalogService from '../../music-library/service/CatalogService.ts';
 import AudioConstant from '../constant/AudioConstant.ts';
 
 export function uploadAudio(): RequestHandler {
@@ -18,12 +19,16 @@ export function uploadAudio(): RequestHandler {
     };
     response.once('finish', cleanup);
     response.once('close', cleanup);
+    // GBR-10: the size limit is read from System Configuration on every upload
+    const rules = await CatalogService.getFileRules('AUDIO');
     multer({
       storage: multer.diskStorage({ destination: directory, filename: (_request, _file, callback) => callback(null, randomUUID()) }),
-      limits: { fileSize: AudioConstant.maxFileBytes, files: 1, fields: 1, parts: 2 }
+      limits: { fileSize: rules.maxBytes, files: 1, fields: 1, parts: 2 }
     }).single('file')(request, response, (error: unknown) => {
-      if (error) return next(AppError.badRequest(error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE'
-        ? 'File audio không được vượt quá 25 MiB.' : 'Không thể tải file lên. Vui lòng gửi đúng một file audio.'));
+      if (error instanceof multer.MulterError && error.code === 'LIMIT_FILE_SIZE') {
+        return next(AppError.withMessage(400, 'MSG-14', { max_size: rules.maxMb }, 'file'));
+      }
+      if (error) return next(AppError.badRequest('Không thể tải file lên. Vui lòng gửi đúng một file audio.'));
       return next();
     });
   };

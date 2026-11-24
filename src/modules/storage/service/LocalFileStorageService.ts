@@ -21,7 +21,7 @@ export default class LocalFileStorageService extends FileStorageService {
   }
 
   private resolveKey(key: string): string {
-    if (!/^audio\/[0-9a-f-]{36}\.(wav|mp3)$/.test(key)) throw new Error('Đường dẫn file không hợp lệ.');
+    if (!/^audio\/[0-9a-f-]{36}\.(wav|mp3|m4a)$/.test(key)) throw new Error('Đường dẫn file không hợp lệ.');
     const target = path.resolve(this.root, key);
     const relative = path.relative(this.root, target);
     if (relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('Đường dẫn file nằm ngoài storage.');
@@ -38,7 +38,7 @@ export default class LocalFileStorageService extends FileStorageService {
   async save(input: { sourcePath: string; originalName: string; contentType: string; namespace: string }): Promise<{ key: string; sizeBytes: number; contentType: string }> {
     if (input.namespace !== FileStorageConstant.namespace) throw new Error('Thư mục lưu file không được hỗ trợ.');
     const extension = path.extname(input.originalName).toLowerCase();
-    if (!['.wav', '.mp3'].includes(extension)) throw new Error('Định dạng file không được hỗ trợ.');
+    if (!['.wav', '.mp3', '.m4a'].includes(extension)) throw new Error('Định dạng file không được hỗ trợ.');
     await this.ensureDirectory();
     const key = `audio/${randomUUID()}${extension}`;
     const destination = this.resolveKey(key);

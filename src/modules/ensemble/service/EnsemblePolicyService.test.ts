@@ -39,29 +39,21 @@ describe('EnsemblePolicyService.canPracticePiece', () => {
   });
 });
 
-describe('EnsemblePolicyService.isCountedAssignment', () => {
-  const now = 1_000_000;
-  const future = new Date(now + 60_000);
-  const past = new Date(now - 60_000);
-
-  it('ENSEMBLE + PUBLISHED + còn hạn → true', () => {
-    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'ENSEMBLE', status: 'PUBLISHED', deadline: future, now }), true);
+describe('EnsemblePolicyService.isCountedAssignment (GBR-25)', () => {
+  it('bài tập hòa tấu đang mở → true', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'ENSEMBLE', state: 'OPEN' }), true);
   });
-
-  it('SOLO → false', () => {
-    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'SOLO', status: 'PUBLISHED', deadline: future, now }), false);
+  it('bài tập SOLO → false', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'SOLO', state: 'OPEN' }), false);
   });
-
-  it('CLOSED → false', () => {
-    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'ENSEMBLE', status: 'CLOSED', deadline: future, now }), false);
+  it('đã đóng, quá hạn hoặc lớp kết thúc → false', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'ENSEMBLE', state: 'ENDED' }), false);
   });
-
-  it('quá hạn → false', () => {
-    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'ENSEMBLE', status: 'PUBLISHED', deadline: past, now }), false);
+  it('hết lượt nộp → false', () => {
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: 'ENSEMBLE', state: 'EXHAUSTED' }), false);
   });
-
   it('kind null hoặc undefined → false', () => {
-    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: null, status: 'PUBLISHED', deadline: future, now }), false);
-    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: undefined, status: 'PUBLISHED', deadline: future, now }), false);
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: null, state: 'OPEN' }), false);
+    assert.equal(EnsemblePolicyService.isCountedAssignment({ kind: undefined, state: 'OPEN' }), false);
   });
 });

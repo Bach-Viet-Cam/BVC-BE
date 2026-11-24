@@ -293,7 +293,8 @@ describe('Virtual ensemble (GET /api/v1/pieces/:pieceId/ensemble-tracks)', () =>
     expect(free.status).toBe(200);
     // Round 1 decision: the API returns every part (the player mutes the student's own part while recording).
     expect.soft(names(free.body), 'step 2: every part is returned').toEqual(['Sáo trúc', 'Đàn bầu', 'Đàn tranh'].sort());
-    expect.soft([free.body.data.targetBpm, free.body.data.isAssignmentCounted], 'step 2').toEqual([80, false]);
+    // Decision (d): without assignmentId the take counts toward the open ensemble assignment $AE, as a submission would
+    expect.soft([free.body.data.targetBpm, free.body.data.isAssignmentCounted, free.body.data.assignmentId], 'step 2').toEqual([72, true, world.ae]);
     expect.soft(free.body.data.mySheetMusicId, 'step 2').toBe(world.s1);
     const assigned = await tracks(world.p1, world.sv1, world.ae);
     expect.soft(assigned.status, 'step 3').toBe(200);
@@ -560,17 +561,18 @@ describe('Flows with the real Rhythm service', () => {
     }
   }, 600_000);
 
-  it('ITC-AD-033 an ensemble take counts only for an open ensemble assignment', async () => {
-    const step2 = await submit(world.sv1, { sheetMusicId: world.s1, assignmentId: world.ae, practiceMode: 'ENSEMBLE', studentUploadId: await studentUpload(world.sv1) });
-    expect.soft([step2.status, step2.body.data?.status], 'step 2').toEqual([201, 'PROCESSING']);
-    const done2 = await waitStatus(world.sv1, step2.body.data.id, ['COMPLETED', 'FAILED', 'REJECTED']);
-    expect.soft(done2.status, 'step 2').toBe('COMPLETED');
-    const step3 = await submit(world.sv1, { sheetMusicId: world.s1, assignmentId: world.as1, practiceMode: 'ENSEMBLE', studentUploadId: await studentUpload(world.sv1) });
-    expect.soft(step3.status, 'step 3').toBe(201);
-    expect.soft(step3.body.data?.assignmentId, 'step 3: not counted').toBeNull();
+  it('ITC-AD-033 an ensemble take counts toward the open ensemble assignment until it has no attempts left', async () => {
+    const send = async (assignmentId?: string) => submit(world.sv1, {
+      sheetMusicId: world.s1, practiceMode: 'ENSEMBLE', studentUploadId: await studentUpload(world.sv1), ...(assignmentId ? { assignmentId } : {})
+    });
+    const step2 = await send(world.ae);
+    expect.soft([step2.status, step2.body.data?.status, step2.body.data?.assignmentId], 'step 2').toEqual([202, 'PROCESSING', world.ae]);
+    expect.soft((await waitStatus(world.sv1, step2.body.data.id, ['COMPLETED', 'FAILED', 'REJECTED'])).status, 'step 2').toBe('COMPLETED');
+    const step3 = await send(world.as1);
+    expect.soft([step3.status, step3.body.data?.assignmentId], 'step 3: SOLO assignment named, counted toward $AE').toEqual([202, world.ae]);
     await waitStatus(world.sv1, step3.body.data.id, ['COMPLETED', 'FAILED', 'REJECTED']);
-    const step4 = await submit(world.sv1, { sheetMusicId: world.s1, practiceMode: 'ENSEMBLE', studentUploadId: await studentUpload(world.sv1) });
-    expect.soft([step4.status, step4.body.data?.assignmentId], 'step 4').toEqual([201, null]);
+    const step4 = await send();
+    expect.soft([step4.status, step4.body.data?.assignmentId], 'step 4: no assignment named, counted toward $AE').toEqual([202, world.ae]);
     await waitStatus(world.sv1, step4.body.data.id, ['COMPLETED', 'FAILED', 'REJECTED']);
     const history = await request(app).get(`${api}/practice/submissions`).query({ kinds: 'ENSEMBLE', limit: 50 }).set(auth(world.sv1));
     expect.soft(history.status, 'step 5').toBe(200);
@@ -578,7 +580,13 @@ describe('Flows with the real Rhythm service', () => {
     const items = (history.body.data?.items ?? []) as Array<{ id: string; assignmentId: string | null }>;
     const mine = items.filter((item) => ids.includes(item.id));
     expect.soft(mine.length, 'step 5: the 3 ensemble takes').toBe(3);
-    expect.soft(mine.filter((item) => item.assignmentId === world.ae).map((item) => item.id), 'step 5: only step 2 linked').toEqual([step2.body.data.id]);
+    expect.soft(mine.every((item) => item.assignmentId === world.ae), 'step 5: all 3 linked to $AE').toBe(true);
+    // Step 6: $AE has no attempts left and no other ensemble assignment is open, so the next take is free practice
+    await prisma.assignment.update({ where: { id: world.ae }, data: { maxSubmissions: 3 } });
+    await prisma.assignment.update({ where: { id: world.aNoBpm }, data: { status: 'CLOSED' } });
+    const step6 = await send();
+    expect.soft([step6.status, step6.body.data?.assignmentId], 'step 6: free practice').toEqual([202, null]);
+    await waitStatus(world.sv1, step6.body.data.id, ['COMPLETED', 'FAILED', 'REJECTED']);
   }, 900_000);
 
   it('ITC-RT-018 analysis status of a main sheet blocks practice until ready (UC-05.5, GBR-48)', async () => {
