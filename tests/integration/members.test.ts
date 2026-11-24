@@ -1,3 +1,4 @@
+import ExcelJS from 'exceljs';
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp } from '../../src/app.ts';
@@ -5,10 +6,17 @@ import AuthService from '../../src/modules/auth/service/AuthService.ts';
 import TestDatabase from './TestDatabase.ts';
 
 const app = createApp();
-const csvHeader = 'Mã sinh viên,Họ tên,Email';
+const subjectCode = 'DNH103';
+const className = 'DNH103.E1.H2';
+const classFileName = `Students_${subjectCode}_${className}.xlsx`;
 
-function csv(lines: string[]): Buffer {
-  return Buffer.from([csvHeader, ...lines].join('\n'), 'utf8');
+// Builds the source system's Students sheet (Kì học, Mã môn, Mã lớp, Mã SV, Họ tên, Email); null = blank line.
+async function studentsFile(lines: Array<string | null>, fileClassName: string = className): Promise<Buffer> {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Students');
+  sheet.addRow(['Kì học', 'Mã môn', 'Mã lớp', 'Mã sinh viên', 'Họ tên', 'Email']);
+  for (const line of lines) sheet.addRow(line === null ? [] : ['Fall2026', subjectCode, fileClassName, ...line.split(',')]);
+  return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
 describe('Class members & import API (UC-10)', () => {
@@ -21,7 +29,7 @@ describe('Class members & import API (UC-10)', () => {
     lecturer = await TestDatabase.createLecturer();
     lecturerToken = TestDatabase.tokenFor(lecturer);
     const instrument = await TestDatabase.createInstrument('Đàn tranh');
-    classId = (await TestDatabase.createClass(lecturer.id, instrument.id)).id;
+    classId = (await TestDatabase.createClass(lecturer.id, instrument.id, { name: className })).id;
   });
 
   afterAll(async () => {
@@ -29,7 +37,7 @@ describe('Class members & import API (UC-10)', () => {
     await TestDatabase.prisma.$disconnect();
   });
 
-  function upload(buffer: Buffer, fileName: string = 'danh-sach.csv') {
+  function upload(buffer: Buffer, fileName: string = classFileName) {
     return request(app).post(`/api/v1/classes/${classId}/imports`).set('Authorization', lecturerToken).attach('file', buffer, fileName);
   }
 
@@ -37,17 +45,17 @@ describe('Class members & import API (UC-10)', () => {
     const member = await TestDatabase.createUser({ email: 'baolq@fpt.edu.vn', studentCode: 'SE170087' });
     await TestDatabase.addMember(classId, member.id, lecturer.id);
 
-    const response = await upload(csv([
+    const response = await upload(await studentsFile([
       'SE171234,Trần Minh Anh,anhtm@fpt.edu.vn',
       'SE172091,Phạm Gia Hân,hanpg@fpt.edu.vn',
       'SE171234,Trần Minh Anh,anhtm@fpt.edu.vn',
       'SE170087,Lê Quốc Bảo,baolq@fpt.edu.vn',
       'SE1,,x@fpt.edu.vn',
-      ',,'
+      null
     ]));
 
     expect(response.status).toBe(201);
-    expect(response.body.data).toMatchObject({ status: 'PREVIEW', totalRows: 5, validRows: 2, errorRows: 3, fileName: 'danh-sach.csv' });
+    expect(response.body.data).toMatchObject({ status: 'PREVIEW', totalRows: 5, validRows: 2, errorRows: 3, fileName: classFileName });
     expect(response.body.data.rows.map((row: { rowNumber: number; reason: string | null }) => [row.rowNumber, row.reason])).toEqual([
       [2, null],
       [3, null],
@@ -56,28 +64,48 @@ describe('Class members & import API (UC-10)', () => {
       [6, 'Thiếu họ tên']
     ]);
     const log = await TestDatabase.prisma.studentImportLog.findUniqueOrThrow({ where: { id: response.body.data.logId } });
-    expect(log).toMatchObject({ status: 'PREVIEW', totalRows: 5, validRows: 2, errorRows: 3, fileType: 'csv' });
+    expect(log).toMatchObject({ status: 'PREVIEW', totalRows: 5, validRows: 2, errorRows: 3, fileType: 'xlsx' });
   });
 
-  it('keeps UTF-8 Vietnamese file names', async () => {
-    const response = await upload(csv(['SE1,A,a@fpt.edu.vn']), 'danh-sách-lớp.csv');
-    expect(response.body.data.fileName).toBe('danh-sách-lớp.csv');
+  it('rejects a file made for another class and stores no log', async () => {
+    const response = await upload(await studentsFile(['SE1,A,a@fpt.edu.vn'], 'DNH103.E2.H2'), 'Students_DNH103_DNH103.E2.H2.xlsx');
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({
+      code: 'MSG-08',
+      message: 'File dành cho lớp DNH103.E2.H2, không khớp với lớp hiện tại DNH103.E1.H2. Vui lòng chọn đúng file của lớp.'
+    });
+    expect(await TestDatabase.prisma.studentImportLog.count()).toBe(0);
   });
 
-  it('rejects bad files server-side: format MSG-13, size MSG-14, missing file, missing columns MSG-08', async () => {
+  it('matches the class name case-insensitively', async () => {
+    const response = await upload(await studentsFile(['SE1,A,a@fpt.edu.vn']), 'Students_dnh103_dnh103.e1.h2.xlsx');
+    expect(response.status).toBe(201);
+  });
+
+  it('warns when every student in the file is already in the class', async () => {
+    const member = await TestDatabase.createUser({ email: 'a@fpt.edu.vn', studentCode: 'SE1' });
+    await TestDatabase.addMember(classId, member.id, lecturer.id);
+    const response = await upload(await studentsFile(['SE1,A,a@fpt.edu.vn']));
+    expect(response.status).toBe(400);
+    expect(response.body).toMatchObject({ code: 'MSG-08', message: 'Tất cả sinh viên trong file đã có trong lớp.' });
+    expect(await TestDatabase.prisma.studentImportLog.count()).toBe(0);
+  });
+
+  it('rejects bad files server-side: format MSG-13, size MSG-14, missing file, wrong file name or sheet MSG-08', async () => {
     expect((await upload(Buffer.from('x'), 'ds.pdf')).body.code).toBe('MSG-13');
-    const tooLarge = await upload(Buffer.alloc(2 * 1024 * 1024 + 10, 'a'), 'big.csv');
+    expect((await upload(Buffer.from('x'), 'Students_DNH103_DNH103.E1.H2.csv')).body.code).toBe('MSG-13');
+    const tooLarge = await upload(Buffer.alloc(2 * 1024 * 1024 + 10, 'a'), classFileName);
     expect(tooLarge.status).toBe(400);
     expect(tooLarge.body).toMatchObject({ code: 'MSG-14', message: 'File vượt quá dung lượng tối đa 2 MB.' });
     const noFile = await request(app).post(`/api/v1/classes/${classId}/imports`).set('Authorization', lecturerToken);
     expect(noFile.body.code).toBe('MSG-35');
-    expect((await upload(Buffer.from('Email\na@fpt.edu.vn'))).body.code).toBe('MSG-08');
+    expect((await upload(await studentsFile(['SE1,A,a@fpt.edu.vn']), 'danh-sach.xlsx')).body.code).toBe('MSG-08');
     expect(await TestDatabase.prisma.studentImportLog.count()).toBe(0);
   });
 
   it('confirms: creates Pending accounts, links existing students, sets the log Confirmed, answers MSG-45', async () => {
     const existing = await TestDatabase.createUser({ email: 'hanpg@fpt.edu.vn', studentCode: null, username: 'Hân' });
-    const preview = await upload(csv([
+    const preview = await upload(await studentsFile([
       'SE171234,Trần Minh Anh,AnhTM@fpt.edu.vn',
       'SE172091,Phạm Gia Hân,hanpg@fpt.edu.vn',
       'SE9,Lỗi,not-an-email'
@@ -104,7 +132,7 @@ describe('Class members & import API (UC-10)', () => {
   });
 
   it('re-validates at confirm time: a student added after the preview is skipped', async () => {
-    const preview = await upload(csv(['SE1,A,a@fpt.edu.vn', 'SE2,B,b@fpt.edu.vn']));
+    const preview = await upload(await studentsFile(['SE1,A,a@fpt.edu.vn', 'SE2,B,b@fpt.edu.vn']));
     await request(app).post(`/api/v1/classes/${classId}/members`).set('Authorization', lecturerToken)
       .send({ studentCode: 'SE1', fullName: 'A', email: 'a@fpt.edu.vn' });
 
@@ -115,7 +143,7 @@ describe('Class members & import API (UC-10)', () => {
   });
 
   it('refuses to confirm when no valid row remains and keeps the log in Preview', async () => {
-    const preview = await upload(csv(['SE1,A,bad-email']));
+    const preview = await upload(await studentsFile(['SE1,A,bad-email']));
     expect(preview.body.data.validRows).toBe(0);
     const confirm = await request(app).post(`/api/v1/classes/${classId}/imports/${preview.body.data.logId}/confirm`).set('Authorization', lecturerToken);
     expect(confirm.status).toBe(409);
@@ -124,7 +152,7 @@ describe('Class members & import API (UC-10)', () => {
   });
 
   it('rolls back the whole confirm when one write fails (transactional)', async () => {
-    const preview = await upload(csv(['SE1,A,a@fpt.edu.vn', 'SE2,B,b@fpt.edu.vn']));
+    const preview = await upload(await studentsFile(['SE1,A,a@fpt.edu.vn', 'SE2,B,b@fpt.edu.vn']));
     // Simulate a concurrent sign-up that steals SE2 after the re-validation read.
     const prisma = TestDatabase.prisma;
     const originalTransaction = prisma.$transaction.bind(prisma);
@@ -147,7 +175,7 @@ describe('Class members & import API (UC-10)', () => {
   });
 
   it('cancels a preview log and refuses to confirm it afterwards', async () => {
-    const preview = await upload(csv(['SE1,A,a@fpt.edu.vn']));
+    const preview = await upload(await studentsFile(['SE1,A,a@fpt.edu.vn']));
     const logId = preview.body.data.logId;
     const cancel = await request(app).post(`/api/v1/classes/${classId}/imports/${logId}/cancel`).set('Authorization', lecturerToken);
     expect(cancel.status).toBe(200);
@@ -157,7 +185,7 @@ describe('Class members & import API (UC-10)', () => {
   });
 
   it('does not let another lecturer touch the import log', async () => {
-    const preview = await upload(csv(['SE1,A,a@fpt.edu.vn']));
+    const preview = await upload(await studentsFile(['SE1,A,a@fpt.edu.vn']));
     const other = await TestDatabase.createLecturer();
     const response = await request(app).post(`/api/v1/classes/${classId}/imports/${preview.body.data.logId}/confirm`)
       .set('Authorization', TestDatabase.tokenFor(other));

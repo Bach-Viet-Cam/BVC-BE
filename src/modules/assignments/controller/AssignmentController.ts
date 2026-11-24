@@ -73,6 +73,11 @@ export default class AssignmentController {
     return ApiResponse.sendSuccessResponse(response, { data: await AssignmentQueryService.getOverview(AssignmentController.getLecturerId(request)) });
   }
 
+  static async getSheetGroup(request: Request, response: Response): Promise<Response> {
+    const { params } = AssignmentController.getValidated<unknown, { sheetMusicId: string }>(request);
+    return ApiResponse.sendSuccessResponse(response, { data: await AssignmentQueryService.getSheetGroup(AssignmentController.getLecturerId(request), params.sheetMusicId) });
+  }
+
   static async getAssignment(request: Request, response: Response): Promise<Response> {
     const { params } = AssignmentController.getValidated<unknown, { id: string }>(request);
     return ApiResponse.sendSuccessResponse(response, { data: await AssignmentQueryService.getAssignmentDetail(params.id, AssignmentController.getLecturerId(request)) });

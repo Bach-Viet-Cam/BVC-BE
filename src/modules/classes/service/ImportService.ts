@@ -6,22 +6,25 @@ import ClassConstant from '../constant/ClassConstant.ts';
 import ClassDTO from '../dto/ClassDTO.ts';
 import ImportRepository from '../repository/ImportRepository.ts';
 import ClassAccessService from './ClassAccessService.ts';
-import ImportFileParser from './ImportFileParser.ts';
+import ClassFileImportService from './ClassFileImportService.ts';
 import MemberService from './MemberService.ts';
 
 const messages = ClassConstant.messages;
 
 // UC-10 Import Student List (FR-M03.01.02): upload → preview log → confirm or cancel.
+// The upload is the same Students_[Subject]_[Class].xlsx export used by "Nhập file SV"; its class code must match the class name.
 export default class ImportService {
   static async previewImport(classId: string, lecturerId: string, file: Backend.UploadedImportFile): Promise<Backend.ImportPreviewDTO> {
-    await ClassAccessService.assertOwnedClass(classId, lecturerId, { requireActive: true });
-    const parsedFile = await ImportFileParser.parse(file);
+    const classRecord = await ClassAccessService.assertOwnedClass(classId, lecturerId, { requireActive: true });
+    const parsedFile = await ClassFileImportService.readClassFile(file);
+    ImportService.assertFileMatchesClass(parsedFile.className, classRecord.name);
     const { rows } = await MemberService.validateAgainstDatabase(classId, parsedFile.rows, PrismaClientProvider.instance);
+    if (ImportService.isEveryRowAlreadyInClass(rows)) throw AppError.badRequest(messages.IMPORT_ALL_ALREADY_IN_CLASS, { code: 'MSG-08' });
     const log = await ImportRepository.createPreviewLog({
       classId,
       lecturerId,
       fileName: file.originalname,
-      fileType: parsedFile.fileType,
+      fileType: 'xlsx',
       rows
     });
     return ClassDTO.toImportPreviewDTO(log, rows);
@@ -38,7 +41,10 @@ export default class ImportService {
         const storedRows = ImportService.toRawRows(log.rows);
         const { rows, context } = await MemberService.validateAgainstDatabase(classId, storedRows, transaction);
         const validCount = rows.filter((row) => row.isValid).length;
-        if (validCount === 0) throw AppError.conflict(messages.IMPORT_NO_VALID_ROWS, { code: 'MSG-08' });
+        if (validCount === 0) {
+          const message = ImportService.isEveryRowAlreadyInClass(rows) ? messages.IMPORT_ALL_ALREADY_IN_CLASS : messages.IMPORT_NO_VALID_ROWS;
+          throw AppError.conflict(message, { code: 'MSG-08' });
+        }
 
         const isMarked = await ImportRepository.markConfirmed(logId, rows, transaction);
         if (!isMarked) throw AppError.conflict(messages.IMPORT_ALREADY_PROCESSED, { code: 'MSG-08' });
@@ -63,6 +69,16 @@ export default class ImportService {
     if (log.status === 'CONFIRMED') throw AppError.conflict(messages.IMPORT_ALREADY_PROCESSED, { code: 'MSG-08' });
     const isCancelled = await ImportRepository.markCancelled(logId);
     if (!isCancelled) throw AppError.conflict(messages.IMPORT_ALREADY_PROCESSED, { code: 'MSG-08' });
+  }
+
+  static assertFileMatchesClass(fileClassName: string, className: string): void {
+    if (fileClassName.trim().toUpperCase() !== className.trim().toUpperCase()) {
+      throw AppError.badRequest(messages.IMPORT_CLASS_MISMATCH(fileClassName, className), { code: 'MSG-08' });
+    }
+  }
+
+  static isEveryRowAlreadyInClass(rows: Backend.ValidatedStudentRow[]): boolean {
+    return rows.length > 0 && rows.every((row) => row.reason === ClassConstant.rowReasons.ALREADY_IN_CLASS);
   }
 
   static async findOwnedLog(classId: string, lecturerId: string, logId: string): Promise<Backend.ImportLogRecord> {
