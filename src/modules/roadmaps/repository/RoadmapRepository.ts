@@ -53,7 +53,6 @@ export default class RoadmapRepository {
     const exercises = await RoadmapRepository.client.piece.findMany({
       where: {
         instruments: { some: { instrumentId } },
-        kind: 'FINGER_EXERCISE',
         visibility: 'PUBLIC',
         moderation: 'NORMAL',
         deletedAt: null,
