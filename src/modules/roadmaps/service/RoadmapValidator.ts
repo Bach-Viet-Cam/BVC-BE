@@ -58,6 +58,6 @@ export default class RoadmapValidator {
   }
 
   static isSelectable(piece: Backend.PieceSnapshot | undefined, instrumentId: string): boolean {
-    return Boolean(piece && piece.kind === 'FINGER_EXERCISE' && piece.instrumentIds.includes(instrumentId) && piece.isAvailable);
+    return Boolean(piece && piece.instrumentIds.includes(instrumentId) && piece.isAvailable);
   }
 }

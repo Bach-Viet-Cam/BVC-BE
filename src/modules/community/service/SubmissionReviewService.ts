@@ -7,8 +7,10 @@ import VerifiedModel from '../model/VerifiedModel.ts';
 import VerifiedRepository from '../repository/VerifiedRepository.ts';
 import VerifiedValidation from '../validation/VerifiedValidation.ts';
 import VerifiedAudioService from './VerifiedAudioService.ts';
+import VerifiedPolicyService from './VerifiedPolicyService.ts';
 
 type Source = Prisma.SubmissionGetPayload<{ include: typeof VerifiedModel.sourceInclude }>;
+const WITHDRAWN_REASON = 'Sinh viên đã rút đồng ý chia sẻ.';
 interface ReviewState { review: SubmissionReview | null; shareConsent: boolean; canReview: boolean; verifiedContentId: string | null }
 
 export default class SubmissionReviewService {
@@ -29,10 +31,20 @@ export default class SubmissionReviewService {
       if (actor.role !== 1 || actor.userId !== row.studentId) throw AppError.forbidden();
       if (row.shareConsent === isGranted) return;
       await tx.submission.update({ where: { id }, data: { shareConsent: isGranted, consentUpdatedAt: new Date() } });
-      if (!isGranted) await tx.verifiedContent.updateMany({ where: { submissionId: id, status: 'VISIBLE' }, data: { status: 'HIDDEN', version: { increment: 1 }, reason: 'Sinh viên đã rút đồng ý chia sẻ.' } });
+      if (!isGranted) await tx.verifiedContent.updateMany({ where: { submissionId: id, status: 'VISIBLE' }, data: { status: 'HIDDEN', version: { increment: 1 }, reason: WITHDRAWN_REASON } });
+      if (isGranted) await SubmissionReviewService.restoreWithdrawn(id, tx);
       await tx.auditLog.create({ data: { actorId: actor.userId, action: isGranted ? 'SHARING_GRANTED' : 'SHARING_WITHDRAWN', entityType: 'Submission', entityId: id } });
     });
     return SubmissionReviewService.get(actor, id);
+  }
+  // Chỉ khôi phục bản bị ẩn do chính sinh viên rút đồng ý; bản giảng viên ẩn hoặc thu hồi giữ nguyên
+  static async restoreWithdrawn(submissionId: string, tx: Prisma.TransactionClient): Promise<void> {
+    const hidden = await tx.verifiedContent.findMany({ where: { submissionId, status: 'HIDDEN', reason: WITHDRAWN_REASON }, select: { id: true } });
+    for (const { id } of hidden) {
+      const row = await VerifiedRepository.find(id, tx);
+      if (!row || !VerifiedPolicyService.canPublish(row)) continue;
+      await tx.verifiedContent.update({ where: { id }, data: { status: 'VISIBLE', reason: null, version: { increment: 1 } } });
+    }
   }
   static async decide(actor: Backend.UserDTO, id: string, input: z.infer<typeof VerifiedValidation.reviewBody>): Promise<ReviewState> {
     await VerifiedRepository.locked(async (tx) => {
