@@ -44,7 +44,7 @@ export default class RoadmapRepository {
       id: piece.id,
       title: piece.title,
       kind: piece.kind,
-      instrumentIds: piece.instruments.map((instrument) => instrument.instrumentId),
+      instrumentIds: [...new Set(piece.sheetMusic.map((sheet) => sheet.instrumentId))],
       isAvailable: PieceUtil.isAvailable(piece)
     }));
   }
@@ -52,7 +52,7 @@ export default class RoadmapRepository {
   static async findFingerExercises(instrumentId: string, query?: string): Promise<Backend.FingerExerciseDTO[]> {
     const exercises = await RoadmapRepository.client.piece.findMany({
       where: {
-        instruments: { some: { instrumentId } },
+        sheetMusic: { some: { instrumentId, visibility: 'PUBLIC', moderation: 'NORMAL' } },
         visibility: 'PUBLIC',
         moderation: 'NORMAL',
         deletedAt: null,

@@ -27,7 +27,7 @@ export default class RoadmapModel {
     visibility: true,
     moderation: true,
     deletedAt: true,
-    instruments: { select: { instrumentId: true } }
+    sheetMusic: { where: { visibility: 'PUBLIC' as const, moderation: 'NORMAL' as const }, select: { instrumentId: true } }
   };
 
   static readonly fingerExerciseSelect = { id: true, title: true, bpm: true };
