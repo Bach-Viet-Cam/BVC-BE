@@ -21,3 +21,10 @@ test('UC-18: không có thử thách đang mở hoặc bản nộp hòa tấu th
   assert.equal(PracticeChallengeResolver.pickChallengeId([], 'SOLO'), null);
   assert.equal(PracticeChallengeResolver.pickChallengeId([challenge('chl-1', 3)], 'ENSEMBLE'), null);
 });
+
+test('UC-18: có challengeId thì chỉ gắn đúng thử thách đó khi còn lượt nộp', () => {
+  const candidates = [challenge('chl-1', 3), challenge('chl-2', 3)];
+  assert.equal(PracticeChallengeResolver.pickChallengeId(candidates, 'SOLO', 'chl-2'), 'chl-2');
+  assert.equal(PracticeChallengeResolver.pickChallengeId(candidates, 'SOLO', 'chl-x'), null);
+  assert.equal(PracticeChallengeResolver.pickChallengeId([challenge('chl-2', 1, ['COMPLETED'])], 'SOLO', 'chl-2'), null);
+});

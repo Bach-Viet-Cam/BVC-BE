@@ -4,7 +4,7 @@ declare namespace Practice {
   type ProgressStatus = 'started' | 'done' | 'failed' | 'rejected';
   type PracticeMode = 'SOLO' | 'ENSEMBLE';
 
-  interface CreateInput { shareAfterVerification?: boolean; sheetMusicId: string; assignmentId?: string; studentUploadId: string; practiceMode?: PracticeMode; }
+  interface CreateInput { shareAfterVerification?: boolean; sheetMusicId: string; assignmentId?: string; challengeId?: string; studentUploadId: string; practiceMode?: PracticeMode; }
 
   // Body the Rhythm service posts for every job event (see its ProgressCallback schema)
   interface ProgressCallback {

@@ -4,9 +4,9 @@ import AssignmentPolicyService from '../../classes/service/AssignmentPolicyServi
 // The repository already keeps only published, unpaused challenges on this sheet that are running now for an active
 // class the student belongs to; this picks the earliest one that still has attempts left. Challenges are solo only.
 export default class PracticeChallengeResolver {
-  static pickChallengeId(candidates: Practice.ChallengeCandidate[], mode: Practice.PracticeMode): string | null {
+  static pickChallengeId(candidates: Practice.ChallengeCandidate[], mode: Practice.PracticeMode, hintChallengeId?: string): string | null {
     if (mode !== 'SOLO') return null;
-    const open = candidates.find((candidate) => AssignmentPolicyService.countUsedSubmissions(candidate.submissions) < candidate.maxSubmissions);
+    const open = candidates.find((candidate) => (!hintChallengeId || candidate.id === hintChallengeId) && AssignmentPolicyService.countUsedSubmissions(candidate.submissions) < candidate.maxSubmissions);
     return open?.id ?? null;
   }
 }

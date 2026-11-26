@@ -45,7 +45,7 @@ export default class PracticeSubmissionService {
     const practiceMode = input.practiceMode ?? 'SOLO';
     const [link, challengeId] = await Promise.all([
       this.findAssignmentLink(studentId, sheet, input.assignmentId, practiceMode),
-      this.findChallengeLink(studentId, sheet, practiceMode)
+      this.findChallengeLink(studentId, sheet, practiceMode, input.challengeId)
     ]);
 
     const { submission, busyId } = await this.repository.createIfIdle({
@@ -130,10 +130,10 @@ export default class PracticeSubmissionService {
   }
 
   // A send also counts toward a running weekly challenge on the same sheet; it may count for an assignment as well
-  private async findChallengeLink(studentId: string, sheet: Practice.SheetTemplate, mode: Practice.PracticeMode): Promise<string | null> {
+  private async findChallengeLink(studentId: string, sheet: Practice.SheetTemplate, mode: Practice.PracticeMode, hintChallengeId?: string): Promise<string | null> {
     if (mode !== 'SOLO') return null;
     const candidates = await this.repository.findOpenChallenges(studentId, sheet.id, this.now());
-    return PracticeChallengeResolver.pickChallengeId(candidates, mode);
+    return PracticeChallengeResolver.pickChallengeId(candidates, mode, hintChallengeId);
   }
 
   // The student may submit to any instrument's sheet of the piece; its reference recording is the template
