@@ -111,7 +111,6 @@ export default class ChallengeRepository {
         visibility: true,
         moderation: true,
         deletedAt: true,
-        instruments: { select: { instrumentId: true } },
         sheetMusic: {
           where: { kind: 'MAIN', ...(instrumentId ? { mainInstrumentId: instrumentId } : {}) },
           select: { id: true, visibility: true, moderation: true, referenceAudioId: true, analysisStatus: true }

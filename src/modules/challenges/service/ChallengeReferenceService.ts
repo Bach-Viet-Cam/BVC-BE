@@ -52,10 +52,11 @@ export default class ChallengeReferenceService {
     if (!pieceId) return null;
     const piece = await ChallengeRepository.findPieceForChallenge(pieceId, instrumentId, client);
     const isPlayable = piece !== null && piece.deletedAt === null && piece.visibility === 'PUBLIC' && piece.moderation === 'NORMAL';
-    if (!piece || !isPlayable || (instrumentId && !piece.instruments.some((item) => item.instrumentId === instrumentId))) {
+    // Match the picker (findReadyPieces): a piece belongs to an instrument when it has a MAIN sheet for it.
+    const mainSheet = piece?.sheetMusic[0] ?? null;
+    if (!piece || !isPlayable || (instrumentId && !mainSheet)) {
       throw AppError.fieldError(400, { field: 'pieceId', code: 'MSG-48', message: messages.PIECE_UNAVAILABLE });
     }
-    const mainSheet = piece.sheetMusic[0] ?? null;
     if (options.requireReady && !ChallengeRules.isPieceReady(piece, mainSheet)) {
       throw AppError.fieldError(400, { field: 'pieceId', code: 'MSG-48', message: messages.PIECE_NOT_READY });
     }
