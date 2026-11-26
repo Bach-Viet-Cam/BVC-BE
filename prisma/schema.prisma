@@ -26,7 +26,7 @@ enum ConfigGroup {
 }
 
 model User {
-  aiRatings AiFeedbackRating[]
+  aiRatings                 AiFeedbackRating[]
   id                        String                   @id @default(uuid())
   email                     String                   @unique
   username                  String
@@ -107,46 +107,45 @@ enum CategoryType {
 }
 
 model Instrument {
-  faqs Faq[]
+  faqs             Faq[]
   verifiedContents VerifiedContent[]
 
-  id               String            @id @default(uuid())
-  code             String            @unique
-  name             String
-  description      String?
+  id             String            @id @default(uuid())
+  code           String            @unique
+  name           String
+  description    String?
   // Pitch range sent to the AI service for reference-recording analysis
-  fminHz           Float             @default(80) @map("fmin_hz")
-  fmaxHz           Float             @default(2000) @map("fmax_hz")
-  toleranceCents   Int               @default(30) @map("tolerance_cents")
-  isActive         Boolean           @default(true) @map("is_active")
-  pieces           PieceInstrument[]
-  sheetMusic       SheetMusic[]
-  challenges       Challenge[]
-  classes          Class[]
-  classMembers     ClassMember[]
-  roadmaps         Roadmap[]
-  tunes            InstrumentTune[]
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @default(now()) @updatedAt @map("updated_at")
+  fminHz         Float             @default(80) @map("fmin_hz")
+  fmaxHz         Float             @default(2000) @map("fmax_hz")
+  toleranceCents Int               @default(30) @map("tolerance_cents")
+  isActive       Boolean           @default(true) @map("is_active")
+  pieces         PieceInstrument[]
+  sheetMusic     SheetMusic[]
+  challenges     Challenge[]
+  classes        Class[]
+  classMembers   ClassMember[]
+  roadmaps       Roadmap[]
+  tunes          InstrumentTune[]
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @default(now()) @updatedAt @map("updated_at")
 
   @@map("instruments")
 }
 
 model InstrumentTune {
-  id           String     @id @default(uuid()) @map("tune_id")
-  instrumentId String     @map("instrument_id")
-  tuneName     String     @map("tune_name")
-  pitch        Float      @map("pitch")
-  displayOrder Int        @default(0) @map("display_order")
-  createdAt    DateTime   @default(now()) @map("created_at")
-  updatedAt    DateTime   @default(now()) @updatedAt @map("updated_at")
+  id           String   @id @default(uuid()) @map("tune_id")
+  instrumentId String   @map("instrument_id")
+  tuneName     String   @map("tune_name")
+  pitch        Float    @map("pitch")
+  displayOrder Int      @default(0) @map("display_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at")
 
-  instrument   Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
+  instrument Instrument @relation(fields: [instrumentId], references: [id], onDelete: Cascade)
 
   @@index([instrumentId])
   @@map("instrument_tunes")
 }
-
 
 model Category {
   id              String       @id @default(uuid())
@@ -250,8 +249,8 @@ model MediaFile {
 
 model Piece {
   verifiedContents VerifiedContent[]
-  legacyLevelId String? @map("level_id")
-  legacyLevel Category? @relation("LegacyPieceLevel", fields: [legacyLevelId], references: [id], onDelete: Restrict)
+  legacyLevelId    String?           @map("level_id")
+  legacyLevel      Category?         @relation("LegacyPieceLevel", fields: [legacyLevelId], references: [id], onDelete: Restrict)
 
   id                 String                @id @default(uuid())
   ownerId            String                @map("owner_id")
@@ -288,6 +287,7 @@ model Piece {
   updatedAt          DateTime              @default(now()) @updatedAt @map("updated_at")
 
   challenges Challenge[]
+
   @@index([ownerId, updatedAt])
   @@index([visibility, moderation, createdAt])
   @@map("pieces")
@@ -341,9 +341,10 @@ model SheetMusic {
   createdAt            DateTime       @default(now()) @map("created_at")
   updatedAt            DateTime       @updatedAt @map("updated_at")
 
-  assignments          Assignment[]
-  assignmentVersions   AssignmentVersion[]
-  challenges Challenge[]
+  assignments        Assignment[]
+  assignmentVersions AssignmentVersion[]
+  challenges         Challenge[]
+
   @@unique([pieceId, name])
   @@unique([pieceId, mainInstrumentId])
   @@index([pieceId, instrumentId])
@@ -590,7 +591,7 @@ model Assignment {
   deadline         DateTime
   targetBpm        Int?                @map("target_bpm")
   minAccuracy      Int?                @map("min_accuracy")
-  maxSubmissions   Int?                 @map("max_submissions")
+  maxSubmissions   Int?                @map("max_submissions")
   isPublished      Boolean             @default(false) @map("is_published")
   bonusPoints      Int?                @map("bonus_points")
   createdAt        DateTime            @default(now()) @map("created_at")
@@ -672,56 +673,60 @@ model RubricCriterion {
 
 // A practice recording sent for AI analysis. assignmentId is empty for free practice on a library piece.
 model Submission {
-  aiRatings AiFeedbackRating[]
-  review SubmissionReview?
-  verifiedContent VerifiedContent?
-  shareConsent Boolean @default(false) @map("share_consent")
-  consentUpdatedAt DateTime? @map("consent_updated_at")
+  aiRatings        AiFeedbackRating[]
+  review           SubmissionReview?
+  verifiedContent  VerifiedContent?
+  shareConsent     Boolean            @default(false) @map("share_consent")
+  consentUpdatedAt DateTime?          @map("consent_updated_at")
 
-  id                  String             @id @default(uuid())
-  assignmentId        String?            @map("assignment_id")
-  pieceId             String             @map("piece_id")
-  sheetMusicId        String?            @map("sheet_music_id")
-  studentId           String             @map("student_id")
-  studentUploadId     String?            @map("student_upload_id")
-  status              SubmissionStatus   @default(PROCESSING)
-  practiceMode        PracticeMode       @default(SOLO) @map("practice_mode")
+  id                  String                   @id @default(uuid())
+  assignmentId        String?                  @map("assignment_id")
+  // Set at submit time when the send counts toward an open weekly challenge (UC-18)
+  challengeId         String?                  @map("challenge_id")
+  pieceId             String                   @map("piece_id")
+  sheetMusicId        String?                  @map("sheet_music_id")
+  studentId           String                   @map("student_id")
+  studentUploadId     String?                  @map("student_upload_id")
+  status              SubmissionStatus         @default(PROCESSING)
+  practiceMode        PracticeMode             @default(SOLO) @map("practice_mode")
   accuracy            Float?
-  fileUrl             String?            @map("file_url")
-  createdAt           DateTime           @default(now()) @map("created_at")
-  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at")
-  assignmentVersionId String?            @map("assignment_version_id")
-  tempoDeviation      Float?             @map("tempo_deviation")
-  analyzedAt          DateTime?          @map("analyzed_at")
+  fileUrl             String?                  @map("file_url")
+  createdAt           DateTime                 @default(now()) @map("created_at")
+  updatedAt           DateTime                 @default(now()) @updatedAt @map("updated_at")
+  assignmentVersionId String?                  @map("assignment_version_id")
+  tempoDeviation      Float?                   @map("tempo_deviation")
+  analyzedAt          DateTime?                @map("analyzed_at")
   // Rhythm service job: ids, queue publication state and the attempt that callbacks must match
-  evaluationId        String?            @unique @map("evaluation_id")
-  messageId           String?            @unique @map("message_id")
-  publicationState    String?            @map("publication_state")
-  attempt             Int                @default(1)
+  evaluationId        String?                  @unique @map("evaluation_id")
+  messageId           String?                  @unique @map("message_id")
+  publicationState    String?                  @map("publication_state")
+  attempt             Int                      @default(1)
   stage               SubmissionStage?
-  stageStartedAt      DateTime?          @map("stage_started_at")
+  stageStartedAt      DateTime?                @map("stage_started_at")
   // GBR-59: retries used, when the next retry opens, and when the file was deleted after the last one (GBR-62)
-  retryCount          Int                @default(0) @map("retry_count")
-  retryAvailableAt    DateTime?          @map("retry_available_at")
-  fileDeletedAt       DateTime?          @map("file_deleted_at")
+  retryCount          Int                      @default(0) @map("retry_count")
+  retryAvailableAt    DateTime?                @map("retry_available_at")
+  fileDeletedAt       DateTime?                @map("file_deleted_at")
   result              Json?
-  aiFeedback          String?            @map("ai_feedback")
+  aiFeedback          String?                  @map("ai_feedback")
   // Pitch comparison chart built from the Rhythm analysis file on first view, so the file is read only once
-  pitchChart          Json?              @map("pitch_chart")
-  rejectReason        String?            @map("reject_reason")
-  errorCode           String?            @map("error_code")
-  errorMessage        String?            @map("error_message")
-  assignment          Assignment?        @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  assignmentVersion   AssignmentVersion? @relation(fields: [assignmentVersionId], references: [id])
-  piece               Piece              @relation(fields: [pieceId], references: [id], onDelete: Cascade)
-  sheetMusic          SheetMusic?        @relation(fields: [sheetMusicId], references: [id], onDelete: SetNull)
-  studentUpload       AudioUpload?       @relation(fields: [studentUploadId], references: [id], onDelete: SetNull)
-  student             User               @relation(fields: [studentId], references: [id])
+  pitchChart          Json?                    @map("pitch_chart")
+  rejectReason        String?                  @map("reject_reason")
+  errorCode           String?                  @map("error_code")
+  errorMessage        String?                  @map("error_message")
+  assignment          Assignment?              @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  challenge           Challenge?               @relation(fields: [challengeId], references: [id], onDelete: SetNull)
+  assignmentVersion   AssignmentVersion?       @relation(fields: [assignmentVersionId], references: [id])
+  piece               Piece                    @relation(fields: [pieceId], references: [id], onDelete: Cascade)
+  sheetMusic          SheetMusic?              @relation(fields: [sheetMusicId], references: [id], onDelete: SetNull)
+  studentUpload       AudioUpload?             @relation(fields: [studentUploadId], references: [id], onDelete: SetNull)
+  student             User                     @relation(fields: [studentId], references: [id])
   comment             SubmissionComment?
   segmentAttempts     PracticeSegmentAttempt[]
 
   @@index([assignmentId, studentId])
   @@index([assignmentId, status])
+  @@index([challengeId, studentId])
   @@index([studentId, pieceId, status])
   // SCR-01 history: a student's submissions newest first
   @@index([studentId, createdAt])
@@ -953,28 +958,29 @@ enum ChallengeStatus {
 }
 
 model Challenge {
-  id             String          @id @default(uuid())
+  id             String           @id @default(uuid())
   title          String
   description    String?
-  instrumentId   String?         @map("instrument_id")
-  pieceId        String?         @map("piece_id")
-  sheetMusicId   String?         @map("sheet_music_id")
-  createdById    String          @map("created_by")
-  status         ChallengeStatus @default(DRAFT)
-  startsAt       DateTime?       @map("starts_at")
-  endsAt         DateTime?       @map("ends_at")
-  minAccuracy    Int?            @map("min_accuracy")
-  requiredBpm    Int?            @map("required_bpm")
-  maxSubmissions Int             @default(3) @map("max_submissions")
-  pausedAt       DateTime?       @map("paused_at")
-  publishedAt    DateTime?       @map("published_at")
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @default(now()) @updatedAt @map("updated_at")
-  instrument     Instrument?     @relation(fields: [instrumentId], references: [id])
-  piece          Piece?          @relation(fields: [pieceId], references: [id])
-  sheetMusic     SheetMusic?     @relation(fields: [sheetMusicId], references: [id])
-  createdBy      User            @relation("ChallengeCreatedBy", fields: [createdById], references: [id])
+  instrumentId   String?          @map("instrument_id")
+  pieceId        String?          @map("piece_id")
+  sheetMusicId   String?          @map("sheet_music_id")
+  createdById    String           @map("created_by")
+  status         ChallengeStatus  @default(DRAFT)
+  startsAt       DateTime?        @map("starts_at")
+  endsAt         DateTime?        @map("ends_at")
+  minAccuracy    Int?             @map("min_accuracy")
+  requiredBpm    Int?             @map("required_bpm")
+  maxSubmissions Int              @default(3) @map("max_submissions")
+  pausedAt       DateTime?        @map("paused_at")
+  publishedAt    DateTime?        @map("published_at")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @default(now()) @updatedAt @map("updated_at")
+  instrument     Instrument?      @relation(fields: [instrumentId], references: [id])
+  piece          Piece?           @relation(fields: [pieceId], references: [id])
+  sheetMusic     SheetMusic?      @relation(fields: [sheetMusicId], references: [id])
+  createdBy      User             @relation("ChallengeCreatedBy", fields: [createdById], references: [id])
   classes        ChallengeClass[]
+  submissions    Submission[]
 
   @@index([createdById, startsAt])
   @@index([status, startsAt, endsAt])
@@ -1070,20 +1076,21 @@ model VerifiedContent {
 }
 
 model AiFeedbackRating {
-  id String @id @default(uuid())
-  submissionId String @map("submission_id")
-  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
-  raterId String @map("rater_id")
-  rater User @relation(fields: [raterId], references: [id], onDelete: Restrict)
-  raterName String @map("rater_name")
-  raterRole Int @map("rater_role")
-  feedbackKey String @map("feedback_key")
-  feedbackText String @map("feedback_text")
-  accuracyStars Int @map("accuracy_stars")
-  satisfactionStars Int @map("satisfaction_stars")
-  comment String? @db.VarChar(2000)
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id                String     @id @default(uuid())
+  submissionId      String     @map("submission_id")
+  submission        Submission @relation(fields: [submissionId], references: [id], onDelete: Restrict)
+  raterId           String     @map("rater_id")
+  rater             User       @relation(fields: [raterId], references: [id], onDelete: Restrict)
+  raterName         String     @map("rater_name")
+  raterRole         Int        @map("rater_role")
+  feedbackKey       String     @map("feedback_key")
+  feedbackText      String     @map("feedback_text")
+  accuracyStars     Int        @map("accuracy_stars")
+  satisfactionStars Int        @map("satisfaction_stars")
+  comment           String?    @db.VarChar(2000)
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+
   @@unique([submissionId, raterId, feedbackKey])
   @@index([createdAt, id])
   @@map("ai_feedback_ratings")

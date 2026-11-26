@@ -27,6 +27,7 @@ interface Options {
   enrollment?: Practice.ClassAssignments | null;
   stored?: Practice.SubmissionRecord;
   isKnownToRhythm?: boolean;
+  challenges?: Practice.ChallengeCandidate[];
 }
 
 function setup(options: Options = {}) {
@@ -34,9 +35,14 @@ function setup(options: Options = {}) {
   const jobs: Audio.Job[] = [];
   const retries: { fromJob: string; attempt: number }[] = [];
   const created: Practice.SubmissionCreateData[] = [];
+  const challengeQueries: { sheetMusicId: string; at: Date }[] = [];
   const repository = {
     findOwnedUpload: async (ownerId: string) => (ownerId === 'student' ? { id: input.studentUploadId, url: 'https://be/s.wav' } : null),
     findSheet: async () => (options.sheet === undefined ? sheet : options.sheet),
+    findOpenChallenges: async (_studentId: string, sheetMusicId: string, at: Date) => {
+      challengeQueries.push({ sheetMusicId, at });
+      return options.challenges ?? [];
+    },
     findClassAssignments: async () => { const found = options.enrollment === undefined ? enrollment : options.enrollment; return found ? [found] : []; },
     createIfIdle: async (data: Practice.SubmissionCreateData) => {
       if (options.busyId) return { submission: null, busyId: options.busyId };
@@ -69,7 +75,7 @@ function setup(options: Options = {}) {
     repository, progress, publisher, now: () => now,
     createReadUrl: async (key: string) => `https://storage/${key}?signed`
   });
-  return { service, jobs, retries, created, read: () => current };
+  return { service, jobs, retries, created, challengeQueries, read: () => current };
 }
 
 const hasStatus = (statusCode: number) => (error: unknown) => error instanceof AppError && error.statusCode === statusCode;
@@ -123,6 +129,27 @@ test('Bản chính của nhạc cụ lớp được tính vào bài tập, kể 
   const hinted = setup();
   await hinted.service.create('student', { ...input, assignmentId: 'asg-1' });
   assert.equal(hinted.created[0].assignmentId, 'asg-1');
+});
+
+test('UC-18: bản nộp đơn tấu trong thử thách đang mở được gắn challengeId, kể cả khi cũng tính vào bài tập', async () => {
+  const linked = setup({ challenges: [{ id: 'chl-1', maxSubmissions: 3, submissions: [{ status: 'COMPLETED' }] }] });
+  await linked.service.create('student', input);
+  assert.equal(linked.created[0].challengeId, 'chl-1');
+  assert.equal(linked.created[0].assignmentId, 'asg-1');
+  assert.deepEqual(linked.challengeQueries, [{ sheetMusicId: 'sheet-bau', at: now }]);
+  const none = setup();
+  await none.service.create('student', input);
+  assert.equal(none.created[0].challengeId, null);
+});
+
+test('UC-18: hết lượt thử thách hoặc bản nộp hòa tấu thì không gắn challengeId', async () => {
+  const used = setup({ challenges: [{ id: 'chl-1', maxSubmissions: 2, submissions: [{ status: 'COMPLETED' }, { status: 'PROCESSING' }] }] });
+  await used.service.create('student', input);
+  assert.equal(used.created[0].challengeId, null);
+  const ensemble = setup({ challenges: [{ id: 'chl-1', maxSubmissions: 3, submissions: [] }] });
+  await ensemble.service.create('student', { ...input, practiceMode: 'ENSEMBLE' });
+  assert.equal(ensemble.created[0].challengeId, null);
+  assert.equal(ensemble.challengeQueries.length, 0);
 });
 
 test('Lượt bị từ chối hoặc lỗi không tính; đủ lượt thì luyện tập thường', async () => {

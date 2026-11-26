@@ -363,6 +363,43 @@ describe('Weekly challenges (lecturer)', () => {
     });
   });
 
+  describe('detail and statistics', () => {
+    it('counts only submissions linked to the challenge and lists each student once', async () => {
+      const published = (await post(publishBody({ weekStart: currentMonday() }))).body.data;
+      const [member] = await TestDatabase.prisma.classMember.findMany({ where: { classId: classA.id }, select: { userId: true } });
+      const studentId = member.userId;
+      const submit = (data: { challengeId: string | null; status: 'COMPLETED' | 'REJECTED'; accuracy: number | null }) =>
+        TestDatabase.prisma.submission.create({ data: { studentId, pieceId: readyPiece.id, ...data } });
+      await submit({ challengeId: published.id, status: 'COMPLETED', accuracy: 92 });
+      await submit({ challengeId: published.id, status: 'REJECTED', accuracy: null });
+      await submit({ challengeId: null, status: 'COMPLETED', accuracy: 99 });
+
+      const detail = await request(app).get(`${base}/${published.id}/detail`).set('Authorization', token);
+      expect(detail.status).toBe(200);
+      expect(detail.body.data.practiceStats).toMatchObject({ totalPractices: 1, practicedStudents: 1, memberCount: 1 });
+      expect(detail.body.data.students).toEqual([
+        expect.objectContaining({ studentId, classId: classA.id, submissionCount: 1, bestAccuracy: 92 })
+      ]);
+      expect(detail.body.data.byClass).toEqual([expect.objectContaining({ classId: classA.id, practicedStudents: 1, memberCount: 1 })]);
+      expect(detail.body.data.media.sheet).not.toBeNull();
+
+      const attempts = await request(app).get(`${base}/${published.id}/students/${studentId}/submissions`).set('Authorization', token);
+      expect(attempts.status).toBe(200);
+      expect(attempts.body.data.canComment).toBe(false);
+      expect(attempts.body.data.submissions.map((item: { attemptNumber: number; status: string }) => [item.attemptNumber, item.status])).toEqual([[2, 'REJECTED'], [1, 'COMPLETED']]);
+    });
+
+    it('hides another lecturer challenge and unknown students with 404', async () => {
+      const draft = (await post({ title: 'Của tôi' })).body.data;
+      const other = TestDatabase.tokenFor(await TestDatabase.createLecturer());
+      expect((await request(app).get(`${base}/${draft.id}/detail`).set('Authorization', other)).status).toBe(404);
+      const stranger = await TestDatabase.createUser();
+      expect((await request(app).get(`${base}/${draft.id}/students/${stranger.id}/submissions`).set('Authorization', token)).status).toBe(404);
+      const empty = await request(app).get(`${base}/${draft.id}/detail`).set('Authorization', token);
+      expect(empty.body.data).toMatchObject({ students: [], byClass: [], media: null, practiceStats: { totalPractices: 0, memberCount: 0 } });
+    });
+  });
+
   describe('list and helpers', () => {
     it('returns an empty list', async () => {
       const response = await request(app).get(base).set('Authorization', token);
