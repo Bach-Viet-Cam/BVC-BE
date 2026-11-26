@@ -63,6 +63,44 @@ export default class ChallengeQueryService {
     };
   }
 
+  // A student sees only published challenges of a class they are in; anything else answers 404
+  static async getForStudent(studentId: string, challengeId: string): Promise<Backend.StudentChallengeDTO> {
+    const record = await ChallengeRepository.findById(challengeId);
+    if (!record || record.status !== 'PUBLISHED' || !(await ChallengeRepository.isStudentInChallenge(challengeId, studentId))) {
+      throw AppError.notFound(ChallengeConstant.messages.CHALLENGE_NOT_FOUND);
+    }
+    const [settings, snapshots] = await Promise.all([
+      GradingSettingsService.getGradingSettings(),
+      ChallengeRepository.findStudentSnapshots(challengeId, studentId)
+    ]);
+    return ChallengeQueryService.toStudentDTO(record, snapshots, settings.minAccuracy, new Date());
+  }
+
+  static async listForStudent(studentId: string, query: Backend.ChallengeListQuery): Promise<{ items: Backend.StudentChallengeDTO[]; pagination: Backend.PaginationMeta }> {
+    const { records, total } = await ChallengeRepository.findByStudent(studentId, query);
+    const [settings, snapshotsByChallenge] = await Promise.all([
+      GradingSettingsService.getGradingSettings(),
+      records.length > 0 ? ChallengeRepository.findStudentSnapshotsByChallenge(records.map((record) => record.id), studentId) : Promise.resolve(new Map<string, Backend.SubmissionSnapshot[]>())
+    ]);
+    const now = new Date();
+    const items = records.map((record) => ChallengeQueryService.toStudentDTO(record, snapshotsByChallenge.get(record.id) ?? [], settings.minAccuracy, now));
+    return { items, pagination: { page: query.page, limit: query.limit, total } };
+  }
+
+  private static toStudentDTO(record: Backend.ChallengeRecord, snapshots: Backend.SubmissionSnapshot[], defaultMinAccuracy: number, now: Date): Backend.StudentChallengeDTO {
+    const effectiveMinAccuracy = record.minAccuracy ?? defaultMinAccuracy;
+    const summary = AssignmentProgressCalculator.summarize(snapshots, effectiveMinAccuracy);
+    const dto = ChallengeDTO.toDTO(record, now);
+    return {
+      ...dto,
+      sheetMusicId: record.sheetMusicId,
+      effectiveMinAccuracy,
+      usedSubmissions: summary.submissionCount,
+      bestAccuracy: summary.bestAccuracy,
+      canPractice: dto.displayStatus === 'ACTIVE' && record.sheetMusicId !== null && summary.submissionCount < record.maxSubmissions
+    };
+  }
+
   static async getStudentSubmissions(lecturerId: string, challengeId: string, studentId: string): Promise<Backend.StudentSubmissionsDTO> {
     const record = await ChallengeAccessService.assertOwnedChallenge(challengeId, lecturerId);
     const classIds = record.classes.map(({ class: classRecord }) => classRecord.id);

@@ -101,6 +101,15 @@ declare namespace Backend {
     media: AssignmentMediaDTO | null;
   }
 
+  // Student view: the challenge plus what the student needs to practise it and their own progress
+  interface StudentChallengeDTO extends ChallengeDTO {
+    sheetMusicId: string | null;
+    effectiveMinAccuracy: number;
+    usedSubmissions: number;
+    bestAccuracy: number | null;
+    canPractice: boolean;
+  }
+
   interface ChallengePieceDTO { id: string; title: string; composer: string | null; kind: string; bpm: number; }
   interface ChallengeFormMeta { defaultMinAccuracy: number; maxSubmissionsDefault: number; }
 }

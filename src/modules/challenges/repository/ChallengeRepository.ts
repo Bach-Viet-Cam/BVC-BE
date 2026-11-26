@@ -134,6 +134,53 @@ export default class ChallengeRepository {
     return byStudent;
   }
 
+  static async isStudentInChallenge(challengeId: string, studentId: string): Promise<boolean> {
+    const count = await ChallengeRepository.client.challengeClass.count({
+      where: { challengeId, class: { status: { not: 'ENDED' }, members: { some: { userId: studentId, ...ClassModel.activeMemberFilter } } } }
+    });
+    return count > 0;
+  }
+
+  static async findByStudent(studentId: string, query: Backend.ChallengeListQuery): Promise<{ records: Backend.ChallengeRecord[]; total: number }> {
+    const where: Prisma.ChallengeWhereInput = {
+      status: 'PUBLISHED',
+      classes: { some: { class: { status: { not: 'ENDED' }, members: { some: { userId: studentId, ...ClassModel.activeMemberFilter } } } } }
+    };
+    const [records, total] = await ChallengeRepository.client.$transaction([
+      ChallengeRepository.client.challenge.findMany({
+        where,
+        select: ChallengeModel.challengeSelect,
+        orderBy: [{ startsAt: 'desc' }, { id: 'asc' }],
+        skip: (query.page - 1) * query.limit,
+        take: query.limit
+      }),
+      ChallengeRepository.client.challenge.count({ where })
+    ]);
+    return { records: records as Backend.ChallengeRecord[], total };
+  }
+
+  static async findStudentSnapshotsByChallenge(challengeIds: string[], studentId: string): Promise<Map<string, Backend.SubmissionSnapshot[]>> {
+    const rows = await ChallengeRepository.client.submission.findMany({
+      where: { challengeId: { in: challengeIds }, studentId },
+      select: { challengeId: true, status: true, accuracy: true, createdAt: true }
+    });
+    const byChallenge = new Map<string, Backend.SubmissionSnapshot[]>();
+    for (const row of rows) {
+      const snapshots = byChallenge.get(row.challengeId as string) ?? [];
+      snapshots.push({ status: row.status, accuracy: row.accuracy, submittedAt: row.createdAt });
+      byChallenge.set(row.challengeId as string, snapshots);
+    }
+    return byChallenge;
+  }
+
+  static async findStudentSnapshots(challengeId: string, studentId: string): Promise<Backend.SubmissionSnapshot[]> {
+    const rows = await ChallengeRepository.client.submission.findMany({
+      where: { challengeId, studentId },
+      select: { status: true, accuracy: true, createdAt: true }
+    });
+    return rows.map((row) => ({ status: row.status, accuracy: row.accuracy, submittedAt: row.createdAt }));
+  }
+
   static async findStudentSubmissions(challengeId: string, studentId: string): Promise<Array<Omit<Backend.StudentSubmissionDTO, 'attemptNumber' | 'submittedAt' | 'comment'> & { submittedAt: Date }>> {
     const rows = await ChallengeRepository.client.submission.findMany({
       where: { challengeId, studentId },

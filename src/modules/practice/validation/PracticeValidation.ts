@@ -21,6 +21,7 @@ export default class PracticeValidation {
     body: z.object({
       sheetMusicId: recordId,
       assignmentId: recordId.optional(),
+      challengeId: z.uuid().optional(),
       studentUploadId: z.uuid(),
       shareAfterVerification: z.boolean().optional(),
       practiceMode: z.enum(['SOLO', 'ENSEMBLE']).optional()
