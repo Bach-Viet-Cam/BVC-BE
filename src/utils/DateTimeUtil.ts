@@ -41,7 +41,8 @@ export default class DateTimeUtil {
 
   static isValidIsoDate(isoDate: string): boolean {
     if (!DateTimeUtil.isoDatePattern.test(isoDate)) return false;
-    return DateTimeUtil.toIsoDate(DateTimeUtil.toDateOnly(isoDate)) === isoDate;
+    const date = DateTimeUtil.toDateOnly(isoDate);
+    return !Number.isNaN(date.getTime()) && DateTimeUtil.toIsoDate(date) === isoDate;
   }
 
   static toDateOnly(isoDate: string): Date {
