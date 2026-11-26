@@ -7,6 +7,7 @@ import PracticeSubmissionDTO from '../dto/PracticeSubmissionDTO.ts';
 import PracticeSubmissionRepository from '../repository/PracticeSubmissionRepository.ts';
 import EvaluationJobBuilderService from './EvaluationJobBuilderService.ts';
 import PracticeAssignmentResolver from './PracticeAssignmentResolver.ts';
+import PracticeChallengeResolver from './PracticeChallengeResolver.ts';
 import SubmissionProgressService from './SubmissionProgressService.ts';
 
 const { messages, errorCodes } = PracticeConstant;
@@ -42,10 +43,13 @@ export default class PracticeSubmissionService {
     if (!upload) throw AppError.badRequest(messages.UPLOAD_INVALID);
     const sheet = await this.findTemplate(input);
     const practiceMode = input.practiceMode ?? 'SOLO';
-    const link = await this.findAssignmentLink(studentId, sheet, input.assignmentId, practiceMode);
+    const [link, challengeId] = await Promise.all([
+      this.findAssignmentLink(studentId, sheet, input.assignmentId, practiceMode),
+      this.findChallengeLink(studentId, sheet, practiceMode)
+    ]);
 
     const { submission, busyId } = await this.repository.createIfIdle({
-      studentId, pieceId: sheet.pieceId, sheetMusicId: sheet.id, assignmentId: link?.assignmentId ?? null, assignmentVersionId: link?.assignmentVersionId ?? null,
+      studentId, pieceId: sheet.pieceId, sheetMusicId: sheet.id, assignmentId: link?.assignmentId ?? null, assignmentVersionId: link?.assignmentVersionId ?? null, challengeId,
       studentUploadId: upload.id, fileUrl: upload.url, evaluationId: randomUUID(), messageId: randomUUID(), practiceMode,
       ...(input.shareAfterVerification ? { shareConsent: true, consentUpdatedAt: this.now() } : {})
     }, this.now());
@@ -123,6 +127,13 @@ export default class PracticeSubmissionService {
     const resolved = PracticeAssignmentResolver.resolve(sheet, enrollment, this.now(), hintAssignmentId, mode);
     if (!resolved || resolved.state !== 'OPEN') return null;
     return { assignmentId: resolved.candidate.id, assignmentVersionId: resolved.candidate.currentVersionId };
+  }
+
+  // A send also counts toward a running weekly challenge on the same sheet; it may count for an assignment as well
+  private async findChallengeLink(studentId: string, sheet: Practice.SheetTemplate, mode: Practice.PracticeMode): Promise<string | null> {
+    if (mode !== 'SOLO') return null;
+    const candidates = await this.repository.findOpenChallenges(studentId, sheet.id, this.now());
+    return PracticeChallengeResolver.pickChallengeId(candidates, mode);
   }
 
   // The student may submit to any instrument's sheet of the piece; its reference recording is the template

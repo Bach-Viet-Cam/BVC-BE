@@ -20,6 +20,8 @@ export default class ChallengeRoute {
     // Static paths are registered before '/:id' so they are not read as a challenge id.
     challengeRouter.get('/form-meta', validateRequest(ChallengeValidation.emptySchema), wrap(ChallengeController.getFormMeta));
     challengeRouter.get('/pieces', validateRequest(ChallengeValidation.piecesSchema), wrap(ChallengeController.listPieces));
+    challengeRouter.get('/:id/detail', validateRequest(ChallengeValidation.idSchema), wrap(ChallengeController.getChallengeDetail));
+    challengeRouter.get('/:id/students/:studentId/submissions', validateRequest(ChallengeValidation.studentSchema), wrap(ChallengeController.getStudentSubmissions));
     challengeRouter.get('/:id', validateRequest(ChallengeValidation.idSchema), wrap(ChallengeController.getChallenge));
     challengeRouter.post('/', validateRequest(ChallengeValidation.createSchema), wrap(ChallengeController.createChallenge));
     challengeRouter.patch('/:id', validateRequest(ChallengeValidation.updateSchema), wrap(ChallengeController.updateChallenge));
