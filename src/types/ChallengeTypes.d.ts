@@ -110,6 +110,20 @@ declare namespace Backend {
     canPractice: boolean;
   }
 
+  // Detail adds the final standing once the challenge has ended
+  interface StudentChallengeDetailDTO extends StudentChallengeDTO {
+    rank: number | null;
+    participants: number;
+  }
+
+  interface StudentChallengeSubmissionDTO {
+    id: string;
+    attemptNumber: number;
+    status: SubmissionStatus;
+    accuracy: number | null;
+    submittedAt: string;
+  }
+
   interface ChallengePieceDTO { id: string; title: string; composer: string | null; kind: string; bpm: number; }
   interface ChallengeFormMeta { defaultMinAccuracy: number; maxSubmissionsDefault: number; }
 }

@@ -33,6 +33,7 @@ export default class ChallengeRoute {
     const studentRouter = express.Router();
     studentRouter.use(wrap(requireAuthenticatedUser), requireRoles(AuthConstant.roles.STUDENT));
     studentRouter.get('/', validateRequest(ChallengeValidation.listSchema), wrap(ChallengeController.listStudentChallenges));
+    studentRouter.get('/:id/submissions', validateRequest(ChallengeValidation.idSchema), wrap(ChallengeController.listStudentChallengeSubmissions));
     studentRouter.get('/:id', validateRequest(ChallengeValidation.idSchema), wrap(ChallengeController.getStudentChallenge));
     router.use('/student/challenges', studentRouter);
   }

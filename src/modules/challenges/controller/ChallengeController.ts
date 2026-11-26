@@ -83,6 +83,11 @@ export default class ChallengeController {
     return ApiResponse.sendSuccessResponse(response, { data: await ChallengeQueryService.listForStudent(ChallengeController.getLecturerId(request), query) });
   }
 
+  static async listStudentChallengeSubmissions(request: Request, response: Response): Promise<Response> {
+    const { params } = ChallengeController.getValidated<unknown, { id: string }>(request);
+    return ApiResponse.sendSuccessResponse(response, { data: await ChallengeQueryService.listStudentSubmissionsOf(ChallengeController.getLecturerId(request), params.id) });
+  }
+
   static async getStudentChallenge(request: Request, response: Response): Promise<Response> {
     const { params } = ChallengeController.getValidated<unknown, { id: string }>(request);
     return ApiResponse.sendSuccessResponse(response, { data: await ChallengeQueryService.getForStudent(ChallengeController.getLecturerId(request), params.id) });

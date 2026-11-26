@@ -68,6 +68,7 @@ export default class PracticeConstant {
   static readonly messages = Object.freeze({
     SENT: 'Đã gửi bản thu. Hệ thống đang xử lý.', // MSG-18
     RETRYING: 'Đang xử lý lại bản thu...', // MSG-24
+    CHALLENGE_UNAVAILABLE: 'Không thể nộp bài thử thách vì thử thách đã kết thúc, chưa bắt đầu hoặc bạn đã hết lượt nộp.', // GBR-58
     BUSY: 'Bản nộp trước đang được xử lý. Vui lòng đợi hoàn tất rồi nộp bản mới.', // GBR-49
     SUBMISSION_NOT_FOUND: 'Không tìm thấy bản nộp.',
     UPLOAD_INVALID: 'File ghi âm không hợp lệ hoặc bạn không có quyền sử dụng file.',
