@@ -47,7 +47,7 @@ export default class AssignmentRepository {
 
   static async findPublishedForStudent(userId: string, classIds: string[]): Promise<AssignmentRow[]> {
     return AssignmentRepository.client.assignment.findMany({
-      where: { classId: { in: classIds }, isPublished: true },
+      where: { classId: { in: classIds }, isPublished: true, deletedAt: null },
       include: {
         class: { select: { id: true, name: true } },
         submissions: { where: { studentId: userId }, select: { status: true, accuracy: true } },

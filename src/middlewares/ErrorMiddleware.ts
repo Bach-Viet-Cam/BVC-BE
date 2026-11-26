@@ -9,7 +9,7 @@ const REQUEST_SECTIONS = new Set(['body', 'query', 'params']);
 function inferIssueCode(issue: ZodError['issues'][number]): Backend.MessageCode | undefined {
   if (issue.code === 'too_big') return issue.origin === 'string' ? 'MSG-37' : 'MSG-03';
   if (issue.code === 'too_small') return issue.origin === 'string' ? 'MSG-35' : 'MSG-03';
-  if (issue.code === 'invalid_type' && issue.input === undefined) return 'MSG-35';
+  if ((issue.code === 'invalid_type' || issue.code === 'invalid_value') && issue.input === undefined) return 'MSG-35';
   return undefined;
 }
 
