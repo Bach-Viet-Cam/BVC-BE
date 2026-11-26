@@ -64,16 +64,44 @@ export default class ChallengeQueryService {
   }
 
   // A student sees only published challenges of a class they are in; anything else answers 404
-  static async getForStudent(studentId: string, challengeId: string): Promise<Backend.StudentChallengeDTO> {
+  private static async assertStudentChallenge(studentId: string, challengeId: string): Promise<Backend.ChallengeRecord> {
     const record = await ChallengeRepository.findById(challengeId);
     if (!record || record.status !== 'PUBLISHED' || !(await ChallengeRepository.isStudentInChallenge(challengeId, studentId))) {
       throw AppError.notFound(ChallengeConstant.messages.CHALLENGE_NOT_FOUND);
     }
+    return record;
+  }
+
+  static async listStudentSubmissionsOf(studentId: string, challengeId: string): Promise<Backend.StudentChallengeSubmissionDTO[]> {
+    await ChallengeQueryService.assertStudentChallenge(studentId, challengeId);
+    const submissions = await ChallengeRepository.findStudentSubmissions(challengeId, studentId);
+    return submissions
+      .map((submission, index) => ({ id: submission.id, attemptNumber: index + 1, status: submission.status, accuracy: submission.accuracy, submittedAt: submission.submittedAt.toISOString() }))
+      .reverse();
+  }
+
+  static async getForStudent(studentId: string, challengeId: string): Promise<Backend.StudentChallengeDetailDTO> {
+    const record = await ChallengeQueryService.assertStudentChallenge(studentId, challengeId);
     const [settings, snapshots] = await Promise.all([
       GradingSettingsService.getGradingSettings(),
       ChallengeRepository.findStudentSnapshots(challengeId, studentId)
     ]);
-    return ChallengeQueryService.toStudentDTO(record, snapshots, settings.minAccuracy, new Date());
+    const dto = ChallengeQueryService.toStudentDTO(record, snapshots, settings.minAccuracy, new Date());
+    if (dto.displayStatus !== 'ENDED') return { ...dto, rank: null, participants: 0 };
+    return { ...dto, ...(await ChallengeQueryService.standing(challengeId, studentId, dto.effectiveMinAccuracy)) };
+  }
+
+  // Competition ranking by best accuracy: equal scores share a rank; a student with no scored send has none
+  private static async standing(challengeId: string, studentId: string, minAccuracy: number): Promise<{ rank: number | null; participants: number }> {
+    const byStudent = await ChallengeRepository.findSnapshotsByStudent(challengeId);
+    const best = new Map<string, number>();
+    for (const [id, snapshots] of byStudent) {
+      const score = AssignmentProgressCalculator.summarize(snapshots, minAccuracy).bestAccuracy;
+      if (score !== null) best.set(id, score);
+    }
+    const mine = best.get(studentId);
+    if (mine === undefined) return { rank: null, participants: best.size };
+    return { rank: 1 + [...best.values()].filter((score) => score > mine).length, participants: best.size };
   }
 
   static async listForStudent(studentId: string, query: Backend.ChallengeListQuery): Promise<{ items: Backend.StudentChallengeDTO[]; pagination: Backend.PaginationMeta }> {

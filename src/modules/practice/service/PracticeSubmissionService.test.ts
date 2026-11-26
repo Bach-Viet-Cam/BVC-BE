@@ -226,3 +226,14 @@ test('Không cho thử lại quá sớm, khi hết lượt hoặc khi bản nộ
   await assert.rejects(setup({ stored: failedRecord({ retryCount: 3 }) }).service.retry('student', 'sub-1'), hasStatus(409));
   await assert.rejects(setup({ stored: failedRecord({ status: 'COMPLETED' }) }).service.retry('student', 'sub-1'), hasStatus(409));
 });
+
+test('GBR-58: challengeId không còn hợp lệ thì từ chối với MSG-08 và không tạo bản nộp', async () => {
+  const used = setup({ challenges: [{ id: 'chl-1', maxSubmissions: 1, submissions: [{ status: 'COMPLETED' }] }] });
+  await assert.rejects(used.service.create('student', { ...input, challengeId: 'chl-1' }), { code: 'MSG-08' });
+  assert.equal(used.created.length, 0);
+  const closed = setup();
+  await assert.rejects(closed.service.create('student', { ...input, challengeId: 'chl-1' }), { code: 'MSG-08' });
+  const open = setup({ challenges: [{ id: 'chl-1', maxSubmissions: 3, submissions: [] }] });
+  await open.service.create('student', { ...input, challengeId: 'chl-1' });
+  assert.equal(open.created[0].challengeId, 'chl-1');
+});
