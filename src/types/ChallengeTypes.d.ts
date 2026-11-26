@@ -51,6 +51,7 @@ declare namespace Backend {
     status: ChallengeStatus;
     instrumentId: string | null;
     pieceId: string | null;
+    sheetMusicId: string | null;
     createdById: string;
     startsAt: Date | null;
     endsAt: Date | null;
@@ -83,6 +84,21 @@ declare namespace Backend {
     publishedAt: string | null;
     createdAt: string;
     updatedAt: string;
+  }
+
+  // One student of the challenge classes; a student in several of them is listed once, under the first class by name
+  interface ChallengeStudentDTO extends AssignmentStudentDTO {
+    classId: string;
+    className: string;
+  }
+
+  // Lecturer drawer: configuration plus progress of the counted submissions (Submission.challengeId)
+  interface ChallengeDetailDTO extends ChallengeDTO {
+    effectiveMinAccuracy: number;
+    students: ChallengeStudentDTO[];
+    practiceStats: PracticeStatsDTO;
+    byClass: ClassPracticeDTO[];
+    media: AssignmentMediaDTO | null;
   }
 
   interface ChallengePieceDTO { id: string; title: string; composer: string | null; kind: string; bpm: number; }

@@ -6,6 +6,7 @@ export default class ChallengeModel {
     status: true,
     instrumentId: true,
     pieceId: true,
+    sheetMusicId: true,
     createdById: true,
     startsAt: true,
     endsAt: true,

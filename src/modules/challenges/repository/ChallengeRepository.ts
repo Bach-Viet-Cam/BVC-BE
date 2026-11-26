@@ -119,6 +119,38 @@ export default class ChallengeRepository {
     });
   }
 
+  // Every submission counted toward the challenge at submit time, grouped per student (status decides what counts)
+  static async findSnapshotsByStudent(challengeId: string): Promise<Map<string, Backend.SubmissionSnapshot[]>> {
+    const rows = await ChallengeRepository.client.submission.findMany({
+      where: { challengeId },
+      select: { studentId: true, status: true, accuracy: true, createdAt: true }
+    });
+    const byStudent = new Map<string, Backend.SubmissionSnapshot[]>();
+    for (const row of rows) {
+      const snapshots = byStudent.get(row.studentId) ?? [];
+      snapshots.push({ status: row.status, accuracy: row.accuracy, submittedAt: row.createdAt });
+      byStudent.set(row.studentId, snapshots);
+    }
+    return byStudent;
+  }
+
+  static async findStudentSubmissions(challengeId: string, studentId: string): Promise<Array<Omit<Backend.StudentSubmissionDTO, 'attemptNumber' | 'submittedAt' | 'comment'> & { submittedAt: Date }>> {
+    const rows = await ChallengeRepository.client.submission.findMany({
+      where: { challengeId, studentId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, status: true, accuracy: true, tempoDeviation: true, fileUrl: true, createdAt: true }
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      version: 1,
+      status: row.status,
+      accuracy: row.accuracy,
+      tempoDeviation: row.tempoDeviation,
+      audioUrl: row.fileUrl ?? '',
+      submittedAt: row.createdAt
+    }));
+  }
+
   static async findReadyPieces(query: Backend.ChallengePieceQuery): Promise<Backend.ChallengePieceDTO[]> {
     return ChallengeRepository.client.piece.findMany({
       where: {

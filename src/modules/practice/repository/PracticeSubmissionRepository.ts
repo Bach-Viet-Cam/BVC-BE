@@ -74,6 +74,23 @@ export default class PracticeSubmissionRepository {
     });
   }
 
+  // Published, unpaused challenges on this sheet running at `now` for an active class the student is still in,
+  // each with the student's own submissions to it so the attempt limit can be checked
+  async findOpenChallenges(studentId: string, sheetMusicId: string, now: Date): Promise<Practice.ChallengeCandidate[]> {
+    return this.client.challenge.findMany({
+      where: {
+        sheetMusicId,
+        status: 'PUBLISHED',
+        pausedAt: null,
+        startsAt: { lte: now },
+        endsAt: { gte: now },
+        classes: { some: { class: { status: 'ACTIVE', members: { some: { userId: studentId, removedAt: null } } } } }
+      },
+      orderBy: [{ startsAt: 'asc' }, { id: 'asc' }],
+      select: { id: true, maxSubmissions: true, submissions: { where: { studentId }, select: { status: true } } }
+    });
+  }
+
   // GBR-49: the lock makes "no submission of this piece is processing" and the insert one atomic step
   async createIfIdle(data: Practice.SubmissionCreateData, now: Date): Promise<{ submission: Practice.SubmissionRecord | null; busyId: string | null }> {
     return this.client.$transaction(async (transaction) => {

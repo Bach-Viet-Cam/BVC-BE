@@ -51,6 +51,7 @@ declare namespace Practice {
     sheetMusicId: string;
     assignmentId: string | null;
     assignmentVersionId: string | null;
+    challengeId?: string | null;
     studentUploadId: string;
     fileUrl: string;
     evaluationId: string;
@@ -110,6 +111,13 @@ declare namespace Practice {
     targetBpm: number | null;
     currentVersionId: string | null;
     currentVersion: { kind: Backend.AssignmentKind } | null;
+    submissions: { status: SubmissionStatus }[];
+  }
+
+  // A published weekly challenge on this sheet that is running now for one of the student's classes
+  interface ChallengeCandidate {
+    id: string;
+    maxSubmissions: number;
     submissions: { status: SubmissionStatus }[];
   }
 

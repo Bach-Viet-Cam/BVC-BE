@@ -72,6 +72,8 @@ export default class ChallengeValidation {
     query: z.object({ page: z.coerce.number().int().min(1).default(1), limit: z.coerce.number().int().min(1).max(100).default(20) })
   });
 
+  static readonly studentSchema = z.object({ body: z.unknown(), params: z.object({ id: z.uuid(), studentId: z.uuid() }), query: emptyQuery });
+
   static readonly emptySchema = z.object({ body: z.unknown(), params: z.object({}), query: emptyQuery });
 
   static readonly piecesSchema = z.object({
